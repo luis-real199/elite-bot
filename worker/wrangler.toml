@@ -1,0 +1,15 @@
+name = "nestia-api"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+[vars]
+SITE_URL = "https://nestia.example"          # the shop's own address (change)
+ALLOWED_ORIGIN = "https://nestia.example"    # same origin, for CORS
+SHIP_FEE = "3.90"
+FREE_SHIP_OVER = "39"
+EXPRESS_FEE = "6.90"
+
+# Optional order store for /api/track: create with `wrangler kv namespace create ORDERS` and paste the id.
+# [[kv_namespaces]]
+# binding = "ORDERS"
+# id = "..."

@@ -1786,6 +1786,18 @@ renderStatic(); paintChips(); paintHero(); loadCart(); paint(); renderCart();
 const h = location.hash.replace('#', '');
 if (h && byId(h)) openPDP(h);
 addEventListener('hashchange', () => { const id = location.hash.slice(1); if (byId(id) && pdpId !== id) openPDP(id); });
+/* Back from the card payment page (server mode): thank the customer and empty the cart. */
+try {
+  const q = new URLSearchParams(location.search), paid = q.get('paid');
+  if (paid || q.get('cancelled')){
+    if (paid){ cart = {}; renderCart(); }
+    $('#legal').innerHTML = `<div class="legalbox"><button class="icobtn legalclose" id="legalClose" aria-label="Close"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      <h2 id="legalTitle">${paid ? 'Thank you, payment received' : 'Payment cancelled'}</h2>
+      <p>${paid ? `Your order <b>${esc(paid)}</b> is paid. The receipt is in your email. It leaves the warehouse within ${STORE.dispatchDays} working days and you get the tracking number at dispatch.` : 'Nothing was charged. Your cart is still here whenever you are ready.'}</p></div>`;
+    setLayer($('#legal'), true, '#legalClose'); $('#legalClose').onclick = closeLegal;
+    history.replaceState(null, '', location.pathname);
+  }
+} catch (e) {}
 boot();
 </script>
 </body>

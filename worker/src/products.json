@@ -1,0 +1,82 @@
+{
+ "blanket": {
+  "name": "Hooded Wearable Blanket",
+  "price": 53.99,
+  "supplier": "https://www.aliexpress.com/item/1005006843088332.html"
+ },
+ "throwb": {
+  "name": "Electric Heating Pad",
+  "price": 64.99,
+  "supplier": "https://www.aliexpress.com/item/1005009880928888.html"
+ },
+ "projector": {
+  "name": "Sunset Projector Lamp",
+  "price": 22.99,
+  "supplier": "https://www.aliexpress.com/item/1005009460626162.html"
+ },
+ "humid": {
+  "name": "Aroma Humidifier 300 ml",
+  "price": 18.99,
+  "supplier": "https://www.aliexpress.com/item/1005007527811142.html"
+ },
+ "chopper": {
+  "name": "12-in-1 Vegetable Chopper",
+  "price": 25.99,
+  "supplier": "https://www.aliexpress.com/item/1005005863807837.html"
+ },
+ "grinder": {
+  "name": "Electric Garlic Grinder",
+  "price": 44.99,
+  "supplier": "https://www.aliexpress.com/item/1005010399019919.html"
+ },
+ "blender": {
+  "name": "Portable Blender",
+  "price": 29.99,
+  "supplier": "https://www.aliexpress.com/item/1005009384139844.html"
+ },
+ "petvac": {
+  "name": "Pet Hair Vacuum Brush",
+  "price": 15.99,
+  "supplier": "https://www.aliexpress.com/item/1005006722085506.html"
+ },
+ "fountain": {
+  "name": "Cat Water Fountain 2.5 L",
+  "price": 40.99,
+  "supplier": "https://www.aliexpress.com/item/1005007857255180.html"
+ },
+ "hammock": {
+  "name": "Car Back Seat Hammock",
+  "price": 56.99,
+  "supplier": "https://www.aliexpress.com/item/1005006860985075.html"
+ },
+ "bowl": {
+  "name": "Slow Feeder Dog Bowl",
+  "price": 15.99,
+  "supplier": "https://www.aliexpress.com/item/1005007170731871.html"
+ },
+ "gun": {
+  "name": "Mini Massage Gun",
+  "price": 86.99,
+  "supplier": "https://www.aliexpress.com/item/1005008744576555.html"
+ },
+ "neck": {
+  "name": "Heated Neck Massager",
+  "price": 113.99,
+  "supplier": "https://www.aliexpress.com/item/1005010439451124.html"
+ },
+ "posture": {
+  "name": "Posture Support Brace",
+  "price": 25.99,
+  "supplier": "https://www.aliexpress.com/item/1005007791986480.html"
+ },
+ "roller": {
+  "name": "Cooling Face Roller",
+  "price": 12.99,
+  "supplier": "https://www.aliexpress.com/item/1005007484134240.html"
+ },
+ "mount": {
+  "name": "Magnetic Car Mount",
+  "price": 10.99,
+  "supplier": "https://www.aliexpress.com/item/1005006994627477.html"
+ }
+}
