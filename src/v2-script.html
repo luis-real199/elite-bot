@@ -648,7 +648,7 @@ function renderDone(){
   const pp = STORE.payment.paypalMe ? `https://paypal.me/${encodeURIComponent(STORE.payment.paypalMe)}/${o.amount.toFixed(2)}EUR` : '';
   const box = $('#coDone');
   box.innerHTML = `<div class="done">
-    <h3 id="doneTitle" tabindex="-1">Order ${esc(o.ref)} is prepared</h3>
+    <h3 id="doneTitle" tabindex="-1">Order <span style="white-space:nowrap">${esc(o.ref)}</span> is prepared</h3>
     <div class="note good" role="status"><b>It has not reached us yet.</b> 1) Send it to us by ${channels()}. 2) Pay ${eur(o.amount)}. We confirm in writing within 24 hours on working days and pass the order to the supplier once payment arrives. Until you send it, nothing is ordered and nothing is charged.</div>
     <div class="ref"><span>${esc(o.ref)}</span><button class="sbtn" type="button" id="copyRef">Copy number</button></div>
     <pre id="orderTxt"></pre>
@@ -870,7 +870,7 @@ function chatQuick(show){ $('#chatquick').innerHTML = show ? QUICK.map(q => `<bu
 function openChat(){
   $('#chat').classList.add('on'); $('#chatBtn').setAttribute('aria-expanded', 'true');
   $('#chatDot').hidden = true;
-  if (!chatMsgs.length){ chatAdd('assistant', 'Hello! Ask me about delivery, returns or payment. For a specific order, use the contact details in the footer.'); chatQuick(true); }
+  if (!$('#chatlog').children.length){ chatAdd('assistant', 'Hello! Ask me about delivery, returns or payment. For a specific order, use the contact details in the footer.'); chatQuick(true); }
   $('#chatinput').focus();
 }
 function closeChat(){ $('#chat').classList.remove('on'); $('#chatBtn').setAttribute('aria-expanded', 'false'); $('#chatBtn').focus(); }
