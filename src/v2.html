@@ -768,7 +768,8 @@ const store = {
 /* ---- layers: one place that opens/closes overlays, locks scroll and moves focus ---- */
 const layers = [];
 const topLayer = () => layers[layers.length - 1];
-const visible = el => !!el && el.offsetParent !== null;
+const visible = el => !!el && el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden';
+const cartLabel = () => { const c = Object.values(cart).reduce((s, q) => s + Math.max(0, q), 0); return c ? `Open cart, ${c} item${c > 1 ? 's' : ''}` : 'Open cart'; };
 /* Everything outside the top layer is inert while a layer is open, so keyboard and screen-reader
    users cannot wander behind it. The chat stays usable on the product page only. */
 function applyInert(){
@@ -819,12 +820,12 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Tab'){
     const scope = chatHasFocus() ? $('#chat') : topLayer(); if (!scope) return;
     let f = [...scope.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')].filter(x => !x.disabled && visible(x));
-    if (scope === $('#pdp')) f = f.concat([$('#chatBtn')].filter(visible));
+    if (scope === $('#pdp')) f = f.concat([$('#stickyAdd'), $('#chatBtn')].filter(x => visible(x) && !x.inert));
     if (!f.length) return;
-    const first = f[0], last = f[f.length - 1];
-    if (!scope.contains(document.activeElement)){ e.preventDefault(); (e.shiftKey ? last : first).focus(); return; }
-    if (e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
-    else if (!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+    const first = f[0], last = f[f.length - 1], idx = f.indexOf(document.activeElement);
+    if (idx < 0){ e.preventDefault(); (e.shiftKey ? last : first).focus(); return; }
+    if (e.shiftKey && idx === 0){ e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && idx === f.length - 1){ e.preventDefault(); first.focus(); }
   }
 });
 
@@ -950,7 +951,7 @@ function renderPDP(){
   <div class="pdpbar">
     <button class="icobtn" id="pdpBack" aria-label="Back to products"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button>
     <div class="logo"><i></i>${esc(STORE.name)}</div>
-    <button class="icobtn" id="pdpCart" aria-label="Open cart"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></button>
+    <button class="icobtn" id="pdpCart" aria-label="${cartLabel()}"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></button>
   </div>
   <div class="pdpwrap">
     <div class="pdpgal">
@@ -1069,9 +1070,8 @@ function renderCart(){
   const dot = $('#cartDot');
   const grew = count > Number(dot.textContent || 0);
   dot.hidden = !count; dot.textContent = count;
-  const cartLabel = count ? `Open cart, ${count} item${count > 1 ? 's' : ''}` : 'Open cart';
-  $('#cartBtn').setAttribute('aria-label', cartLabel);
-  if ($('#pdpCart')) $('#pdpCart').setAttribute('aria-label', cartLabel);
+  $('#cartBtn').setAttribute('aria-label', cartLabel());
+  if ($('#pdpCart')) $('#pdpCart').setAttribute('aria-label', cartLabel());
   if (grew && motionOK){ dot.classList.add('pop'); setTimeout(() => dot.classList.remove('pop'), 220); }
   $('#ditems').innerHTML = ids.length ? ids.map(k => {
     const p = byId(pidOf(k)), v = varOf(k), d = tierDisc(cart[k]);
@@ -1118,7 +1118,17 @@ function totals(){
 function openCheckout(){
   if (!cartLines().length) return;
   openCart(false);
-  if (!orderDone){ const last = store.get('nestia-last-order'); if (last && last.sig === cartSig()) orderDone = last; }
+  if (!orderDone){
+    const last = store.get('nestia-last-order');
+    if (last && !last.edited && last.sig === cartSig()){
+      orderDone = last;
+      if (!formVals['f-email']){       // page was reloaded: put the order's details back into the form
+        const [first, ...rest] = (last.name || '').split(' ');
+        formVals = {'f-email': last.email, 'f-first': first || '', 'f-last': rest.join(' '), 'f-addr': last.address.line1, 'f-city': last.address.city, 'f-zip': last.address.postcode, 'f-country': last.address.country, 'f-phone': last.phone, 'f-note': last.note || ''};
+        shipPick = last.shipping || 'standard';
+      }
+    }
+  }
   if (orderDone && orderDone.sig !== cartSig()) orderDone = null;
   renderCheckout();
   $('#stickybuy').classList.remove('show');
@@ -1240,7 +1250,7 @@ async function pay(){
     const last = store.get('nestia-last-order');
     if (last && last.sig === order.sig && last.email === order.email) order.ref = last.ref;   // same cart, same person: keep one order number
     orderDone = order; store.set('nestia-last-order', order);
-    renderDone();
+    renderCheckout();                 // re-renders the form locked, then the order panel
     return;
   }
   btn.textContent = 'Opening secure payment...';
@@ -1281,7 +1291,10 @@ function renderDone(){
   $('#orderTxt').textContent = txt;
   $('#copyRef').onclick = e => copyText(o.ref, e.currentTarget);
   $('#copyOrder').onclick = e => copyText(txt, e.currentTarget);
-  $('#editOrder').onclick = () => { orderDone = null; renderCheckout(); $('#co').scrollTop = 0; };
+  $('#editOrder').onclick = () => {
+    const last = store.get('nestia-last-order'); if (last) store.set('nestia-last-order', {...last, edited: true});
+    orderDone = null; renderCheckout(); $('#co').scrollTop = 0;
+  };
   if ($('#copyMail')) $('#copyMail').onclick = e => copyText(STORE.email, e.currentTarget);
   $('#payBtn').hidden = true; $('#co .secure').hidden = true;
   box.scrollIntoView({behavior: motionOK ? 'smooth' : 'auto', block:'start'});
@@ -1763,5 +1776,6 @@ async function boot(){
 renderStatic(); paintChips(); paintHero(); loadCart(); paint(); renderCart();
 const h = location.hash.replace('#', '');
 if (h && byId(h)) openPDP(h);
+addEventListener('hashchange', () => { const id = location.hash.slice(1); if (byId(id) && pdpId !== id) openPDP(id); });
 boot();
 </script>
