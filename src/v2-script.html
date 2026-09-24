@@ -1,0 +1,1115 @@
+<script>
+/* =====================================================================
+   STORE SETTINGS - the one block to edit before you take orders.
+   Everything the shop shows (policies, footer, checkout, chat) reads
+   from here, so a change made once shows up everywhere.
+   ===================================================================== */
+const STORE = {
+  name: 'Nestia',
+  siteUrl: 'https://claude.ai/artifact/5a1yyni8osm8XztdyPUJcX',
+  imageBase: 'https://claude.ai/artifact/5a1yyni8osm8XztdyPUJcX/',   // public URL prefix for the img/ folder (used in product feeds); change when you host the shop on your own domain
+  email: '',                    // support email shown on Contact and used for orders, e.g. 'hello@nestia.gr'
+  phone: '',                    // phone shown on the Terms and Contact pages, e.g. '+30 69 1234 5678'
+  whatsapp: '',                 // digits with country code, no + or spaces, e.g. '306912345678'
+  company: '', address: '', vat: '', gemi: '',   // legal identity shown on Terms (required for a Greek shop)
+  returnAddress: '',            // where customers post returns (in Greece); '' = same as address
+  currency: 'EUR',
+  shipFee: 3.90, freeShipOver: 39, expressFee: 6.90,
+  eta: [8, 13], expressEta: [5, 8], dispatchDays: 3, returnDays: 30,
+  showComparePrice: false,      // strike-through "was" prices: only turn on if that was YOUR price for the previous 30 days (EU rule)
+  payment: {
+    apiBase: '',                // your own checkout server (Stripe/PayPal hosted page), e.g. 'https://shop-api.example.com'
+    paypalMe: '',               // PayPal.me handle, e.g. 'nestia' -> https://paypal.me/nestia/53.99EUR
+    stripeLink: '',             // a Stripe Payment Link that lets the customer enter the amount
+    iban: ''                    // bank transfer, e.g. 'GR16 0110 1250 0000 0001 2300 695 (Nestia)'
+  },
+  social: { instagram: '', tiktok: '', facebook: '', pinterest: '' }   // full profile URLs
+};
+
+/* ---- products: id = cart/feed key, ali = supplier listing, img = photo set (img/<id>-1..4.webp) ---- */
+let P = [
+  {id:'blanket', ali:'1005006843088332', img:'img/blanket', cat:'Home & Comfort', n:'Hooded Wearable Blanket', d:'Sherpa-lined, full length, deep front pocket', cost:15.44, price:53.99, was:85, top:1},
+  {id:'throwb', ali:'1005009880928888', img:'img/throwb', cat:'Wellness', n:'Electric Heating Pad', d:'30x60 cm, warms through in minutes', cost:18.53, price:64.99, was:100},
+  {id:'projector', ali:'1005009460626162', img:'img/projector', cat:'Home & Comfort', n:'Sunset Projector Lamp', d:'16 colours, 360° rotation, remote included', cost:6.51, price:22.99, was:35, top:1},
+  {id:'humid', ali:'1005007527811142', img:'img/humid', cat:'Home & Comfort', n:'Aroma Humidifier 300 ml', d:'Whisper-quiet, colour-changing LED', cost:5.47, price:18.99, was:30},
+  {id:'chopper', ali:'1005005863807837', img:'img/chopper', cat:'Kitchen', n:'12-in-1 Vegetable Chopper', d:'Stainless blades, catch container included', cost:7.44, price:25.99, was:40, top:1},
+  {id:'grinder', ali:'1005010399019919', img:'img/grinder', cat:'Kitchen', n:'Electric Garlic Grinder', d:'USB-C rechargeable, bowl is dishwasher safe', cost:12.87, price:44.99, was:70},
+  {id:'blender', ali:'1005009384139844', img:'img/blender', cat:'Kitchen', n:'Portable Blender', d:'6 blades, USB charging, bottle doubles as cup', cost:8.60, price:29.99, was:45},
+  {id:'petvac', ali:'1005006722085506', img:'img/petvac', cat:'Pets', n:'Pet Hair Vacuum Brush', d:'Lifts fur off sofas, beds and clothes', cost:4.46, price:15.99, was:25, top:1},
+  {id:'fountain', ali:'1005007857255180', img:'img/fountain', cat:'Pets', n:'Cat Water Fountain 2.5 L', d:'Carbon filter, near-silent pump', cost:11.84, price:40.99, was:65},
+  {id:'hammock', ali:'1005006860985075', img:'img/hammock', cat:'Pets', n:'Car Back Seat Hammock', d:'Waterproof, non-slip, machine washable', cost:16.32, price:56.99, was:90},
+  {id:'bowl', ali:'1005007170731871', img:'img/bowl', cat:'Pets', n:'Slow Feeder Dog Bowl', d:'Makes fast eaters slow down', cost:4.47, price:15.99, was:25},
+  {id:'gun', ali:'1005008744576555', img:'img/gun', cat:'Wellness', n:'Mini Massage Gun', d:'4 heads, 6 speeds, travel case included', cost:24.72, price:86.99, was:135},
+  {id:'neck', ali:'1005010439451124', img:'img/neck', cat:'Wellness', n:'Heated Neck Massager', d:'Shiatsu nodes, 3 intensities, cordless', cost:32.51, price:113.99, was:175},
+  {id:'posture', ali:'1005007791986480', img:'img/posture', cat:'Wellness', n:'Posture Support Brace', d:'Adjustable, invisible under clothing', cost:7.48, price:25.99, was:40},
+  {id:'roller', ali:'1005007484134240', img:'img/roller', cat:'Wellness', n:'Cooling Face Roller', d:'Cool metal for tired eyes, keep it in the fridge', cost:3.69, price:12.99, was:20},
+  {id:'mount', ali:'1005006994627477', img:'img/mount', cat:'Gadgets', n:'Magnetic Car Mount', d:'MagSafe-compatible, firm vent grip', cost:3.07, price:10.99, was:20}
+];
+
+/* Product page copy. s: chips under the title, f: three spec tiles, b: benefit chips,
+   u: the add-on offered with it, d: description. Keep every claim true for the item you ship. */
+const ICO = {
+  leaf:'<path d="M11 20A7 7 0 0 1 4 13c0-6 5-9 15-10 0 9-4 15-8 17"/><path d="M4 21c1.5-5 5-9 9-11"/>',
+  bolt:'<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  shield:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/>',
+  wash:'<path d="M3 6h18M5 6v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6"/><circle cx="12" cy="13" r="3.5"/>',
+  ruler:'<path d="M3 8h18v8H3z"/><path d="M7 8v4M11 8v3M15 8v4M19 8v3"/>',
+  plug:'<path d="M9 2v6M15 2v6M6 8h12v4a6 6 0 0 1-12 0z"/><path d="M12 18v4"/>',
+  paw:'<circle cx="7" cy="9" r="2.2"/><circle cx="12" cy="6.5" r="2.2"/><circle cx="17" cy="9" r="2.2"/><path d="M12 12c3.5 0 6 2.5 6 5s-2.5 4-6 4-6-1.5-6-4 2.5-5 6-5"/>'
+};
+let DETAIL = {
+blanket:{s:['Two sizes','Machine washable'],f:[['leaf','Sherpa-lined','Brushed fleece outside'],['ruler','Two sizes','Adult fits up to 190 cm'],['wash','Machine wash','Tumble dry low']],b:['Traps body heat in seconds','Deep front pocket','No sleeves to fight with','Doubles as a throw'],u:'throwb',d:'A blanket you can walk around in. Sherpa on the inside, brushed fleece on the outside, cut long enough to cover your feet when you sit down. Two sizes, no buttons, no zips: you pull it over your head and that is the whole operation.'},
+throwb:{s:['30 × 60 cm','Auto shut-off'],f:[['bolt','6 heat levels','Warms in minutes'],['clock','Timer','Switches off after the time you set'],['wash','Washable pad','Controller detaches']],b:['Warms through in minutes','Uses a fraction of the power of a room heater','Controller detaches so the pad can be washed','Overheat protection built in'],u:'humid',d:'Cheaper to heat yourself than to heat the room. Six levels from barely-there to properly hot, a timer that switches it off after the time you set, and a controller that unclips so the pad can be washed.'},
+projector:{s:['USB powered','Remote control'],f:[['leaf','16 colours','Sunset to aurora'],['clock','Timer','1h / 2h / off'],['plug','USB powered','Any plug or laptop']],b:['Changes a room in one second','Brightness and timer on the remote','No fan; the rotating head is near-silent','Head rotates a full 360°'],u:'humid',d:'The light everyone films their room with. A rotating head throws a soft gradient across a wall or ceiling, sixteen colour modes from warm sunset to cold aurora, and a remote so you are not getting up to change it.'},
+humid:{s:['300 ml','USB-C'],f:[['leaf','300 ml tank','Up to 10 hours per fill'],['bolt','Near-silent','Fine on a bedside table'],['shield','Auto shut-off','Stops when empty']],b:['Runs up to ten hours on one fill','Colour-changing night light','Takes a few drops of water-soluble oil','Cuts out when the tank is dry'],u:'projector',d:'Small enough for a bedside table, quiet enough to forget it is on. Fill it, add two drops of a water-soluble oil, and it runs through the night, then shuts itself off rather than burning out when the water goes.'},
+chopper:{s:['12-in-1','Dishwasher safe'],f:[['bolt','12 attachments','Dice, slice, julienne'],['shield','Stainless blades','Stay sharp'],['wash','Dishwasher safe','Container and lid']],b:['Dices an onion in seconds','Catch container is built in','Non-slip base stays put','Blades store inside the body'],u:'grinder',d:'The reason people who hate cooking start cooking. Twelve blade inserts click into one frame, the container underneath catches everything, and the container and lid go in the dishwasher. No crying over onions, no chasing diced pepper across the board.'},
+grinder:{s:['USB-C','Cordless'],f:[['plug','USB-C charge','Cordless'],['bolt','Seconds','Minced, not crushed'],['wash','Bowl detaches','Dishwasher-safe bowl']],b:['Minced garlic in seconds','No garlic smell on your hands','Works for ginger and chilli too','Charges over USB-C'],u:'chopper',d:'Press once, count to six, done. It minces rather than crushes, so you get proper pieces instead of paste, and because your hands never touch the cloves they do not smell of garlic for the rest of the evening.'},
+blender:{s:['Two sizes','Cordless'],f:[['bolt','6 blades','Soft and semi-frozen fruit'],['plug','USB charging','Blend anywhere'],['ruler','Fits cup holders','400 or 600 ml bottle']],b:['Blend and drink from the same bottle','Charges over USB','Handles soft and semi-frozen fruit','Fits a car cup holder'],u:'grinder',d:'A blender that is also the bottle. Six blades take berries, banana and semi-frozen fruit (let frozen fruit thaw a few minutes first), it charges over USB, and when you are done you screw on the lid and take it with you. Nothing to pour, nothing extra to wash.'},
+petvac:{s:['Washable canister','Rubber bristles'],f:[['paw','Rubber bristles','Gentle on fabric'],['wash','Washable canister','Empties clean'],['ruler','Compact','Fits a drawer']],b:['Lifts embedded fur, not just surface hair','Gentle on upholstery and car seats','Empty it without touching the fur','Works on clothes and bedding'],u:'bowl',d:'Rubber bristles pull fur up out of the weave instead of skating over it, the part a normal vacuum misses. The canister pops off and tips straight into the bin, so you are never picking wet fur off a roller with your fingers.'},
+fountain:{s:['2.5 L','Carbon filter'],f:[['leaf','2.5 L tank','About a week per fill for one cat'],['bolt','Quiet pump','Fine in a bedroom'],['shield','Carbon filter','Catches hair and debris']],b:['Many cats drink more from moving water','Filter catches hair and debris','Quiet through the night','About a week between refills'],u:'bowl',d:'Many cats prefer moving water and drink more from it. The 2.5-litre tank lasts about a week for one cat, the carbon filter catches hair and debris, and the pump is quiet enough to sit in a bedroom.'},
+hammock:{s:['Two sizes','Waterproof'],f:[['shield','Waterproof','Wipes clean'],['ruler','Two sizes','Standard, or XL for SUVs'],['wash','Machine washable','Folds flat']],b:['Helps keep your dog on the seat','Protects seats from mud and claws','Installs in under a minute','Folds into the boot when not in use'],u:'petvac',d:'Two headrest straps and you are done. It slings between the front and back seats to help keep your dog on the seat, and the waterproof face means a muddy walk stays off the upholstery. It is not a restraint: use a harness or seat-belt clip as well.'},
+bowl:{s:['Dishwasher safe','Non-slip'],f:[['ruler','Maze design','Makes fast eaters slow down'],['shield','Non-slip base','Stays put'],['wash','Dishwasher safe','Top rack']],b:['Makes fast eaters slow down','Less gulped air','Turns dinner into a puzzle','Non-slip base'],u:'fountain',d:'A raised maze in the base means your dog has to work food out of the channels instead of inhaling the bowl in twenty seconds. Slower eating means less gulped air, which is easier on the stomach.'},
+gun:{s:['6 speeds','Travel case'],f:[['bolt','6 speeds','Warm-up to deep'],['plug','USB-C charge','Hours per charge'],['ruler','4 heads','Ball, flat, fork, bullet']],b:['Reaches knots your hands cannot','Quiet enough to use at a desk','Hours on a single charge','Fits in a gym bag'],u:'neck',d:'Real percussion in something that fits one hand. Four interchangeable heads cover broad muscle and pinpoint knots, six speeds from warm-up to deep, and it is quiet enough that nobody in the next room asks what that noise is. Not a medical device: do not use on injuries, or if you are pregnant or have a pacemaker, without medical advice.'},
+neck:{s:['Cordless','Heated'],f:[['bolt','Shiatsu nodes','Both sides at once'],['clock','15 min timer','Auto shut-off'],['plug','Cordless','Wear while working']],b:['Kneads both sides of the neck at once','Heat loosens muscle before pressure','Fifteen-minute auto shut-off','Rests on the shoulders hands-free'],u:'gun',d:'It sits on your shoulders like a collar and works both sides of the neck at the same time. Heat comes on first to loosen the muscle, then the nodes start. Not a medical device: if you have a neck injury or a medical condition, ask a doctor first.'},
+posture:{s:['Two sizes','Unisex'],f:[['ruler','Two sizes','S/M and L/XL, adjustable straps'],['leaf','Breathable','Light fabric'],['shield','No metal','Nothing digs in']],b:['Pulls your shoulders back gently','Invisible under a shirt','Start with 30 minutes a day','No metal parts to dig in'],u:'gun',d:'More a reminder than a brace. It holds your shoulders back so you notice when you slump and correct it yourself. Build up slowly: half an hour a day at first, not eight. Not a medical device: if you have back or shoulder pain, ask a doctor first.'},
+roller:{s:['Fridge safe','Metal core'],f:[['bolt','Metal core','Holds the cold'],['ruler','Dual ends','Face and under-eye'],['wash','Rinse clean','No parts to replace']],b:['Cool metal that soothes puffy eyes','Feels calming on tired skin','Nothing to charge or replace','Rinses clean under the tap'],u:'humid',d:'Keep it in the fridge door and it is cold whenever you need it. The large end covers cheeks and jaw, the small end fits under the eye, and there is nothing to charge, refill or replace.'},
+mount:{s:['MagSafe-compatible','Vent mount'],f:[['bolt','MagSafe-compatible','Strong magnets'],['ruler','360° rotation','Portrait or landscape'],['shield','Vent grip','No adhesive']],b:['Holds through potholes','Attach one-handed, eyes on the road','Rotates to landscape for maps','Leaves no residue behind'],u:'blender',d:'Strong enough that you stop thinking about it. The magnet array grabs a MagSafe-compatible phone or any case with a metal ring, the arm rotates for maps in landscape, and it clips to the vent rather than gluing itself to your dashboard.'}
+};
+
+/* Product safety information shown on every product page (EU General Product Safety Regulation).
+   maker: the manufacturer's name, postal address and email from the supplier's listing or packaging.
+   Until you fill it in, the page says the details come with the product and on request. */
+const SAFETY = {
+  blanket:{maker:'', warn:'Keep away from open flames and heaters. Wash inside out on a cool cycle.'},
+  throwb:{maker:'', warn:'Do not fold, sit on or pierce the pad while it is on. Do not use while asleep or on someone who cannot feel heat. Unplug after use. Not for children under 8.'},
+  projector:{maker:'', warn:'Do not look directly into the lens. Keep the power cable away from water. Indoor use only.'},
+  humid:{maker:'', warn:'Use tap or distilled water; add only water-soluble oils. Clean the tank weekly. Keep away from the edge of the table and out of reach of small children.'},
+  chopper:{maker:'', warn:'Blades are sharp: handle by the plastic frame only and keep out of reach of children.'},
+  grinder:{maker:'', warn:'Do not immerse the motor unit in water. Charge only with a USB-C cable from a certified adapter. Keep out of reach of children.'},
+  blender:{maker:'', warn:'Never open the lid while blending. Do not blend hot liquids or ice cubes. Do not immerse the base in water. Charge only with a certified USB adapter.'},
+  petvac:{maker:'', warn:'For pet hair on fabric only. Keep out of reach of children.'},
+  fountain:{maker:'', warn:'Use only with the supplied low-voltage adapter. Never run the pump dry. Clean the filter every two weeks.'},
+  hammock:{maker:'', warn:'Not a restraint: use a dog harness or seat-belt clip as well. Check the straps before each journey.'},
+  bowl:{maker:'', warn:'Supervise your dog at first. Replace if cracked.'},
+  gun:{maker:'', warn:'Not a medical device. Do not use on the head, spine, joints, injuries or broken skin. Do not use if pregnant or fitted with a pacemaker without medical advice. Charge only with a certified USB adapter.'},
+  neck:{maker:'', warn:'Not a medical device. Do not use if you have a neck injury, a pacemaker or reduced skin sensation without medical advice. Limit sessions to 15 minutes. Charge only with a certified USB adapter.'},
+  posture:{maker:'', warn:'Not a medical device. Wear for short periods at first. Stop if it causes pain or numbness. Not for children.'},
+  roller:{maker:'', warn:'Do not use on broken or irritated skin. Do not freeze; refrigerate only.'},
+  mount:{maker:'', warn:'Mount away from airbags and the driver’s view. Check the grip before driving. Magnets: keep away from pacemakers and cards with magnetic strips.'}
+};
+
+/* Options a shopper picks before adding to the cart. 's' = colour swatches, 'p' = text pills.
+   Each combination is its own cart line, and the combination is what you order from the supplier. */
+let VAR = {
+ blanket:[['Colour','s',[['Black','#262825'],['Navy','#2C3A4D'],['Blush','#E7BABD']]],['Size','p',['Adult','Oversized']]],
+ throwb:[['Colour','s',[['Slate Grey','#7B7F7A'],['Navy','#2C3A4D']]],['Plug','p',['EU','UK']]],
+ projector:[['Colour','s',[['Black','#262825'],['White','#F0F0EE']]],['Power','p',['USB','EU plug']]],
+ humid:[['Colour','s',[['White','#F2F2F0'],['Blush','#E7BABD'],['Mint','#9EDAD5']]]],
+ chopper:[['Colour','s',[['Green','#74876C'],['White','#F0F0EE'],['Blue','#5B7FA6']]],['Capacity','p',['500 ml','900 ml']]],
+ grinder:[['Colour','s',[['White','#F0F0EE'],['Black','#262825']]]],
+ blender:[['Colour','s',[['White','#F0F0EE'],['Blush','#E7BABD'],['Mint','#9EDAD5'],['Black','#262825']]],['Capacity','p',['400 ml','600 ml']]],
+ petvac:[['Colour','s',[['Blue','#5B7FA6'],['Blush','#E7BABD'],['Grey','#A3A7A2']]]],
+ fountain:[['Colour','s',[['White','#F0F0EE'],['Grey','#A3A7A2']]],['Power','p',['EU plug','USB']]],
+ hammock:[['Colour','s',[['Black','#262825'],['Grey','#7B7F7A'],['Brown','#6B5645']]],['Size','p',['Standard','XL / SUV']]],
+ bowl:[['Colour','s',[['Teal','#4FA8A3'],['Blush','#E7BABD'],['Grey','#A3A7A2'],['Yellow','#E3C05A']]],['Size','p',['Small','Medium']]],
+ gun:[['Colour','s',[['Black','#262825'],['White','#F0F0EE']]]],
+ neck:[['Colour','s',[['Grey','#7B7F7A'],['Black','#262825']]],['Plug','p',['EU','UK']]],
+ posture:[['Colour','s',[['Black','#262825'],['Beige','#DBCBAE']]],['Size','p',['S/M','L/XL']]],
+ roller:[['Colour','s',[['Blush','#E7BABD'],['Blue','#9EC6DA'],['White','#F0F0EE']]]],
+ mount:[['Colour','s',[['Black','#262825'],['Silver','#C0C5C2']]],['Fitting','p',['Air vent','Dashboard']]]
+};
+
+/* ===================================================================== */
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const eur  = n => '€' + n.toFixed(2);
+const eur0 = n => '€' + (Number.isInteger(n) ? n : n.toFixed(2));
+const byId = id => P.find(p => p.id === id);
+const VIEW_LABEL = ['Studio', 'In use', 'Close-up', 'Full view'];
+const imgUrl = (p, i, small) => `${p.img}-${i + 1}${small ? '-s' : ''}.webp`;
+const absImg = (p, i) => new URL(imgUrl(p, i), STORE.imageBase ? STORE.imageBase.replace(/\/?$/, '/') : document.baseURI).href;
+function pic(p, i, small, eager, deco){
+  return `<img src="${imgUrl(p, i, small)}" width="700" height="700" alt="${deco ? '' : esc(p.n) + ' — ' + VIEW_LABEL[i]}" ${eager ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async">`;
+}
+const API_BASE = STORE.payment.apiBase || '';
+const MAX_QTY = 20;
+const TIERS = [[1,0],[2,.10],[3,.15]];
+const tierDisc = q => q >= 3 ? TIERS[2][1] : q === 2 ? TIERS[1][1] : 0;
+const lineTotal = (p, q) => Math.round(p.price * q * (1 - tierDisc(q)) * 100) / 100;
+const fmtD = d => d.toLocaleDateString('en-GB', {day:'numeric', month:'short'});
+const etaFrom = (e = STORE.eta) => fmtD(new Date(Date.now() + (STORE.dispatchDays + e[0]) * 864e5));
+const etaTo   = (e = STORE.eta) => fmtD(new Date(Date.now() + (STORE.dispatchDays + e[1]) * 864e5));
+const etaText = () => `${STORE.eta[0]}–${STORE.eta[1]} calendar days`;
+const hasIdentity = () => !!(STORE.company && STORE.address && STORE.vat && (STORE.email || STORE.phone));
+const hasPayment = () => !!(API_BASE || STORE.payment.paypalMe || STORE.payment.stripeLink || STORE.payment.iban);
+const canOrder = () => hasIdentity() && hasPayment() && !!(API_BASE || STORE.whatsapp || STORE.email);
+const showWas = () => STORE.showComparePrice === true;
+const channels = () => [STORE.whatsapp && 'WhatsApp', STORE.email && 'email'].filter(Boolean).join(' or ') || 'the Contact page';
+const announce = t => { const l = $('#live'); l.textContent = ''; setTimeout(() => { l.textContent = t; }, 30); };
+const store = {
+  get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+};
+
+/* ---- layers: one place that opens/closes overlays, locks scroll and moves focus ---- */
+const layers = [];
+const topLayer = () => layers[layers.length - 1];
+const visible = el => !!el && el.offsetParent !== null;
+/* Everything outside the top layer is inert while a layer is open, so keyboard and screen-reader
+   users cannot wander behind it. The chat stays usable on the product page only. */
+function applyInert(){
+  const top = topLayer();
+  [...document.body.children].forEach(el => {
+    if (el.id === 'live') return;
+    let on = !!top && el !== top;
+    if (el.id === 'scrim') on = false;
+    if ((el.id === 'chat' || el.id === 'chatBtn') && (!top || top === $('#pdp'))) on = false;
+    if (el.id === 'stickybuy' && top === $('#pdp')) on = false;
+    el.inert = on;
+  });
+}
+function setLayer(el, on, focusSel){
+  const i = layers.indexOf(el);
+  if (on && i < 0){ el._prevFocus = document.activeElement; layers.push(el); el.classList.add('on'); }
+  if (!on && i >= 0){ layers.splice(i, 1); el.classList.remove('on'); }
+  document.body.style.overflow = layers.length ? 'hidden' : '';
+  applyInert();
+  if (on){
+    requestAnimationFrame(() => { const f = focusSel === null ? null : el.querySelector(focusSel || 'button,[href],input,select,textarea'); if (f) f.focus({preventScroll:true}); });
+  } else if (i >= 0){
+    const f = el._prevFocus, top = topLayer();
+    if (top){
+      const back = visible(f) && top.contains(f) ? f : (top === $('#pdp') && visible($('#pdpCart')) ? $('#pdpCart') : top.querySelector('button,[href],input,select,textarea'));
+      if (back) back.focus({preventScroll:true});
+    } else {
+      const back = visible(f) ? f : (pdpId ? null : $('#cartBtn'));
+      if (back) back.focus({preventScroll:true});
+    }
+  }
+}
+const chatHasFocus = () => $('#chat').classList.contains('on') && $('#chat').contains(document.activeElement);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape'){
+    if (chatHasFocus()){ closeChat(); return; }
+    if ($('#nav').classList.contains('open')){ $('#nav').classList.remove('open'); $('#burger').setAttribute('aria-expanded', 'false'); $('#burger').focus(); return; }
+    if ($('#searchbox').classList.contains('open')){ $('#searchbox').classList.remove('open'); $('#searchBtn').setAttribute('aria-expanded', 'false'); $('#searchBtn').focus(); return; }
+    const t = topLayer(); if (!t) return;
+    e.preventDefault();
+    if (t === $('#legal')) closeLegal();
+    else if (t === $('#owner')) setLayer(t, false);
+    else if (t === $('#co')) closeCheckout();
+    else if (t === $('#drawer')) openCart(false);
+    else if (t === $('#pdp')) closePDP();
+    return;
+  }
+  if (e.key === 'Tab'){
+    const scope = chatHasFocus() ? $('#chat') : topLayer(); if (!scope) return;
+    let f = [...scope.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')].filter(x => !x.disabled && visible(x));
+    if (scope === $('#pdp')) f = f.concat([$('#chatBtn')].filter(visible));
+    if (!f.length) return;
+    const first = f[0], last = f[f.length - 1];
+    if (!scope.contains(document.activeElement)){ e.preventDefault(); (e.shiftKey ? last : first).focus(); return; }
+    if (e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+  }
+});
+
+/* ---- static copy that comes from STORE ---- */
+function renderStatic(){
+  $('#ann').innerHTML = `Free shipping from <b>${eur0(STORE.freeShipOver)}</b> &#xB7; Tracked delivery, ${STORE.eta[0]}–${STORE.eta[1]} days`;
+  $('#trustEta').textContent = `${STORE.eta[0]}–${STORE.eta[1]} day delivery`;
+  $('#trustRet').textContent = `${STORE.returnDays}-day returns`;
+  $('#aboutShip').textContent = `Orders leave our supplier's warehouse within ${STORE.dispatchDays} working days of payment and arrive in ${etaText()} with tracking. VAT and any import duty are paid before the parcel ships; if a courier ever asks you for a charge, we refund it. Not right? ${STORE.returnDays} days to send it back.`;
+  const pays = [];
+  if (API_BASE) pays.push('VISA','MASTERCARD');
+  if (STORE.payment.paypalMe || API_BASE) pays.push('PAYPAL');
+  if (STORE.payment.stripeLink) pays.push('CARD');
+  if (STORE.payment.iban) pays.push('BANK TRANSFER');
+  $('#pays').innerHTML = pays.map(x => `<span class="pay">${x}</span>`).join('');
+  const soc = Object.entries(STORE.social).filter(([, u]) => u);
+  $('#socials').innerHTML = soc.map(([k, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${k[0].toUpperCase() + k.slice(1)}</a>`).join('');
+  const id = [STORE.company, STORE.address, STORE.vat && 'VAT ' + STORE.vat, STORE.gemi && 'GEMI ' + STORE.gemi, STORE.email, STORE.phone].filter(Boolean).join(' · ');
+  $('#footId').textContent = id;
+  $('#heroBody').textContent = `Small things that change your day, chosen one at a time. Every order is tracked from dispatch, and if it is not right you have ${STORE.returnDays} days to send it back.`;
+  document.querySelectorAll('.logo').forEach(l => { l.innerHTML = '<i></i>' + esc(STORE.name); });
+}
+
+/* ---- catalogue ---- */
+let filter = 'All', query = '', painted = false;
+function paintChips(){
+  const cats = ['All', ...new Set(P.map(p => p.cat))];
+  $('#chips').innerHTML = cats.map(c => `<button class="chip" data-cat="${esc(c)}" aria-pressed="${c===filter}">${esc(c)}</button>`).join('');
+}
+function paint(){
+  $$('.chip').forEach(c => c.setAttribute('aria-pressed', c.dataset.cat === filter));
+  $('#gridTitle').textContent = filter === 'All' ? 'All products' : filter;
+  let list = filter === 'All' ? P : P.filter(p => p.cat === filter);
+  if (query) list = list.filter(p => (p.n + ' ' + p.d + ' ' + p.cat).toLowerCase().includes(query));
+  if (painted) announce(list.length ? `${list.length} product${list.length === 1 ? '' : 's'}` : 'No products match');
+  painted = true;
+  if (!list.length){
+    $('#grid').innerHTML = '<p style="grid-column:1/-1;padding:40px 0;color:var(--stone);font-size:14px">Nothing matches that. Try a shorter word.</p>';
+    return;
+  }
+  $('#grid').innerHTML = list.map((p, i) => card(p, i < 4)).join('');
+}
+function card(p, eager){
+  const off = Math.round((1 - p.price / p.was) * 100);
+  const hasVar = (VAR[p.id] || []).length > 0;
+  return `<article class="card" role="listitem">
+    <button class="thumb" data-main="${p.id}" data-open="${p.id}" tabindex="-1" aria-label="${esc(p.n)}${p.top ? ', our pick' : ''}: view details">${p.top ? '<span class="badge" aria-hidden="true">Our pick</span>' : ''}${showWas() ? `<span class="save">−${off}%</span>` : ''}${pic(p, 0, false, eager, true)}</button>
+    <div class="gal" data-gal="${p.id}" aria-hidden="true">${[0,1,2,3].map(i =>
+      `<button class="gt" data-v="${i}" aria-pressed="${i===0}" tabindex="-1" aria-label="${VIEW_LABEL[i]} photo">${pic(p, i, true, false, true)}</button>`).join('')}</div>
+    <div class="cbody">
+      <div class="cat">${esc(p.cat)}</div>
+      <button class="name" data-open="${p.id}">${esc(p.n)}${p.top ? '<span class="sr">, our pick</span>' : ''}</button>
+      <div class="desc">${esc(p.d)}</div>
+      <div class="prices">${showWas() ? `<span class="was">${eur0(p.was)}</span>` : ''}<span class="price">${eur(p.price)}</span></div>
+      <button class="viewbtn" data-open="${p.id}" tabindex="-1" aria-hidden="true">View details</button>
+      <button class="add" data-${hasVar ? 'open' : 'add'}="${p.id}" aria-label="${hasVar ? 'Choose options for' : 'Add to cart:'} ${esc(p.n)}">${hasVar ? 'Choose options' : 'Add to cart'}</button>
+    </div>
+  </article>`;
+}
+function paintHero(){
+  $('#heroFig').innerHTML = P.filter(p => p.top).slice(0, 4).map(p =>
+    `<button class="hf" data-open="${p.id}"><div class="shot">${pic(p, 0, true, true, true)}</div><b>${eur(p.price)}</b><span>${esc(p.n)}</span></button>`).join('');
+}
+
+/* ---- product page ---- */
+const CHECK = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--moss)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/></svg>';
+const safetyText = id => {
+  const s = SAFETY[id] || {}, p = byId(id);
+  const rp = STORE.company ? `${STORE.company}, ${STORE.address}${STORE.email ? ', ' + STORE.email : ''}` : `${STORE.name} (details on the Terms page)`;
+  return `Manufacturer: ${s.maker || 'named on the product and its packaging; contact details on request.'} Responsible person in the EU: ${rp}. Model reference: NST-${id.toUpperCase()}${p && p.ali ? '-' + p.ali.slice(-6) : ''}. Safety: ${s.warn || 'Read the instructions supplied with the product.'}`;
+};
+const ico = k => `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--moss)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[k]}</svg>`;
+let pdpId = null, pdpView = 0, pdpQty = 1, pdpVar = {};
+const defaultVars = id => Object.fromEntries((VAR[id] || []).map(([label,, opts]) => [label, typeof opts[0] === 'string' ? opts[0] : opts[0][0]]));
+const keyFor = (id, vars) => [id, ...(VAR[id] || []).map(([l]) => vars[l])].join('|');
+const pidOf = k => k.split('|')[0];
+const varOf = k => k.split('|').slice(1).join(' / ');
+
+function openPDP(id){
+  if (!byId(id)) return;
+  pdpId = id; pdpView = 0; pdpQty = 1; pdpVar = defaultVars(id);
+  renderPDP();
+  document.body.classList.add('pdpopen');
+  setLayer($('#pdp'), true, '#pdpBack');
+  $('#pdp').scrollTop = 0;
+  try { history.replaceState(null, '', location.href.split('#')[0] + '#' + id); } catch (e) {}
+}
+function closePDP(){
+  document.body.classList.remove('pdpopen');
+  $('#stickybuy').classList.remove('show');
+  setLayer($('#pdp'), false);
+  pdpId = null;
+  try { history.replaceState(null, '', location.href.split('#')[0]); } catch (e) {}
+}
+function renderSticky(){
+  const bar = $('#stickybuy');
+  if (!pdpId){ bar.classList.remove('show'); return; }
+  const p = byId(pdpId);
+  bar.innerHTML = `<span class="sp">${eur(lineTotal(p, pdpQty))}</span>${showWas() ? `<span class="sw3">${eur0(p.was * pdpQty)}</span>` : ''}<button id="stickyAdd">ADD TO CART</button>`;
+  bar.classList.add('show');
+  $('#stickyAdd').onclick = () => $('#pdpAdd').click();
+}
+/* Remember which control had focus before a re-render, so a keyboard user's place survives it. */
+function focusMark(root){
+  const ae = document.activeElement;
+  if (!ae || !root.contains(ae)) return null;
+  if (ae.id) return '#' + ae.id;
+  const attrs = ['data-vl','data-vv','data-tq','data-pq','data-pv','data-ship','data-q'].filter(a => ae.hasAttribute(a));
+  return attrs.length ? attrs.map(a => `[${a}="${ae.getAttribute(a).replace(/"/g, '\\"')}"]`).join('') : null;
+}
+function refocus(root, mark){
+  if (!mark) return;
+  const el = root.querySelector(mark);
+  if (el) el.focus({preventScroll:true});
+}
+function renderPDP(){
+  const p = byId(pdpId), t = DETAIL[p.id];
+  const off = Math.round((1 - p.price / p.was) * 100);
+  const mark = focusMark($('#pdp'));
+  $('#pdp').setAttribute('aria-label', p.n);
+  const up = byId(t.u), upKey = up && keyFor(up.id, defaultVars(up.id)), upOn = up && Object.keys(cart).some(k => pidOf(k) === up.id && cart[k] > 0);
+  $('#pdp').innerHTML = `
+  <div class="pdpbar">
+    <button class="icobtn" id="pdpBack" aria-label="Back to products"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button>
+    <div class="logo"><i></i>${esc(STORE.name)}</div>
+    <button class="icobtn" id="pdpCart" aria-label="Open cart"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></button>
+  </div>
+  <div class="pdpwrap">
+    <div class="pdpgal">
+      <div class="pdpmain">${p.top ? '<span class="hot">Our pick</span>' : ''}${pic(p, pdpView, false, true)}</div>
+      <div class="feats">${t.f.map(x => `<div class="ft">${ico(x[0])}<b>${esc(x[1])}</b><span>${esc(x[2])}</span></div>`).join('')}</div>
+      <div class="pdpthumbs" role="group" aria-label="Photos">${[0,1,2,3].map(i =>
+        `<button class="gt" data-pv="${i}" aria-pressed="${i===pdpView}" aria-label="${VIEW_LABEL[i]} photo">${pic(p, i, true)}</button>`).join('')}</div>
+    </div>
+    <div class="pdpinfo">
+      <div class="cat" style="margin-bottom:8px">${esc(p.cat)}</div>
+      <h1 class="pdph1">${esc(p.n)}</h1>
+      <div class="pricerow"><span class="p">${eur(p.price)}</span>${showWas() ? `<span class="w">${eur0(p.was)}</span><span class="savepill">Save ${off}%</span>` : ''}<span class="vat">incl. VAT</span></div>
+      <div class="specchips">${t.s.map(x => `<span class="sc">${CHECK} ${esc(x)}</span>`).join('')}</div>
+      <div class="stockrow" style="margin-top:14px"><span class="stockdot"></span>Available to order</div>
+      <div class="eta">Pay today and it should arrive between <b>${etaFrom()}</b> and <b>${etaTo()}</b></div>
+      ${(VAR[p.id] || []).map(([label, kind, opts]) => `
+        <div class="vgroup" role="group" aria-label="${esc(label)}">
+          <div class="vlabel">${esc(label)}: <b>${esc(pdpVar[label])}</b></div>
+          ${kind === 's'
+            ? `<div class="swatches">${opts.map(([n, c]) =>
+                `<button class="sw2" data-vl="${esc(label)}" data-vv="${esc(n)}" aria-pressed="${pdpVar[label]===n}" aria-label="${esc(n)}" title="${esc(n)}"><i style="background:${c}"></i></button>`).join('')}</div>`
+            : `<div class="pills">${opts.map(n =>
+                `<button class="vpill" data-vl="${esc(label)}" data-vv="${esc(n)}" aria-pressed="${pdpVar[label]===n}">${esc(n)}</button>`).join('')}</div>`}
+        </div>`).join('')}
+      <div class="ladder" role="group" aria-label="Quantity">${TIERS.map(([q, d]) => `
+        <button class="rung" data-tq="${q}" aria-pressed="${pdpQty===q}">
+          <span class="tick"></span>
+          <span><span class="rq">${q === 1 ? 'Just one' : `Take ${q}`}</span><span class="rd">${d ? `Save ${Math.round(d*100)}% on every one` : 'Standard price'}</span></span>
+          <span class="rp"><b>${eur(lineTotal(p, q))}</b>${d ? `<span>You keep ${eur(p.price*q - lineTotal(p,q))}</span>` : ''}</span>
+        </button>`).join('')}
+        <div class="qtyrow" style="margin:2px 0 0">
+          <span>Or pick your own</span>
+          <div class="qbox"><button data-pq="-1" aria-label="Decrease quantity">−</button><span aria-live="polite">${pdpQty}</span><button data-pq="1" aria-label="Increase quantity">+</button></div>
+        </div>
+      </div>
+      <button class="cta" id="pdpAdd">ADD TO CART <span class="cp">${eur(lineTotal(p, pdpQty))}${showWas() ? ` <span class="cw">${eur0(p.was * pdpQty)}</span>` : ''}</span></button>
+      <div class="guar">${CHECK} ${STORE.returnDays}-day returns, any reason</div>
+      <div class="bens">${t.b.map(x => `<div class="ben">${CHECK}${esc(x)}</div>`).join('')}</div>
+      ${up ? `<div class="ups">
+        <div class="uimg">${pic(up, 0, true, false, true)}</div>
+        <div><div class="un">Add ${esc(up.n)}</div><div class="up">${eur(up.price)} · goes well with this</div></div>
+        <button class="tgl" id="upsTgl" aria-pressed="${upOn}" aria-label="Add ${esc(up.n)} to cart"></button>
+      </div>` : ''}
+      <p class="pdesc">${esc(t.d)}</p>
+      <div class="shiprow">
+        <div>${CHECK}<span><b>Leaves the warehouse within ${STORE.dispatchDays} working days of payment</b>, then ${etaText()}, tracked to your door.</span></div>
+        <div>${CHECK}<span><b>Free delivery</b> from ${eur0(STORE.freeShipOver)}; ${eur(STORE.shipFee)} below that.</span></div>
+        <div>${CHECK}<span><b>Return it for any reason</b> within ${STORE.returnDays} days of delivery.</span></div>
+      </div>
+      <div class="acc">
+        <h2 style="padding:18px 0 4px;font-size:17px">Questions people ask</h2>
+        ${[['How long does delivery take?',
+            `We place your order with our supplier as soon as payment arrives and it leaves the warehouse within ${STORE.dispatchDays} working days. Delivery then takes ${etaText()}. You get the tracking number at dispatch; the first scan can take 2–4 days to appear.`],
+           ['What if it does not fit or I change my mind?',
+            `${STORE.returnDays} days from delivery, any reason. Tell us by ${channels()} (you do not need our permission first), then post it back to our address in Greece. EU law gives you 14 days; we give you ${STORE.returnDays}.`],
+           ['Is there anything to pay on delivery?',
+            'No. VAT and any import duty are paid before the parcel ships, so the courier has nothing to collect. If a courier ever asks you for a charge, pay it, send us the receipt and we refund it in full.'],
+           ['What happens if it arrives damaged?',
+            'Send us a photo as soon as you can, ideally within 14 days, and we replace it or refund you in full. Faults that show up later are covered by the two-year legal guarantee.'],
+           ['Manufacturer and safety',
+            safetyText(p.id)]
+          ].map(([q, a], i) => `
+          <div class="accit">
+            <button class="acchd" aria-expanded="false" aria-controls="acc-${i}">${esc(q)}<span class="pm" aria-hidden="true">+</span></button>
+            <div class="accbd" id="acc-${i}">${esc(a)}</div>
+          </div>`).join('')}
+      </div>
+      <div class="related">
+        <h2 style="font-size:19px;margin-bottom:14px">Goes well with this</h2>
+        <div class="relgrid">${P.filter(x => x.id !== p.id && x.cat === p.cat).concat(P.filter(x => x.id !== p.id && x.cat !== p.cat)).slice(0, 4).map(x => `
+          <button class="rel" data-open="${x.id}">
+            <div class="rimg">${pic(x, 0, true, false, true)}</div>
+            <div class="rb"><div class="rnm">${esc(x.n)}</div><div class="rpr">${eur(x.price)}</div></div>
+          </button>`).join('')}</div>
+      </div>
+    </div>
+  </div>`;
+  renderSticky();
+  refocus($('#pdp'), mark);
+  $$('#pdp [data-tq]').forEach(b => b.onclick = () => { pdpQty = Number(b.dataset.tq); renderPDP(); announce(`Quantity ${pdpQty}`); });
+  $$('#pdp .acchd').forEach(b => b.onclick = () => { const o = b.closest('.accit').classList.toggle('open'); b.setAttribute('aria-expanded', o); });
+  $('#pdpBack').onclick = closePDP;
+  $('#pdpCart').onclick = () => openCart(true);
+  $('#pdpAdd').onclick = () => { addToCart(keyFor(p.id, pdpVar), pdpQty); openCart(true); };
+  if (up) $('#upsTgl').onclick = () => {
+    if (upOn) Object.keys(cart).forEach(k => { if (pidOf(k) === up.id) cart[k] = 0; });
+    else cart[upKey] = 1;
+    renderCart(); renderPDP();
+    announce(upOn ? `${up.n} removed from cart` : `${up.n} added to cart`);
+  };
+  $$('#pdp [data-pq]').forEach(b => b.onclick = () => { pdpQty = Math.min(MAX_QTY, Math.max(1, pdpQty + Number(b.dataset.pq))); renderPDP(); announce(`Quantity ${pdpQty}`); });
+  $$('#pdp [data-pv]').forEach(b => b.onclick = () => { pdpView = Number(b.dataset.pv); renderPDP(); });
+  $$('#pdp [data-vl]').forEach(b => b.onclick = () => { pdpVar[b.dataset.vl] = b.dataset.vv; renderPDP(); announce(`${b.dataset.vl}: ${b.dataset.vv}`); });
+}
+
+/* ---- cart ---- */
+let cart = {};
+function loadCart(){
+  const saved = store.get('nestia-cart') || {};
+  for (const k of Object.keys(saved)){
+    const p = byId(pidOf(k)); if (!p) continue;
+    const vals = k.split('|').slice(1), spec = VAR[p.id] || [];
+    const ok = vals.length === spec.length && spec.every(([, kind, opts], i) => (kind === 's' ? opts.map(o => o[0]) : opts).includes(vals[i]));
+    if (ok && saved[k] > 0) cart[k] = Math.min(MAX_QTY, Math.floor(saved[k]));
+  }
+}
+function addToCart(key, qty){
+  cart[key] = Math.min(MAX_QTY, (cart[key] || 0) + qty);
+  renderCart();
+  announce(`${byId(pidOf(key)).n} added to cart`);
+}
+function renderCart(){
+  const ids   = Object.keys(cart).filter(k => cart[k] > 0);
+  const count = ids.reduce((s, k) => s + cart[k], 0);
+  const total = ids.reduce((s, k) => s + lineTotal(byId(pidOf(k)), cart[k]), 0);
+  const dot = $('#cartDot');
+  const grew = count > Number(dot.textContent || 0);
+  dot.hidden = !count; dot.textContent = count;
+  const cartLabel = count ? `Open cart, ${count} item${count > 1 ? 's' : ''}` : 'Open cart';
+  $('#cartBtn').setAttribute('aria-label', cartLabel);
+  if ($('#pdpCart')) $('#pdpCart').setAttribute('aria-label', cartLabel);
+  if (grew && motionOK){ dot.classList.add('pop'); setTimeout(() => dot.classList.remove('pop'), 220); }
+  $('#ditems').innerHTML = ids.length ? ids.map(k => {
+    const p = byId(pidOf(k)), v = varOf(k), d = tierDisc(cart[k]);
+    return `<div class="ditem">
+      <div class="ph">${pic(p, 0, true, false, true)}</div>
+      <div><div class="nm">${esc(p.n)}</div>${v ? `<div class="vr">${esc(v)}</div>` : ''}
+        <div class="qty"><button data-q="${esc(k)}:-1" aria-label="Remove one ${esc(p.n)}">−</button><span>${cart[k]}</span><button data-q="${esc(k)}:1" aria-label="Add one ${esc(p.n)}">+</button></div>
+      </div>
+      <div class="pr">${eur(lineTotal(p, cart[k]))}${d ? `<small>−${Math.round(d*100)}% multi-buy</small>` : ''}</div>
+    </div>`;
+  }).join('') : `<div class="empty">Your cart is empty.</div>`;
+  const left = STORE.freeShipOver - total;
+  $('#shipNote').innerHTML = total === 0
+    ? `Free shipping from <b>${eur0(STORE.freeShipOver)}</b>.`
+    : left > 0
+      ? `Add <b>${eur(left)}</b> more for free shipping.<div class="bar"><i style="width:${Math.min(100, total / STORE.freeShipOver * 100)}%"></i></div>`
+      : `<b>Your shipping is free.</b> Tracked, typically ${etaText()}.<div class="bar"><i style="width:100%"></i></div>`;
+  $('#total').textContent = eur(total);
+  $('#goCheckout').disabled = !ids.length;
+  store.set('nestia-cart', cart);
+}
+function openCart(on){
+  $('#scrim').classList.toggle('on', on);
+  setLayer($('#drawer'), on, '#closeCart');
+}
+const cartLines = () => Object.keys(cart).filter(k => cart[k] > 0).map(k => {
+  const p = byId(pidOf(k));
+  return {key:k, p, v:varOf(k), q:cart[k], total:lineTotal(p, cart[k])};
+});
+
+/* ---- checkout ---- */
+const SHIP = () => [['standard','Standard delivery',`${etaText()} after dispatch, tracked`,0],
+                    ['express','Faster shipping',`${STORE.expressEta[0]}–${STORE.expressEta[1]} calendar days after dispatch instead of ${STORE.eta[0]}–${STORE.eta[1]}; charged on top of the standard delivery fee`,STORE.expressFee]];
+let shipPick = 'standard', orderDone = null;
+const cartSig = () => JSON.stringify(Object.keys(cart).filter(k => cart[k] > 0).sort().map(k => [k, cart[k]])) + '|' + shipPick;
+const COUNTRIES = ['Greece','Cyprus','Austria','Belgium','Bulgaria','Croatia','Czechia','Denmark','Estonia','Finland','France','Germany','Hungary','Ireland','Italy','Latvia','Lithuania','Luxembourg','Malta','Netherlands','Poland','Portugal','Romania','Slovakia','Slovenia','Spain','Sweden'];
+function totals(){
+  const lines = cartLines();
+  const sub = lines.reduce((a, l) => a + l.total, 0);
+  const base = sub >= STORE.freeShipOver ? 0 : STORE.shipFee;
+  const fast = shipPick === 'express' ? STORE.expressFee : 0;
+  return {lines, sub, ship: base + fast, grand: sub + base + fast};
+}
+function openCheckout(){
+  if (!cartLines().length) return;
+  openCart(false);
+  if (!orderDone){ const last = store.get('nestia-last-order'); if (last && last.sig === cartSig()) orderDone = last; }
+  if (orderDone && orderDone.sig !== cartSig()) orderDone = null;
+  renderCheckout();
+  $('#stickybuy').classList.remove('show');
+  setLayer($('#co'), true, '#coBack');
+  $('#co').scrollTop = 0;
+}
+function closeCheckout(){ if ($('#coForm')) saveForm(); setLayer($('#co'), false); if (pdpId) renderSticky(); }
+const FIELDS = [['f-email','Email','you@example.com','email','email'],['f-first','First name','Maria','text','given-name'],['f-last','Last name','Papadopoulou','text','family-name'],['f-addr','Street and number','Ermou 12','text','street-address'],['f-city','City','Athens','text','address-level2'],['f-zip','Postcode','106 75','text','postal-code'],['f-phone','Phone for the courier','69XXXXXXXX','tel','tel']];
+let formVals = {};
+function renderCheckout(){
+  const {lines, sub, ship, grand} = totals();
+  const ro = orderDone ? 'readonly' : '';
+  const mark = focusMark($('#co'));
+  const fld = ([id, label, ph, type, ac]) => `<div class="fld" id="w-${id}"><label for="${id}">${label}</label><input id="${id}" type="${type}" placeholder="${ph}" autocomplete="${ac}" value="${esc(formVals[id] || '')}" ${type === 'tel' ? 'inputmode="tel"' : ''} ${ro} aria-required="true" aria-describedby="e-${id}"><span class="err" id="e-${id}"></span></div>`;
+  $('#co').innerHTML = `
+  <div class="pdpbar">
+    <button class="icobtn" id="coBack" aria-label="Back to shop"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button>
+    <div class="logo"><i></i>${esc(STORE.name)}</div><span style="width:38px"></span>
+  </div>
+  <div class="cowrap">
+    <form id="coForm" novalidate>
+      <div class="steps"><b>1 Details</b><i></i><b>2 Delivery</b><i></i>3 ${API_BASE ? 'Payment' : 'Send & pay'}</div>
+      <div class="fset">
+        <h3>Where should it go?</h3>
+        ${fld(FIELDS[0])}
+        <div class="frow">${fld(FIELDS[1])}${fld(FIELDS[2])}</div>
+        ${fld(FIELDS[3])}
+        <div class="frow">${fld(FIELDS[4])}${fld(FIELDS[5])}</div>
+        <div class="frow">
+          <div class="fld"><label for="f-country">Country</label><select id="f-country" autocomplete="country-name" ${orderDone ? 'disabled' : ''}>${COUNTRIES.map(c => `<option ${formVals['f-country'] === c ? 'selected' : ''}>${c}</option>`).join('')}</select></div>
+          ${fld(FIELDS[6])}
+        </div>
+        <div class="fld"><label for="f-note">Note for us (optional)</label><textarea id="f-note" rows="2" ${ro}>${esc(formVals['f-note'] || '')}</textarea></div>
+      </div>
+      <div class="fset">
+        <h3>Delivery</h3>
+        <div class="ship2" role="group" aria-label="Delivery option">${SHIP().map(([id, name, note, cost]) => `
+          <button type="button" class="shipopt" data-ship="${id}" aria-pressed="${shipPick===id}" ${orderDone ? 'disabled' : ''}>
+            <span class="tick"></span>
+            <span><b>${name}</b><span class="sn2">${note}</span></span>
+            <span class="sc2">${cost ? '+ ' + eur(cost) : (sub >= STORE.freeShipOver ? 'Free' : eur(STORE.shipFee))}</span>
+          </button>`).join('')}</div>
+      </div>
+    </form>
+    <aside class="sum" aria-label="Order summary">
+      <h3>Your order</h3>
+      ${lines.map(l => `<div class="sli">
+        <div class="si">${pic(l.p, 0, true, false, true)}</div>
+        <div><div class="sn">${esc(l.p.n)}</div>${l.v ? `<div class="sv">${esc(l.v)}</div>` : ''}<div class="sv">Qty ${l.q}${tierDisc(l.q) ? ` · −${Math.round(tierDisc(l.q)*100)}%` : ''}</div></div>
+        <div class="sp2">${eur(l.total)}</div></div>`).join('')}
+      <div class="trow"><span>Subtotal</span><span>${eur(sub)}</span></div>
+      <div class="trow"><span>Delivery</span><span>${ship === 0 ? 'Free' : eur(ship)}</span></div>
+      <div class="trow"><span>VAT</span><span>Included</span></div>
+      <div class="trow grand"><span>Total</span><b>${eur(grand)}</b></div>
+      <div id="coDone"></div>
+      <button class="paybtn" id="payBtn" type="submit" form="coForm" aria-describedby="payHint" ${canOrder() ? '' : 'disabled'}>${API_BASE ? `PAY ${eur(grand)}` : `ORDER WITH OBLIGATION TO PAY · ${eur(grand)}`}</button>
+      <div class="secure" id="payHint">${API_BASE
+        ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg> Card details are entered on the payment provider's own page`
+        : canOrder() ? `Next: send the order to us by ${channels()}, then pay by the link. Nothing is charged on this page.` : 'This shop is not taking orders yet. Please check back soon.'}</div>
+      <div id="coMsg"></div>
+    </aside>
+  </div>`;
+  $('#coBack').onclick = closeCheckout;
+  $$('#co [data-ship]').forEach(b => b.onclick = () => { if (orderDone) return; saveForm(); shipPick = b.dataset.ship; renderCheckout(); announce(`${b.querySelector('b').textContent} selected`); });
+  $('#coForm').onsubmit = e => { e.preventDefault(); if (!orderDone) pay(); };
+  refocus($('#co'), mark);
+  if (orderDone) renderDone();
+}
+function saveForm(){ $$('#coForm input, #coForm select, #coForm textarea').forEach(i => { formVals[i.id] = i.value; }); }
+function validate(){
+  saveForm();
+  let ok = true, first = null;
+  const rules = {
+    'f-email': v => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v) || 'Enter a valid email address',
+    'f-first': v => v.length > 0 || 'Required', 'f-last': v => v.length > 0 || 'Required',
+    'f-addr': v => v.length > 3 || 'Enter street and number', 'f-city': v => v.length > 0 || 'Required',
+    'f-zip': v => v.length > 2 || 'Enter the postcode',
+    'f-phone': v => v.replace(/\D/g, '').length >= 8 || 'Enter a phone number the courier can call'
+  };
+  for (const id of Object.keys(rules)){
+    const v = (formVals[id] || '').trim(), r = rules[id](v), w = $('#w-' + id);
+    w.classList.toggle('bad', r !== true);
+    $('#e-' + id).textContent = r === true ? '' : r;
+    $('#' + id).setAttribute('aria-invalid', r !== true);
+    if (r !== true){ ok = false; first = first || $('#' + id); }
+  }
+  if (first){ first.focus(); const n = $$('#coForm .fld.bad').length; announce(`${n} field${n > 1 ? 's need' : ' needs'} attention. ${$('#e-' + first.id).textContent}`); }
+  return ok;
+}
+const newRef = () => 'NST-' + Date.now().toString(36).toUpperCase().slice(-6);
+function buildOrder(){
+  const {lines, sub, ship, grand} = totals();
+  const v = k => (formVals[k] || '').trim();
+  return {
+    ref: newRef(), created: new Date().toISOString(),
+    email: v('f-email'), name: v('f-first') + ' ' + v('f-last'),
+    address: {line1: v('f-addr'), city: v('f-city'), postcode: v('f-zip'), country: v('f-country') || 'Greece'},
+    phone: v('f-phone'), note: v('f-note'), shipping: shipPick,
+    items: lines.map(l => ({sku: l.key, product: l.p.id, name: l.p.n, variant: l.v, qty: l.q, unit: l.p.price, total: Number(l.total.toFixed(2)), supplier: l.p.ali ? 'https://www.aliexpress.com/item/' + l.p.ali + '.html' : ''})),
+    subtotal: Number(sub.toFixed(2)), delivery: Number(ship.toFixed(2)), amount: Number(grand.toFixed(2)), currency: STORE.currency
+  };
+}
+const orderText = o => [
+  `${STORE.name} order ${o.ref}`,
+  ...o.items.map(i => `- ${i.qty} × ${i.name}${i.variant ? ' (' + i.variant + ')' : ''} = ${eur(i.total)}`),
+  `Delivery: ${o.shipping === 'express' ? 'faster shipping' : 'standard'} ${o.delivery ? eur(o.delivery) : 'free'}`,
+  `TOTAL ${eur(o.amount)}`,
+  `Name: ${o.name}`, `Address: ${o.address.line1}, ${o.address.postcode} ${o.address.city}, ${o.address.country}`,
+  `Phone: ${o.phone}`, `Email: ${o.email}`, o.note ? `Note: ${o.note}` : ''
+].filter(Boolean).join('\n');
+
+async function pay(){
+  if (!canOrder()) return;
+  if (!validate()) return;
+  const btn = $('#payBtn'); btn.disabled = true;
+  const order = buildOrder();
+  if (!API_BASE){
+    order.sig = cartSig();
+    const last = store.get('nestia-last-order');
+    if (last && last.sig === order.sig && last.email === order.email) order.ref = last.ref;   // same cart, same person: keep one order number
+    orderDone = order; store.set('nestia-last-order', order);
+    renderDone();
+    return;
+  }
+  btn.textContent = 'Opening secure payment...';
+  try {
+    const r = await fetch(API_BASE + '/api/checkout', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(order)});
+    const data = await r.json();
+    if (!r.ok || !data.url) throw new Error(data.error || 'The payment provider did not answer.');
+    window.location.href = data.url;
+  } catch (err) {
+    btn.disabled = false; btn.textContent = `PAY ${eur(order.amount)}`;
+    $('#coMsg').innerHTML = `<div class="note warn"><b>Payment could not start.</b> ${esc(err.message)} Nothing has been charged. Try again in a moment${STORE.email ? `, or email ${esc(STORE.email)} and we take the order by hand` : ''}.</div>`;
+  }
+}
+function renderDone(){
+  const o = orderDone, txt = orderText(o);
+  const wa = STORE.whatsapp ? `https://wa.me/${STORE.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(txt)}` : '';
+  const pp = STORE.payment.paypalMe ? `https://paypal.me/${encodeURIComponent(STORE.payment.paypalMe)}/${o.amount.toFixed(2)}EUR` : '';
+  const box = $('#coDone');
+  box.innerHTML = `<div class="done">
+    <h3 id="doneTitle" tabindex="-1">Order ${esc(o.ref)} is prepared</h3>
+    <div class="note good" role="status"><b>It has not reached us yet.</b> 1) Send it to us by ${channels()}. 2) Pay ${eur(o.amount)}. We confirm in writing within 24 hours on working days and pass the order to the supplier once payment arrives. Until you send it, nothing is ordered and nothing is charged.</div>
+    <div class="ref"><span>${esc(o.ref)}</span><button class="sbtn" type="button" id="copyRef">Copy number</button></div>
+    <pre id="orderTxt"></pre>
+    <div class="acts">
+      <b style="font-size:13px">1. Send us the order</b>
+      ${wa ? `<a class="btn btn-m" href="${wa}" target="_blank" rel="noopener">Send on WhatsApp</a>` : ''}
+      ${STORE.email ? `<div class="note">Or email it to <b>${esc(STORE.email)}</b> <button class="sbtn" type="button" id="copyMail">Copy address</button></div>` : ''}
+      <button class="sbtn" type="button" id="copyOrder">Copy the order text</button>
+      <b style="font-size:13px;margin-top:6px">2. Pay ${eur(o.amount)}</b>
+      ${pp ? `<a class="btn btn-m" href="${pp}" target="_blank" rel="noopener">Pay with PayPal</a><div class="note" style="margin-top:0">In PayPal choose <b>Goods and services</b>, so PayPal Buyer Protection applies.</div>` : ''}
+      ${STORE.payment.stripeLink ? `<a class="btn btn-m" href="${esc(STORE.payment.stripeLink)}" target="_blank" rel="noopener">Pay by card</a>` : ''}
+      ${STORE.payment.iban ? `<div class="note">Bank transfer to <b>${esc(STORE.payment.iban)}</b>, reference <b>${esc(o.ref)}</b>.</div>` : ''}
+      ${!pp && !STORE.payment.stripeLink && !STORE.payment.iban ? `<div class="note">We send you the payment link with the confirmation message.</div>` : ''}
+      <div class="note">Put <b>${esc(o.ref)}</b> in the payment note so we can match it. You will receive a written confirmation by ${channels()}. Your rights under EU consumer law apply exactly as on any card checkout.</div>
+      <button class="sbtn" type="button" id="editOrder">Change something in the order</button>
+    </div>
+  </div>`;
+  $('#orderTxt').textContent = txt;
+  $('#copyRef').onclick = e => copyText(o.ref, e.currentTarget);
+  $('#copyOrder').onclick = e => copyText(txt, e.currentTarget);
+  $('#editOrder').onclick = () => { orderDone = null; renderCheckout(); $('#co').scrollTop = 0; };
+  if ($('#copyMail')) $('#copyMail').onclick = e => copyText(STORE.email, e.currentTarget);
+  $('#payBtn').hidden = true; $('#co .secure').hidden = true;
+  box.scrollIntoView({behavior: motionOK ? 'smooth' : 'auto', block:'start'});
+  $('#doneTitle').focus({preventScroll:true});
+  announce(`Order ${o.ref} prepared. Send it to us, then pay.`);
+}
+async function copyText(t, btn){
+  const was = btn ? btn.textContent : '';
+  const flash = m => { announce(m); if (!btn) return; btn.textContent = m; setTimeout(() => { btn.textContent = was; }, 1400); };
+  try { await navigator.clipboard.writeText(t); flash('Copied'); }
+  catch (e) {
+    const ta = document.createElement('textarea'); ta.value = t; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+    document.body.appendChild(ta); ta.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch (err) {}
+    ta.remove(); flash(ok ? 'Copied' : 'Select and copy');
+  }
+}
+
+/* ---- policy pages, contact, tracking ---- */
+const identity = () => hasIdentity() ? `<div class="idbox">
+  <div><span>Seller</span> ${esc(STORE.company)}</div>
+  <div><span>Address</span> ${esc(STORE.address)}</div>
+  <div><span>VAT (AFM)</span> ${esc(STORE.vat)}</div>
+  <div><span>GEMI</span> ${esc(STORE.gemi || '—')}</div>
+  <div><span>Email</span> ${esc(STORE.email || '—')}</div>
+  <div><span>Phone</span> ${esc(STORE.phone || (STORE.whatsapp ? '+' + STORE.whatsapp + ' (WhatsApp)' : '—'))}</div>
+</div>` : `<div class="idbox"><div><span>Seller</span> ${esc(STORE.name)}</div><div>Full company details (name, address, VAT and GEMI numbers, email and phone) are published here before this shop opens for orders.</div></div>`;
+const returnAddr = () => STORE.returnAddress || STORE.address || 'the address in Greece we give you when you tell us';
+const LEGAL = () => ({
+ about:['About ' + STORE.name, `<p>${esc(STORE.name)} is a small shop run from Greece. We pick a handful of home, kitchen, pet and wellness products, ship them across the EU with tracking, and answer our own messages.</p><p>Products are sent from our supplier's warehouse, which is why delivery takes ${etaText()} rather than two. In return the prices stay sensible, and VAT and any import duty are paid before the parcel ships, so there is nothing to pay at the door.</p>${identity()}`],
+ terms:['Terms of sale', `${identity()}
+   <h4>How ordering works</h4><p>${API_BASE ? 'You pay at checkout on the payment provider’s secure page and we confirm the order in writing.' : `The checkout prepares an order summary that you send to us by ${channels()}; we confirm it in writing and you pay by the link we give you.`} Placing an order is an offer to buy; the contract forms when we confirm it. We may refuse an order if the item is unavailable or the price was shown in error, and we refund anything already paid.</p>
+   <h4>Prices and delivery costs</h4><p>All prices are in euro and include VAT. The delivery charge is shown before you order: free from ${eur0(STORE.freeShipOver)}, otherwise ${eur(STORE.shipFee)}; faster shipping costs ${eur(STORE.expressFee)} on top. Prices also cover any import duty; if a courier ever asks you to pay anything on delivery, we refund it.</p>
+   <h4>Delivery</h4><p>Your order leaves the supplier's warehouse within ${STORE.dispatchDays} working days of payment. Delivery then normally takes ${etaText()} (${STORE.expressEta[0]}–${STORE.expressEta[1]} with faster shipping), and never more than 30 days. If it has not arrived within 30 days you may cancel for a full refund.</p>
+   <h4>Right of withdrawal</h4><p>You may cancel within 14 days of receiving the goods without giving a reason, and we extend this to ${STORE.returnDays} days. Tell us by ${channels()} or with the withdrawal form on the Returns page (you do not need our permission first), then post the goods back to our address in Greece within 14 days. If you change your mind you pay the cost of posting the item back; if it is faulty or not as described, we pay. We refund everything you paid, including the standard delivery charge, within 14 days of receiving the goods back or of your proof of posting.</p>
+   <h4>Legal guarantee</h4><p>Nothing here affects your rights under EU and Greek consumer law, including the two-year legal guarantee of conformity: repair or replacement first; if that fails or is not possible, a price reduction or a full refund.</p>
+   <h4>Governing law and disputes</h4><p>Greek law applies, without affecting the mandatory consumer-protection rules of the EU country where you live. If we cannot resolve a complaint together, you may refer it to the Hellenic Consumer Ombudsman (Synigoros tou Katanaloti, synigoroskatanaloti.gr), the alternative dispute resolution body for consumer disputes in Greece. Consumers in other EU countries can also contact their national European Consumer Centre (eccnet.eu).</p>`],
+ privacy:['Privacy policy', `<p><b>What we collect.</b> Name, delivery address, email, phone number and what you ordered. If you pay by card or PayPal, the payment provider handles your payment details; they never reach us.</p>
+   <p><b>Why, and on what basis.</b> To deliver your order and answer your messages (performance of the contract, GDPR Art. 6(1)(b)) and to keep the records tax law requires (legal obligation, Art. 6(1)(c)). We do not send marketing unless you ask for it.</p>
+   <p><b>Who sees it.</b> Our supplier and the courier receive your name, address and phone number to deliver the parcel. Our supplier is outside the EU (China); we send only the delivery details needed to ship your parcel, which is necessary to perform your order (GDPR Art. 49(1)(b)). If you send your order over WhatsApp or email, that service processes the message under its own policy. If you use the chat and allow the assistant, your chat messages are processed by Anthropic (USA) to generate the answer.</p>
+   <p><b>How long.</b> Order records are kept for as long as Greek tax law requires. Everything else is deleted when it is no longer needed.</p>
+   <p><b>Your rights.</b> Under the GDPR you can ask for access, correction, deletion, portability or restriction, and you can object to processing. Write to us and we answer within 30 days. You may also complain to the Hellenic Data Protection Authority (dpa.gr).</p>${identity()}`],
+ cookies:['Cookies', `<p>This site sets no cookies and uses no analytics or advertising trackers, so there is no cookie banner. Your browser keeps your cart and your last order summary in local storage so they survive a refresh; that stays on your device.</p><p>Fonts load from Google Fonts, which receives your IP address when the page loads. If you use the chat and allow the assistant, your chat messages are processed by Anthropic to generate the answer. Nothing else about you is sent anywhere until you place an order.</p>`],
+ shipping:['Shipping policy', `<p><b>Dispatch.</b> We place your order with our supplier as soon as payment arrives, and it leaves the warehouse within ${STORE.dispatchDays} working days. You get the tracking number at dispatch; the first scan can take 2–4 days to appear.</p>
+   <p><b>Delivery.</b> Typically ${etaText()} after dispatch, tracked to your door. Faster shipping (${STORE.expressEta[0]}–${STORE.expressEta[1]} days instead of ${STORE.eta[0]}–${STORE.eta[1]}) is available at checkout for ${eur(STORE.expressFee)} in addition to the standard delivery charge. Remote areas and islands can take a few days longer.</p>
+   <p><b>Cost.</b> Free from ${eur0(STORE.freeShipOver)}; ${eur(STORE.shipFee)} below that.</p>
+   <p><b>Customs.</b> We pay import VAT and any customs duty before the parcel leaves, so the courier has nothing to collect. If a courier ever asks you for a charge, pay it, send us the receipt and we refund it in full within 3 working days.</p>
+   <p><b>Lost parcels.</b> If tracking has not moved for 10 days, tell us and we resend it, or refund you if you prefer.</p>`],
+ refunds:['Returns & refunds', `<p><b>14-day right of withdrawal.</b> Under EU law you may cancel within 14 days of delivery without giving a reason. Tell us by ${channels()} or with the form below (you do not need our permission first), then send the item back within 14 days of that message.</p>
+   <p><b>Our ${STORE.returnDays}-day promise.</b> We extend that to ${STORE.returnDays} days from delivery, any reason.</p>
+   <p><b>Condition.</b> You may open it and try it the way you would in a shop. If it comes back used or damaged beyond that, we can deduct the loss in value from your refund, but we cannot refuse the return. For days 15–${STORE.returnDays} of our own promise we ask that it is unused and in its packaging.</p>
+   <p><b>Return postage.</b> On us if the item is faulty or not as described; on you if you simply changed your mind.</p>
+   <p><b>Where to send it.</b> Post returns to ${esc(returnAddr())}. Never send anything to the supplier's warehouse.</p>
+   <p><b>Timing.</b> We refund everything you paid, including the standard delivery charge (not the faster-shipping upgrade), to the original payment method within 14 days of receiving the goods back or of your proof of posting, whichever comes first.</p>
+   <p><b>Damaged on arrival.</b> Send us a photo as soon as you can, ideally within 14 days, and we replace it or refund you in full.</p>
+   <p><b>Faults.</b> A fault within two years is covered by the legal guarantee: repair or replacement first; if that fails or is not possible, a price reduction or a full refund.</p>
+   <p><b>How to start.</b> Message us with your order number (NST-...) and, for damage, a photo.</p>
+   <h4>Model withdrawal form</h4><p>You may use it, but you do not have to:</p>
+   <p>To ${esc(STORE.company || STORE.name)}${STORE.address ? ', ' + esc(STORE.address) : ''}${STORE.email ? ', ' + esc(STORE.email) : ''}${hasIdentity() ? '' : ' (postal and email address as published on the Terms page once the shop opens for orders)'}: I hereby give notice that I withdraw from my contract of sale of the following goods: … Ordered on / received on: … Name: … Address: … Date: … (Signature only if sent on paper.)</p>`],
+ contact:['Contact us', `<p>Put your order number (NST-...) in the message and we answer within 24 hours on working days.</p>
+   ${STORE.email ? `<div class="ref"><span>${esc(STORE.email)}</span><button class="sbtn" type="button" data-copy="${esc(STORE.email)}">Copy</button></div>` : ''}
+   ${STORE.phone ? `<div class="ref" style="margin-top:8px"><span>${esc(STORE.phone)}</span><button class="sbtn" type="button" data-copy="${esc(STORE.phone)}">Copy</button></div>` : ''}
+   ${STORE.whatsapp ? `<p style="margin-top:12px"><a class="btn btn-m" href="https://wa.me/${STORE.whatsapp.replace(/\D/g,'')}" target="_blank" rel="noopener">Message us on WhatsApp</a></p>` : ''}
+   ${!STORE.email && !STORE.whatsapp ? `<p>Contact details are being set up. Until then, use the chat button at the bottom right.</p>` : ''}
+   ${identity()}`]
+});
+function openLegal(k){
+  const [title, body] = LEGAL()[k];
+  $('#legal').innerHTML = `<div class="legalbox">
+    <button class="icobtn legalclose" id="legalClose" aria-label="Close"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    <h2 id="legalTitle">${esc(title)}</h2><div class="upd">Last reviewed September 2026</div>${body}</div>`;
+  setLayer($('#legal'), true, '#legalClose');
+  $('#legalClose').onclick = closeLegal;
+  $$('#legal [data-copy]').forEach(b => b.onclick = e => copyText(b.dataset.copy, e.currentTarget));
+}
+function closeLegal(){ setLayer($('#legal'), false); }
+function openTrack(){
+  $('#legal').innerHTML = `<div class="legalbox">
+    <button class="icobtn legalclose" id="legalClose" aria-label="Close"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    <h2 id="legalTitle">Track your order</h2><div class="upd">${API_BASE ? 'Order number and the email you used' : 'Your tracking number is in the dispatch message we sent you'}</div>
+    <form class="track" id="trackForm">
+      ${API_BASE ? `<div class="fld"><label for="t-no">Order number</label><input id="t-no" placeholder="NST-XXXXXX" required></div>
+      <div class="fld"><label for="t-em">Email</label><input id="t-em" type="email" placeholder="you@example.com" required></div>`
+      : `<div class="fld"><label for="t-no">Tracking number</label><input id="t-no" placeholder="e.g. LP123456789CN" required autocomplete="off"></div>`}
+      <button class="paybtn" style="margin-top:4px" type="submit">${API_BASE ? 'Find my order' : 'Open tracking'}</button>
+    </form><div id="trackOut" role="status"></div>
+    ${API_BASE ? '' : `<p style="font-size:12.5px;color:var(--stone);margin-top:14px">Tracking opens on 17TRACK, which follows every carrier we use. No dispatch message yet? Orders leave within ${STORE.dispatchDays} working days of payment.</p>`}</div>`;
+  setLayer($('#legal'), true, '#legalClose');
+  $('#legalClose').onclick = closeLegal;
+  $('#trackForm').onsubmit = async e => {
+    e.preventDefault();
+    const no = $('#t-no').value.trim(), out = $('#trackOut');
+    if (!no) return;
+    if (!API_BASE){
+      out.innerHTML = `<p style="margin-top:14px"><a class="btn btn-m" href="https://t.17track.net/en#nums=${encodeURIComponent(no)}" target="_blank" rel="noopener">Track ${esc(no)} on 17TRACK</a></p>`;
+      return;
+    }
+    const em = $('#t-em').value.trim();
+    out.innerHTML = `<p style="font-size:13px;color:var(--stone);margin-top:14px">Looking...</p>`;
+    try {
+      const r = await fetch(`${API_BASE}/api/track?order=${encodeURIComponent(no)}&email=${encodeURIComponent(em)}`);
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Order not found.');
+      out.innerHTML = `<div class="track" style="margin-top:14px">${d.steps.map(st => `<div class="note ${st.done ? 'good' : ''}"><b>${esc(st.title)}</b> ${esc(st.note || '')}</div>`).join('')}</div>`;
+    } catch (err) {
+      out.innerHTML = `<div class="note warn" style="margin-top:14px"><b>We could not find that order.</b> ${esc(err.message)} Check the number in your confirmation, or write to us.</div>`;
+    }
+  };
+}
+
+/* ---- global clicks ---- */
+document.addEventListener('click', e => {
+  const j = e.target.closest('[data-jump]');
+  if (j){
+    filter = j.dataset.jump; paint();
+    if (topLayer()) { while (topLayer()) { const t = topLayer(); if (t === $('#pdp')) closePDP(); else if (t === $('#co')) closeCheckout(); else if (t === $('#drawer')) openCart(false); else setLayer(t, false); } }
+    $('#nav').classList.remove('open'); $('#burger').setAttribute('aria-expanded', 'false');
+    $('#grid').scrollIntoView({behavior: motionOK ? 'smooth' : 'auto', block:'start'});
+    return;
+  }
+  const l = e.target.closest('[data-legal]');
+  if (l){ l.dataset.legal === 'track' ? openTrack() : openLegal(l.dataset.legal); return; }
+  const o = e.target.closest('[data-open]');
+  if (o && !e.target.closest('.gt')){ openPDP(o.dataset.open); return; }
+  const t = e.target.closest('.gt');
+  if (t && t.closest('.gal')){
+    const gal = t.closest('.gal'), p = byId(gal.dataset.gal);
+    gal.querySelectorAll('.gt').forEach(b => b.setAttribute('aria-pressed', String(b === t)));
+    const main = document.querySelector(`[data-main="${p.id}"] img`);
+    if (main) main.src = imgUrl(p, Number(t.dataset.v));
+    return;
+  }
+  const a = e.target.closest('[data-add]');
+  if (a){
+    addToCart(keyFor(a.dataset.add, defaultVars(a.dataset.add)), 1);
+    a.textContent = 'Added ✓'; a.classList.add('in');
+    setTimeout(() => { a.textContent = 'Add to cart'; a.classList.remove('in'); }, 1100);
+    openCart(true);
+  }
+});
+$('#chips').onclick = e => { const b = e.target.closest('.chip'); if (b){ filter = b.dataset.cat; paint(); } };
+$('#heroTop').onclick = () => { filter = 'All'; paint(); $('#grid').scrollIntoView({behavior: motionOK ? 'smooth' : 'auto'}); };
+$('#logoHome').onclick = () => { filter = 'All'; query = ''; $('#q').value = ''; paint(); window.scrollTo({top:0, behavior: motionOK ? 'smooth' : 'auto'}); };
+$('#cartBtn').onclick = () => openCart(true);
+$('#closeCart').onclick = $('#scrim').onclick = () => openCart(false);
+$('#goCheckout').onclick = openCheckout;
+$('#ditems').onclick = e => {
+  const b = e.target.closest('[data-q]'); if (!b) return;
+  const i = b.dataset.q.lastIndexOf(':');
+  const key = b.dataset.q.slice(0, i), d = Number(b.dataset.q.slice(i + 1));
+  cart[key] = Math.min(MAX_QTY, Math.max(0, (cart[key] || 0) + d));
+  renderCart();
+  const p = byId(pidOf(key));
+  const again = document.querySelector(`[data-q="${b.dataset.q.replace(/"/g, '\\"')}"]`);
+  (again || $('#closeCart')).focus({preventScroll:true});
+  announce(cart[key] ? `${p.n}, quantity ${cart[key]}` : `${p.n} removed from cart`);
+};
+$('#q').oninput = () => {
+  query = $('#q').value.trim().toLowerCase(); paint();
+  if (query && innerWidth <= 640) $('.toolbar').scrollIntoView({block:'start'});
+};
+$('#burger').onclick = function(){
+  const open = $('#nav').classList.toggle('open');
+  this.setAttribute('aria-expanded', String(open));
+  if (open){ $('#searchbox').classList.remove('open'); $('#searchBtn').setAttribute('aria-expanded', 'false'); }
+};
+$('#searchBtn').onclick = function(){
+  const open = $('#searchbox').classList.toggle('open');
+  this.setAttribute('aria-expanded', String(open));
+  if (open){ $('#nav').classList.remove('open'); $('#burger').setAttribute('aria-expanded', 'false'); $('#q').focus(); }
+};
+addEventListener('scroll', () => { $('#hdr').classList.toggle('scrolled', scrollY > 8); }, { passive: true });
+
+/* ---- support chat: instant answers for the common questions, Claude for the rest when the viewer allows it ---- */
+const QUICK = ['Where is my order?', 'How long is delivery?', 'How do returns work?', 'Is anything due on delivery?'];
+const FAQ = () => [
+  [/where.*(order|parcel|package)|\btrack/i, `Your tracking number is in the dispatch message we sent you. Open "Track your order" in the footer and paste it in. ${STORE.email ? 'For anything else about an order, email ' + STORE.email + '.' : ''}`],
+  [/free ship|free delivery|how much.*(ship|deliver|post)|shipping cost|delivery cost|shipping fee|\bpostage\b/i, `Delivery is free from ${eur0(STORE.freeShipOver)}. Below that it is ${eur(STORE.shipFee)}. Faster shipping is ${eur(STORE.expressFee)} on top.`],
+  [/\breturn|refund|money back|change my mind|\bcancel|send it back/i, `${STORE.returnDays} days from delivery, any reason. Tell us by ${channels()} (no permission needed), then post it back to our address in Greece. Refunds, including the standard delivery charge, land on the original payment method within 14 days of the parcel arriving back, or of your proof of posting if that comes first.`],
+  [/damaged|broken|faulty|not working|defect/i, 'Send us a photo as soon as you can, ideally within 14 days, and we replace it or refund you in full. Faults that show up later are covered by the two-year legal guarantee.'],
+  [/\b(customs|duty|duties|vat|tax|taxes)\b|on delivery|at the door|anything to pay/i, 'Nothing is due at the door. VAT and any import duty are paid before the parcel ships. If a courier ever asks you for a charge, pay it, send us the receipt and we refund it in full.'],
+  [/\b(discount|cheaper|cheapest|bulk|multi-buy)\b|\b(two|three|2|3) (of|items|pieces|units|pairs)\b|buy (two|three|2|3)\b/i, 'Two of the same product in the same colour and options takes 10% off each; three or more takes 15% off each. It applies automatically in the cart.'],
+  [/how long|delivery time|when.*arrive|shipping time|\bdays?\b|how fast|how quick/i, `We place your order with the supplier as soon as payment arrives and it leaves the warehouse within ${STORE.dispatchDays} working days, then usually ${etaText()} with tracking. The first tracking scan can take 2–4 days to appear.`],
+  [/\b(pay|payment|paying|card|paypal|bank|iban)\b/i, 'At checkout you get the order summary and the ways to pay (PayPal, card link or bank transfer, depending on what is set up). Nothing is charged on this page itself.'],
+  [/contact|\bemail\b|phone number|call you|telephone|human|person|whatsapp|talk to/i, STORE.email || STORE.whatsapp ? `Email ${STORE.email || ''}${STORE.email && STORE.whatsapp ? ' or ' : ''}${STORE.whatsapp ? 'WhatsApp +' + STORE.whatsapp : ''}. We answer within 24 hours on working days.` : 'Use the Contact page in the footer. We answer within 24 hours on working days.']
+];
+let chatMsgs = [], chatBusy = false, chatAI = null;
+const chatRules = () => `You are the help assistant on the website of ${STORE.name}, a small online shop based in Greece that ships home, kitchen, pet and wellness products across the EU. Facts you may use (never invent others): the order leaves the supplier's warehouse within ${STORE.dispatchDays} working days of payment; delivery ${etaText()} with tracking (first scan can take 2-4 days); faster shipping ${STORE.expressEta[0]}-${STORE.expressEta[1]} days for ${eur(STORE.expressFee)} on top of standard delivery; delivery ${eur(STORE.shipFee)}, free from ${eur0(STORE.freeShipOver)}; VAT and any import duty are paid before shipping, nothing to pay at the door, and any courier charge is refunded; returns ${STORE.returnDays} days from delivery for any reason (14 days by law), customer pays return postage for a change of mind, we pay for faults; damaged item: send a photo, ideally within 14 days, replacement or full refund; two-year legal guarantee; multi-buy 10% off two, 15% off three or more of the same product in the same variant; prices in EUR incl. VAT; payment after sending the order, by PayPal, card link or bank transfer depending on what is set up. Products: ${P.map(p => `${p.n} (${p.cat}) ${eur(p.price)} - ${p.d}`).join('; ')}. Contact: ${STORE.email || STORE.whatsapp ? [STORE.email, STORE.whatsapp && 'WhatsApp +' + STORE.whatsapp].filter(Boolean).join(', ') : 'the Contact page'}. You cannot see orders or tracking; for those, point to the tracking page or the contact details. Answer in the customer's language, in at most three short sentences, plainly and warmly, no emoji. If you do not know, say so and give the contact.`;
+function chatAdd(role, text, cls){
+  const el = document.createElement('div');
+  el.className = 'msg ' + (cls || (role === 'user' ? 'me' : 'bot'));
+  el.textContent = text;
+  $('#chatlog').appendChild(el);
+  $('#chatlog').scrollTop = $('#chatlog').scrollHeight;
+  return el;
+}
+function chatQuick(show){ $('#chatquick').innerHTML = show ? QUICK.map(q => `<button type="button" data-q2="${esc(q)}">${esc(q)}</button>`).join('') : ''; }
+function openChat(){
+  $('#chat').classList.add('on'); $('#chatBtn').setAttribute('aria-expanded', 'true');
+  $('#chatDot').hidden = true;
+  if (!chatMsgs.length){ chatAdd('assistant', 'Hello! Ask me about delivery, returns or payment. For a specific order, use the contact details in the footer.'); chatQuick(true); }
+  $('#chatinput').focus();
+}
+function closeChat(){ $('#chat').classList.remove('on'); $('#chatBtn').setAttribute('aria-expanded', 'false'); $('#chatBtn').focus(); }
+$('#chatBtn').onclick = () => $('#chat').classList.contains('on') ? closeChat() : openChat();
+$('#chatClose').onclick = closeChat;
+$('#chatquick').onclick = e => { const b = e.target.closest('[data-q2]'); if (b){ $('#chatinput').value = b.dataset.q2; $('#chatform').requestSubmit(); } };
+$('#chatform').onsubmit = async e => {
+  e.preventDefault();
+  const input = $('#chatinput'), text = input.value.trim();
+  if (!text || chatBusy) return;
+  input.value = ''; chatQuick(false);
+  chatAdd('user', text);
+  chatBusy = true; $('#chatsend').disabled = true;
+  const dots = document.createElement('div'); dots.className = 'typing'; dots.innerHTML = '<i></i><i></i><i></i>';
+  $('#chatlog').appendChild(dots); $('#chatlog').scrollTop = $('#chatlog').scrollHeight;
+  const finish = (reply, cls) => {
+    dots.remove(); chatAdd('assistant', reply, cls);
+    chatBusy = false; $('#chatsend').disabled = false; input.focus();
+  };
+  const hit = FAQ().find(([re]) => re.test(text));
+  if (hit && !chatAI){ chatMsgs.push({role:'user', content:text}, {role:'assistant', content:hit[1]}); setTimeout(() => finish(hit[1]), 450); return; }
+  if (chatAI){
+    const turns = [{role:'user', content: chatRules()}, ...chatMsgs.slice(-8), {role:'user', content:text}];
+    let bubble = null;
+    try {
+      const {text: reply} = await chatAI(turns, {cache:false, modelTier:'quick', onText: ({text: t}) => { if (!bubble){ dots.remove(); bubble = chatAdd('assistant', t); } else { bubble.textContent = t; $('#chatlog').scrollTop = $('#chatlog').scrollHeight; } }});
+      chatMsgs.push({role:'user', content:text}, {role:'assistant', content:reply});
+      if (bubble){ dots.remove(); chatBusy = false; $('#chatsend').disabled = false; input.focus(); } else finish(reply);
+      return;
+    } catch (err) {
+      if (bubble) bubble.remove();
+      if (err && ['not_granted','sampling_disabled','not_declared','capability_disabled','capability_removed'].includes(err.code)){ chatAI = null; $('#chatStatus').innerHTML = '<i></i>Answers common questions instantly'; }
+      if (hit){ chatMsgs.push({role:'user', content:text}, {role:'assistant', content:hit[1]}); finish(hit[1]); return; }
+      finish(err && err.code === 'cancelled' ? 'Stopped.' : `I could not reach the assistant just now. ${STORE.email ? 'Email ' + STORE.email + ' and a person will answer.' : 'Please try again in a moment or use the contact page.'}`, 'err');
+      return;
+    }
+  }
+  chatMsgs.push({role:'user', content:text});
+  setTimeout(() => finish(`I only know the common questions: delivery, returns, payment and damage. ${STORE.email ? 'For anything else, email ' + STORE.email + '.' : 'For anything else, use the Contact page in the footer.'}`, 'err'), 450);
+};
+
+const motionOK = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---- owner tools: only rendered for the person who owns this page ---- */
+const CAP = {user:null, sample:null, downloads:null};
+let POSTS = store.get('nestia-posts') || {};
+let ownerTab = 'promote', genBusy = false, genCtl = null;
+const PLATS = [['tiktok','TikTok'],['instagram','Instagram'],['facebook','Facebook'],['pinterest','Pinterest'],['x','X']];
+function enableOwner(){
+  $('#ownerBtn').classList.add('show');
+  $('#ownerBtn').onclick = () => { renderOwner(); setLayer($('#owner'), true, '#ownerBack'); $('#owner').scrollTop = 0; };
+}
+const marginOf = p => ({gross: p.price - p.cost, margin: (p.price - p.cost) / p.price, roas: p.price / (p.price - p.cost), cpa: p.price - p.cost - p.price * .03 - 1 - p.price * .05});
+function checklist(){
+  const makers = P.filter(p => SAFETY[p.id] && SAFETY[p.id].maker).length;
+  return [
+    [!!STORE.email, 'Support email', 'Shown on Contact, on the Terms page, in the chat and in every order. Set <code>STORE.email</code>.'],
+    [!!(STORE.whatsapp || API_BASE || STORE.email), 'A way to receive orders', 'Without a checkout server, orders reach you on WhatsApp (<code>STORE.whatsapp</code>) or by email. Set at least one; both is best.'],
+    [hasPayment(), 'A way to get paid', 'PayPal.me handle, a Stripe Payment Link or an IBAN in <code>STORE.payment</code>. Until identity, contact and payment are all set, the checkout button stays off and says the shop is not taking orders yet.'],
+    [!!(STORE.company && STORE.address && STORE.vat && STORE.gemi && STORE.phone), 'Legal identity on the Terms page', 'A Greek e-shop must show the company name, postal address, VAT (AFM), GEMI number, email and phone. Fill <code>STORE.company / address / vat / gemi / phone</code>; <code>STORE.returnAddress</code> if returns go somewhere else.'],
+    [STORE.showComparePrice === false, 'Strike-through prices off', 'EU and Greek rule (Directive 98/6/EC Art. 6a, Law 4177/2013 Art. 15): a struck-through "was" price must be the lowest price YOU actually charged for that product in the 30 days before the reduction. The <code>was</code> values in P are supplier-style RRP numbers, not that. Replace them with your real prior prices before turning this on, and never use supplier RRPs.'],
+    [makers >= P.length, `Manufacturer details for product safety (${makers} of ${P.length})`, 'EU General Product Safety Regulation (since Dec 2024): every product page must show the manufacturer’s name, postal and email address, an EU responsible person (you, as the importer, unless you appoint one), a model reference and safety warnings. Fill <code>SAFETY[id].maker</code> from the supplier’s listing or packaging and keep the CE declaration and test reports.'],
+    [!!STORE.imageBase, 'Public image URL for feeds', 'Google, Meta and Pinterest feeds need public image links. <code>STORE.imageBase</code> must point at the folder that contains img/ and be reachable without logging in; when you move the shop to your own domain, update it and <code>STORE.siteUrl</code>.'],
+    [Object.keys(POSTS).length >= P.length, 'Posts written for every product', 'Use "Write posts" on the Promote tab, then export and schedule them.'],
+    [null, 'Supplier ships with VAT and duty prepaid', 'Confirm every AliExpress/CJ order ships IOSS or DDP so nothing is collected at the door, and split orders above €150 into separate parcels. The shop promises to refund any courier charge.'],
+    [null, 'One test order', 'Place a real order to yourself once and follow it to delivery before you advertise.']
+  ];
+}
+function renderOwner(){
+  const gen = Object.values(POSTS).length;
+  $('#owner').innerHTML = `
+  <div class="pdpbar">
+    <button class="icobtn" id="ownerBack" aria-label="Close owner tools"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button>
+    <div class="logo"><i></i>Owner tools</div><span style="width:38px"></span>
+  </div>
+  <div class="owrap">
+    <div class="tabs" role="tablist">${[['promote','Promote'],['margins','Margins'],['checklist','Go-live checklist']].map(([k, l]) => `<button class="tab" role="tab" data-tab="${k}" aria-selected="${ownerTab===k}">${l}</button>`).join('')}</div>
+
+    <section class="opanel ${ownerTab==='promote' ? 'on' : ''}" id="op-promote">
+      <div class="ohead"><div><h2>Promote every product</h2><p>One click writes a TikTok script, an Instagram caption, a Facebook post, a Pinterest pin and an X post for all ${P.length} products, from the real product facts on this page. Then export them for a free scheduler and the product feed for Google, Meta and Pinterest.</p></div></div>
+      <div class="orow">
+        <label for="genLang" style="font-size:13px;color:var(--ink-2)">Language</label>
+        <select id="genLang"><option value="English">English</option><option value="Greek">Greek</option><option value="Greek and English (both in each post)">Greek + English</option></select>
+        <button class="btn btn-m" id="genBtn">${gen ? 'Write posts again' : 'Write posts for all products'}</button>
+        <button class="btn btn-s" id="genStop" hidden>Stop</button>
+      </div>
+      <div id="genStatus" class="note" hidden></div>
+      <div class="prog" id="genProg" hidden><i style="width:0%"></i></div>
+      <div class="exports" id="exports"></div>
+      <div class="postgrid" id="postgrid"></div>
+    </section>
+
+    <section class="opanel ${ownerTab==='margins' ? 'on' : ''}" id="op-margins">
+      <div class="ohead"><div><h2>Margins</h2><p>Cost is the landed supplier price. Max CPA is what you can pay per sale in ads before you lose money (after 3% payment fees, 5% returns and €1 packaging). Under €12–18 it rarely works as a stand-alone ad product; sell it as an add-on instead.</p></div></div>
+      <div class="tblwrap"><table class="tbl"><thead><tr><th>Product</th><th>Cost</th><th>Price</th><th>Profit</th><th>Margin</th><th>Break-even ROAS</th><th>Max CPA</th><th>Supplier</th></tr></thead><tbody>
+        ${P.map(p => { const m = marginOf(p); return `<tr><td>${esc(p.n)}</td><td>${eur(p.cost)}</td><td>${eur(p.price)}</td><td>${eur(m.gross)}</td><td>${Math.round(m.margin*100)}%</td><td>${m.roas.toFixed(2)}×</td><td class="${m.cpa < 14 ? 'thin' : ''}">${eur(m.cpa)}</td><td>${p.ali ? `<a href="https://www.aliexpress.com/item/${p.ali}.html" target="_blank" rel="noopener">AliExpress</a>` : '—'}</td></tr>`; }).join('')}
+      </tbody></table></div>
+    </section>
+
+    <section class="opanel ${ownerTab==='checklist' ? 'on' : ''}" id="op-checklist">
+      <div class="ohead"><div><h2>Before you go live</h2><p>Everything reads from the <code>STORE</code> block at the top of the page's script. Fill it in, republish, and these turn green.</p></div></div>
+      <div class="check">${checklist().map(([ok, t, d]) => `<div class="ck ${ok === null ? '' : ok ? 'ok' : 'no'}"><span class="st" aria-hidden="true">${ok === null ? '•' : ok ? '✓' : '!'}</span><div><b>${t}</b><span>${d}</span></div></div>`).join('')}</div>
+    </section>
+  </div>`;
+  $('#ownerBack').onclick = () => setLayer($('#owner'), false);
+  $$('#owner .tab').forEach(b => b.onclick = () => { ownerTab = b.dataset.tab; $$('#owner .tab').forEach(x => x.setAttribute('aria-selected', x === b)); $$('#owner .opanel').forEach(s => s.classList.toggle('on', s.id === 'op-' + ownerTab)); });
+  $('#genBtn').onclick = generatePosts;
+  $('#genStop').onclick = () => { if (genCtl) genCtl.abort(); };
+  if (genBusy){ $('#genBtn').disabled = true; $('#genStop').hidden = false; $('#genStatus').hidden = false; $('#genProg').hidden = false; $('#genStatus').innerHTML = '<b>Still writing.</b> Progress shows here as each batch finishes.'; }
+  if (!CAP.sample){
+    $('#genBtn').disabled = true;
+    $('#genStatus').hidden = false;
+    $('#genStatus').innerHTML = '<b>Writing posts needs Claude.</b> Open this page from your claude.ai artifacts (signed in) and the button switches on. Exports below still work with any posts already written.';
+  }
+  renderPosts(); renderExports();
+}
+async function generatePosts(){
+  if (!CAP.sample || genBusy) return;
+  genBusy = true; genCtl = new AbortController();
+  const lang = $('#genLang').value;
+  $('#genBtn').disabled = true; $('#genStop').hidden = false; $('#genProg').hidden = false; $('#genStatus').hidden = false;
+  const batches = []; for (let i = 0; i < P.length; i += 4) batches.push(P.slice(i, i + 4));
+  let done = 0;
+  try {
+    for (const batch of batches){
+      $('#genStatus').innerHTML = `<b>Writing batch ${done + 1} of ${batches.length}</b> (${batch.map(p => esc(p.n)).join(', ')}). Claude thinks first, so the first text can take up to a minute.`;
+      const data = batch.map(p => ({id: p.id, name: p.n, category: p.cat, price: eur(p.price), blurb: p.d, benefits: DETAIL[p.id].b, specs: DETAIL[p.id].s, description: DETAIL[p.id].d}));
+      const prompt = `You write short social posts for ${STORE.name}, a small online shop in Greece that ships across the EU (delivery ${etaText()} with tracking, ${STORE.returnDays}-day returns, free delivery from ${eur0(STORE.freeShipOver)}). Write in ${lang}. Plain, warm, specific; no hype words, no emoji, no invented claims: use ONLY the facts given for each product. Do not mention discounts.
+For EACH product return: "tiktok": {"hook": one spoken line of at most 8 words, "script": 30-45 words in three beats (the everyday problem, what the product does, the result), "caption": at most 100 characters, "hashtags": 5 hashtags starting with #}, "instagram": {"caption": 2-3 short lines ending with the price and "Link in bio", "hashtags": 8 hashtags}, "facebook": {"post": 2 sentences plus the price and the delivery promise}, "pinterest": {"title": at most 60 characters, "description": 120-200 characters, keyword-rich}, "x": {"post": at most 200 characters including the price}.
+Reply with ONLY a JSON array, one object per product, in this shape: [{"id":"<id>","tiktok":{...},"instagram":{...},"facebook":{...},"pinterest":{...},"x":{...}}]
+Products:
+${JSON.stringify(data)}`;
+      const out = await CAP.sample.json(prompt, {signal: genCtl.signal, modelTier: 'default', cache: false});
+      const arr = Array.isArray(out) ? out : (out && Array.isArray(out.products) ? out.products : []);
+      for (const item of arr){ if (item && byId(item.id)) POSTS[item.id] = {lang, ...item}; }
+      store.set('nestia-posts', POSTS);
+      done++;
+      $('#genProg').firstElementChild.style.width = Math.round(done / batches.length * 100) + '%';
+      renderPosts(); renderExports();
+    }
+    $('#genStatus').hidden = false;
+    $('#genStatus').innerHTML = `<b>Done.</b> Posts for ${Object.keys(POSTS).length} products are saved in this browser. Copy any of them, or export below.`;
+  } catch (err) {
+    const code = err && err.code;
+    $('#genStatus').hidden = false;
+    $('#genStatus').innerHTML = code === 'cancelled' ? '<b>Stopped.</b> Posts already written are kept.' :
+      code === 'not_granted' ? '<b>Claude was not allowed for this page.</b> Allow it when the page asks, then try again.' :
+      code === 'rate_limited' ? '<b>Too many requests right now.</b> Wait a few minutes and press the button again; finished batches are kept.' :
+      code === 'invalid_json' ? '<b>The answer was not valid JSON.</b> Press the button again; it usually works the second time.' :
+      `<b>Could not write posts.</b> ${esc((err && err.message) || 'Unknown error')}`;
+  }
+  genBusy = false; genCtl = null;
+  $('#genBtn').disabled = !CAP.sample; $('#genStop').hidden = true; $('#genBtn').textContent = 'Write posts again';
+}
+function renderPosts(){
+  const g = $('#postgrid'); if (!g) return;
+  const have = P.filter(p => POSTS[p.id]);
+  if (!have.length){ g.innerHTML = ''; return; }
+  const T = s => esc(s == null ? '' : typeof s === 'string' ? s : Array.isArray(s) ? s.join(' ') : JSON.stringify(s));
+  g.innerHTML = have.map(p => { const o = POSTS[p.id]; return `<article class="post">
+    <div class="ph2">${pic(p, 0, true)}<div><b>${esc(p.n)}</b><span>${eur(p.price)} · ${esc(o.lang || '')}</span></div></div>
+    ${o.tiktok ? `<div class="plat"><div class="pl">TikTok / Reels script <button class="sbtn" data-copy="${T(o.tiktok.hook)}\n\n${T(o.tiktok.script)}\n\n${T(o.tiktok.caption)}\n${T(o.tiktok.hashtags)}">Copy</button></div><pre>${T(o.tiktok.hook)}\n\n${T(o.tiktok.script)}\n\n${T(o.tiktok.caption)}</pre><div class="hs">${T(o.tiktok.hashtags)}</div></div>` : ''}
+    ${o.instagram ? `<div class="plat"><div class="pl">Instagram <button class="sbtn" data-copy="${T(o.instagram.caption)}\n\n${T(o.instagram.hashtags)}">Copy</button></div><pre>${T(o.instagram.caption)}</pre><div class="hs">${T(o.instagram.hashtags)}</div></div>` : ''}
+    ${o.facebook ? `<div class="plat"><div class="pl">Facebook <button class="sbtn" data-copy="${T(o.facebook.post)}">Copy</button></div><pre>${T(o.facebook.post)}</pre></div>` : ''}
+    ${o.pinterest ? `<div class="plat"><div class="pl">Pinterest <button class="sbtn" data-copy="${T(o.pinterest.title)}\n\n${T(o.pinterest.description)}">Copy</button></div><pre><b>${T(o.pinterest.title)}</b>\n${T(o.pinterest.description)}</pre></div>` : ''}
+    ${o.x ? `<div class="plat"><div class="pl">X <button class="sbtn" data-copy="${T(o.x.post)}">Copy</button></div><pre>${T(o.x.post)}</pre></div>` : ''}
+  </article>`; }).join('');
+  $$('#postgrid [data-copy]').forEach(b => b.onclick = e => copyText(b.dataset.copy, e.currentTarget));
+}
+const csvCell = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+const csv = rows => rows.map(r => r.map(csvCell).join(',')).join('\r\n');
+const productLink = p => STORE.siteUrl + '#' + p.id;
+function feedCSV(){
+  const head = ['id','title','description','link','image_link','additional_image_link','availability','price','condition','brand','identifier_exists','product_type','shipping'];
+  const rows = P.map(p => [p.id, p.n, DETAIL[p.id].d, productLink(p), absImg(p, 0), [1,2,3].map(i => absImg(p, i)).join(','), 'in_stock', p.price.toFixed(2) + ' ' + STORE.currency, 'new', '', 'no', p.cat, `GR::Standard:${STORE.shipFee.toFixed(2)} ${STORE.currency}`]);
+  return csv([head, ...rows]);
+}
+function postsCSV(){
+  const head = ['platform','product','text','hashtags','link','image_url'];
+  const rows = [];
+  for (const p of P){ const o = POSTS[p.id]; if (!o) continue;
+    const S = s => typeof s === 'string' ? s : Array.isArray(s) ? s.join(' ') : '';
+    if (o.tiktok) rows.push(['TikTok', p.n, S(o.tiktok.hook) + '\n' + S(o.tiktok.caption), S(o.tiktok.hashtags), productLink(p), absImg(p, 0)]);
+    if (o.instagram) rows.push(['Instagram', p.n, S(o.instagram.caption), S(o.instagram.hashtags), productLink(p), absImg(p, 0)]);
+    if (o.facebook) rows.push(['Facebook', p.n, S(o.facebook.post), '', productLink(p), absImg(p, 0)]);
+    if (o.pinterest) rows.push(['Pinterest', p.n, S(o.pinterest.title) + '\n' + S(o.pinterest.description), '', productLink(p), absImg(p, 0)]);
+    if (o.x) rows.push(['X', p.n, S(o.x.post), '', productLink(p), absImg(p, 0)]);
+  }
+  return csv([head, ...rows]);
+}
+function postsMD(){
+  const S = s => typeof s === 'string' ? s : Array.isArray(s) ? s.join(' ') : '';
+  return P.filter(p => POSTS[p.id]).map(p => { const o = POSTS[p.id]; return `## ${p.n} (${eur(p.price)})\nLink: ${productLink(p)}\nPhoto: ${absImg(p, 0)}\n\n### TikTok / Reels\nHook: ${S(o.tiktok && o.tiktok.hook)}\n\n${S(o.tiktok && o.tiktok.script)}\n\nCaption: ${S(o.tiktok && o.tiktok.caption)}\n${S(o.tiktok && o.tiktok.hashtags)}\n\n### Instagram\n${S(o.instagram && o.instagram.caption)}\n${S(o.instagram && o.instagram.hashtags)}\n\n### Facebook\n${S(o.facebook && o.facebook.post)}\n\n### Pinterest\n${S(o.pinterest && o.pinterest.title)}\n${S(o.pinterest && o.pinterest.description)}\n\n### X\n${S(o.x && o.x.post)}\n`; }).join('\n');
+}
+function renderExports(){
+  const e = $('#exports'); if (!e) return;
+  const n = Object.keys(POSTS).length;
+  const dl = CAP.downloads;
+  const card = (id, title, text, fname, linksHtml) => `<div class="exp"><b>${title}</b><p>${text}</p><div class="links"><button class="sbtn" data-dl="${id}">${dl ? 'Download ' + fname : 'Show ' + fname}</button>${linksHtml || ''}</div></div>`;
+  e.innerHTML = `
+    ${card('feed', 'Product feed (all products)', 'One CSV in the Google Shopping format. Upload it to Google Merchant Center (free listings), Meta Commerce Manager (Facebook + Instagram shop) and Pinterest Catalogs. Each lists every product for free. Google and Meta need the shop on a domain you can verify; set <code>STORE.siteUrl</code> and <code>STORE.imageBase</code> to that domain when you move.', 'nestia-feed.csv',
+      `<a class="sbtn" href="https://merchants.google.com/" target="_blank" rel="noopener">Google Merchant</a><a class="sbtn" href="https://business.facebook.com/commerce/" target="_blank" rel="noopener">Meta Commerce</a><a class="sbtn" href="https://www.pinterest.com/business/hub/" target="_blank" rel="noopener">Pinterest</a>`)}
+    ${card('posts', `Posts for a scheduler (${n} of ${P.length} products)`, 'One row per post with platform, text, hashtags, link and photo. Bulk-import it into Publer or Metricool, or paste rows into Buffer and Meta Business Suite planner.', 'nestia-posts.csv',
+      `<a class="sbtn" href="https://app.publer.com/" target="_blank" rel="noopener">Publer</a><a class="sbtn" href="https://app.metricool.com/" target="_blank" rel="noopener">Metricool</a><a class="sbtn" href="https://business.facebook.com/latest/planner" target="_blank" rel="noopener">Meta planner</a>`)}
+    ${card('md', 'All posts as one text file', 'Every script and caption in reading order, for pasting by hand or into CapCut and Canva when you make the videos.', 'nestia-posts.md')}
+    <div class="exp"><b>Photos for the posts</b><p>The four photos per product are in the <code>img/</code> folder next to this page (700×700 WebP). For TikTok and Reels, drop them into CapCut or Canva with the script as the voice-over.</p><div class="links"><button class="sbtn" data-dl="imgs">${dl ? 'Show photo links' : 'Show photo links'}</button></div></div>
+    <div id="expOut"></div>`;
+  $$('#exports [data-dl]').forEach(b => b.onclick = async () => {
+    const k = b.dataset.dl;
+    const [fname, data] = k === 'feed' ? ['nestia-feed.csv', feedCSV()] : k === 'posts' ? ['nestia-posts.csv', postsCSV()] : k === 'md' ? ['nestia-posts.md', postsMD()] : ['nestia-photos.txt', P.map(p => [0,1,2,3].map(i => absImg(p, i)).join('\n')).join('\n')];
+    if ((k === 'posts' || k === 'md') && !n){ show('Write the posts first.'); return; }
+    if (dl){
+      try { await dl.save({filename: fname, data}); show(`${fname} saved.`); return; }
+      catch (err) { if (err && err.code === 'declined') { show('Download cancelled.'); return; } }
+    }
+    show(`Copy the contents of <b>${fname}</b> from here:`, data);
+  });
+  function show(msg, data){
+    const o = $('#expOut');
+    o.innerHTML = `<div class="note" style="margin-top:8px">${msg}${data ? `<div style="display:flex;gap:8px;margin-top:8px;align-items:center"><button class="sbtn" id="expCopy">Copy all</button></div><textarea id="expTa" readonly style="width:100%;margin-top:8px;height:180px;font:12px var(--mono);border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--surface);color:var(--ink)"></textarea>` : ''}</div>`;
+    if (data){ $('#expTa').value = data; $('#expCopy').onclick = e => copyText(data, e.currentTarget); }
+  }
+}
+
+/* ---- capabilities: light up owner tools and the smarter chat when the viewer can run them ---- */
+async function boot(){
+  const local = location.protocol === 'file:' || ['localhost','127.0.0.1'].includes(location.hostname);
+  if (!window.claude || typeof window.claude.use !== 'function'){ if (local) enableOwner(); return; }
+  const [u, s, d] = await Promise.all([claude.use('user'), claude.use('sample'), claude.use('downloads')]);
+  CAP.user = u; CAP.sample = s; CAP.downloads = d;
+  if (s){ chatAI = s; $('#chatStatus').innerHTML = '<i></i>Answers most questions'; }
+  let owner = false;
+  try { owner = u ? await u.isOwner() : false; } catch (e) { owner = false; }
+  if (owner || local) enableOwner();
+}
+
+/* ---- start ---- */
+renderStatic(); paintChips(); paintHero(); loadCart(); paint(); renderCart();
+const h = location.hash.replace('#', '');
+if (h && byId(h)) openPDP(h);
+boot();
+</script>
