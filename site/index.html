@@ -1667,40 +1667,80 @@ function feedCSV(){
   const rows = P.map(p => [p.id, p.n, DETAIL[p.id].d, productLink(p), absImg(p, 0), [1,2,3].map(i => absImg(p, i)).join(','), 'in_stock', p.price.toFixed(2) + ' ' + STORE.currency, 'new', '', 'no', p.cat, `GR::Standard:${STORE.shipFee.toFixed(2)} ${STORE.currency}`]);
   return csv([head, ...rows]);
 }
-function postsCSV(){
-  const head = ['platform','product','text','hashtags','link','image_url'];
+/* Post exports in the exact column layouts the free schedulers import.
+   Posts are spread one per day per network from tomorrow at 10:00. */
+const S = s => typeof s === 'string' ? s : Array.isArray(s) ? s.join(' ') : '';
+const pad2 = n => String(n).padStart(2, '0');
+function schedAt(i, sep){
+  const d = new Date(); d.setDate(d.getDate() + 1 + i); d.setHours(10, 0, 0, 0);
+  return `${d.getFullYear()}${sep}${pad2(d.getMonth() + 1)}${sep}${pad2(d.getDate())} 10:00`;
+}
+const postText = (o, net) => net === 'tiktok' ? [S(o.tiktok && o.tiktok.hook), S(o.tiktok && o.tiktok.caption), S(o.tiktok && o.tiktok.hashtags)].filter(Boolean).join('\n')
+  : net === 'instagram' ? [S(o.instagram && o.instagram.caption), S(o.instagram && o.instagram.hashtags)].filter(Boolean).join('\n\n')
+  : net === 'facebook' ? S(o.facebook && o.facebook.post)
+  : net === 'x' ? S(o.x && o.x.post) : '';
+const withPosts = () => P.filter(p => POSTS[p.id]);
+function bufferCSV(net){
+  /* Buffer bulk upload: Text | Image URL | Tags | Posting Time (YYYY-MM-DD HH:mm), one file per channel. Free plan takes 10 rows per upload. */
+  const rows = withPosts().map((p, i) => [postText(POSTS[p.id], net) + (net === 'facebook' || net === 'x' ? '\n' + productLink(p) : ''), absImg(p, 0), '', schedAt(i, '-')]);
+  return csv([['Text', 'Image URL', 'Tags', 'Posting Time'], ...rows]);
+}
+function pinterestCSV(){
+  /* Pinterest "Bulk create Pins": up to 200 rows per file; media must be public URLs. */
+  const rows = withPosts().map((p, i) => { const o = POSTS[p.id];
+    const kw = S(o.instagram && o.instagram.hashtags).split(/\s+/).map(h => h.replace(/^#/, '')).filter(Boolean).slice(0, 10).join(', ');
+    return [S(o.pinterest && o.pinterest.title) || p.n, absImg(p, 0), p.cat, '', S(o.pinterest && o.pinterest.description) || p.d, productLink(p), schedAt(i, '-'), kw]; });
+  return csv([['Title', 'Media URL', 'Pinterest board', 'Thumbnail', 'Description', 'Link', 'Publish date', 'Keywords'], ...rows]);
+}
+function publerCSV(){
+  /* Publer CSV import: the 12 official template columns; one row per post. Free plan takes 5 rows per upload, paid 500. */
+  const head = ['Date - Intl. format or prompt', 'Text', 'Link(s) - Separated by comma for FB carousels', 'Media URL(s) - Separated by comma', 'Title - For the video, pin, PDF ..', 'Label(s) - Separated by comma', 'Alt text(s) - Separated by ||', 'Comment(s) - Separated by ||', 'Pin board, FB album, or Google category', 'Post subtype - I.e. story, reel, PDF ..', 'CTA - For Facebook links or Google', 'Reminder - For stories, reels, shorts, and TikToks'];
   const rows = [];
-  for (const p of P){ const o = POSTS[p.id]; if (!o) continue;
-    const S = s => typeof s === 'string' ? s : Array.isArray(s) ? s.join(' ') : '';
-    if (o.tiktok) rows.push(['TikTok', p.n, S(o.tiktok.hook) + '\n' + S(o.tiktok.caption), S(o.tiktok.hashtags), productLink(p), absImg(p, 0)]);
-    if (o.instagram) rows.push(['Instagram', p.n, S(o.instagram.caption), S(o.instagram.hashtags), productLink(p), absImg(p, 0)]);
-    if (o.facebook) rows.push(['Facebook', p.n, S(o.facebook.post), '', productLink(p), absImg(p, 0)]);
-    if (o.pinterest) rows.push(['Pinterest', p.n, S(o.pinterest.title) + '\n' + S(o.pinterest.description), '', productLink(p), absImg(p, 0)]);
-    if (o.x) rows.push(['X', p.n, S(o.x.post), '', productLink(p), absImg(p, 0)]);
-  }
+  withPosts().forEach((p, i) => { const o = POSTS[p.id];
+    for (const net of ['tiktok', 'instagram', 'facebook', 'x']) { const t = postText(o, net); if (t) rows.push([schedAt(i, '/'), t, net === 'facebook' || net === 'x' ? productLink(p) : '', absImg(p, 0), '', net, p.n, '', '', '', '', '']); }
+    if (o.pinterest) rows.push([schedAt(i, '/'), S(o.pinterest.description), productLink(p), absImg(p, 0), S(o.pinterest.title), 'pinterest', p.n, '', p.cat, '', '', '']);
+  });
   return csv([head, ...rows]);
 }
 function postsMD(){
-  const S = s => typeof s === 'string' ? s : Array.isArray(s) ? s.join(' ') : '';
-  return P.filter(p => POSTS[p.id]).map(p => { const o = POSTS[p.id]; return `## ${p.n} (${eur(p.price)})\nLink: ${productLink(p)}\nPhoto: ${absImg(p, 0)}\n\n### TikTok / Reels\nHook: ${S(o.tiktok && o.tiktok.hook)}\n\n${S(o.tiktok && o.tiktok.script)}\n\nCaption: ${S(o.tiktok && o.tiktok.caption)}\n${S(o.tiktok && o.tiktok.hashtags)}\n\n### Instagram\n${S(o.instagram && o.instagram.caption)}\n${S(o.instagram && o.instagram.hashtags)}\n\n### Facebook\n${S(o.facebook && o.facebook.post)}\n\n### Pinterest\n${S(o.pinterest && o.pinterest.title)}\n${S(o.pinterest && o.pinterest.description)}\n\n### X\n${S(o.x && o.x.post)}\n`; }).join('\n');
+  return withPosts().map(p => { const o = POSTS[p.id]; return `## ${p.n} (${eur(p.price)})\nLink: ${productLink(p)}\nPhoto: ${absImg(p, 0)}\n\n### TikTok / Reels\nHook: ${S(o.tiktok && o.tiktok.hook)}\n\n${S(o.tiktok && o.tiktok.script)}\n\nCaption: ${S(o.tiktok && o.tiktok.caption)}\n${S(o.tiktok && o.tiktok.hashtags)}\n\n### Instagram\n${S(o.instagram && o.instagram.caption)}\n${S(o.instagram && o.instagram.hashtags)}\n\n### Facebook\n${S(o.facebook && o.facebook.post)}\n\n### Pinterest\n${S(o.pinterest && o.pinterest.title)}\n${S(o.pinterest && o.pinterest.description)}\n\n### X\n${S(o.x && o.x.post)}\n`; }).join('\n');
 }
+const EXPORTS = {
+  feed: ['nestia-feed.csv', feedCSV, false],
+  pinterest: ['nestia-pinterest-pins.csv', pinterestCSV, true],
+  'buffer-tiktok': ['nestia-buffer-tiktok.csv', () => bufferCSV('tiktok'), true],
+  'buffer-instagram': ['nestia-buffer-instagram.csv', () => bufferCSV('instagram'), true],
+  'buffer-facebook': ['nestia-buffer-facebook.csv', () => bufferCSV('facebook'), true],
+  'buffer-x': ['nestia-buffer-x.csv', () => bufferCSV('x'), true],
+  publer: ['nestia-publer.csv', publerCSV, true],
+  md: ['nestia-posts.md', postsMD, true],
+  imgs: ['nestia-photos.txt', () => P.map(p => [0,1,2,3].map(i => absImg(p, i)).join('\n')).join('\n'), false]
+};
 function renderExports(){
   const e = $('#exports'); if (!e) return;
   const n = Object.keys(POSTS).length;
   const dl = CAP.downloads;
-  const card = (id, title, text, fname, linksHtml) => `<div class="exp"><b>${title}</b><p>${text}</p><div class="links"><button class="sbtn" data-dl="${id}">${dl ? 'Download ' + fname : 'Show ' + fname}</button>${linksHtml || ''}</div></div>`;
+  const btn = (id, label) => `<button class="sbtn" data-dl="${id}">${(dl ? '' : 'Show: ') + label}</button>`;
+  const card = (title, text, buttons, linksHtml) => `<div class="exp"><b>${title}</b><p>${text}</p><div class="links">${buttons}${linksHtml || ''}</div></div>`;
   e.innerHTML = `
-    ${card('feed', 'Product feed (all products)', 'One CSV in the Google Shopping format. Upload it to Google Merchant Center (free listings), Meta Commerce Manager (Facebook + Instagram shop) and Pinterest Catalogs. Each lists every product for free. Google and Meta need the shop on a domain you can verify; set <code>STORE.siteUrl</code> and <code>STORE.imageBase</code> to that domain when you move.', 'nestia-feed.csv',
+    ${card('Product feed (all products)', 'One CSV in the Google Shopping column layout. Upload it as a data source in Google Merchant Center (free listings), Meta Commerce Manager (Facebook + Instagram shop, checkout on your site) and Pinterest Catalogs. Each lists every product for free. Google and Meta need the shop on a domain you can verify; set <code>STORE.siteUrl</code> and <code>STORE.imageBase</code> to that domain when you move.', btn('feed', 'nestia-feed.csv'),
       `<a class="sbtn" href="https://merchants.google.com/" target="_blank" rel="noopener">Google Merchant</a><a class="sbtn" href="https://business.facebook.com/commerce/" target="_blank" rel="noopener">Meta Commerce</a><a class="sbtn" href="https://www.pinterest.com/business/hub/" target="_blank" rel="noopener">Pinterest</a>`)}
-    ${card('posts', `Posts for a scheduler (${n} of ${P.length} products)`, 'One row per post with platform, text, hashtags, link and photo. Bulk-import it into Publer or Metricool, or paste rows into Buffer and Meta Business Suite planner.', 'nestia-posts.csv',
-      `<a class="sbtn" href="https://app.publer.com/" target="_blank" rel="noopener">Publer</a><a class="sbtn" href="https://app.metricool.com/" target="_blank" rel="noopener">Metricool</a><a class="sbtn" href="https://business.facebook.com/latest/planner" target="_blank" rel="noopener">Meta planner</a>`)}
-    ${card('md', 'All posts as one text file', 'Every script and caption in reading order, for pasting by hand or into CapCut and Canva when you make the videos.', 'nestia-posts.md')}
-    <div class="exp"><b>Photos for the posts</b><p>The four photos per product are in the <code>img/</code> folder next to this page (700×700 WebP). For TikTok and Reels, drop them into CapCut or Canva with the script as the voice-over.</p><div class="links"><button class="sbtn" data-dl="imgs">${dl ? 'Show photo links' : 'Show photo links'}</button></div></div>
+    ${card(`Pinterest: bulk create Pins (${n} of ${P.length})`, 'One CSV, one Pin per product with photo, title, description, keywords and the link back, scheduled one per day from tomorrow. Pinterest imports up to 200 Pins per file for free: Create → Bulk create Pins → upload. Check the column names against the sample template Pinterest offers there before uploading.', btn('pinterest', 'nestia-pinterest-pins.csv'),
+      `<a class="sbtn" href="https://www.pinterest.com/pin-creation-tool/" target="_blank" rel="noopener">Pinterest bulk create</a>`)}
+    ${card(`Buffer: one file per channel (${n} of ${P.length})`, 'Buffer’s bulk upload takes a CSV with the columns Text, Image URL, Tags, Posting Time, one file per connected channel. The free plan holds 3 channels and takes 10 rows per upload, so upload the first 10, then the rest once they are posted.', btn('buffer-tiktok', 'TikTok') + btn('buffer-instagram', 'Instagram') + btn('buffer-facebook', 'Facebook') + btn('buffer-x', 'X'),
+      `<a class="sbtn" href="https://publish.buffer.com/" target="_blank" rel="noopener">Buffer</a>`)}
+    ${card(`Publer: all posts in one file (${n} of ${P.length})`, 'Publer’s 12-column CSV template, one row per post and network, scheduled one product per day. Free plan: 3 accounts (no X), 5 rows per upload. Metricool’s free plan imports CSV too, but only in its own 18-column template: download it in Metricool and paste these columns in.', btn('publer', 'nestia-publer.csv'),
+      `<a class="sbtn" href="https://app.publer.com/" target="_blank" rel="noopener">Publer</a><a class="sbtn" href="https://app.metricool.com/" target="_blank" rel="noopener">Metricool</a>`)}
+    ${card('Native schedulers (no tool at all)', 'Meta Business Suite plans Facebook and Instagram posts and Reels for free; TikTok Studio schedules up to 10 days ahead; YouTube Studio schedules Shorts. Copy each post from the cards below and paste it in.', '',
+      `<a class="sbtn" href="https://business.facebook.com/latest/planner" target="_blank" rel="noopener">Meta planner</a><a class="sbtn" href="https://www.tiktok.com/tiktokstudio/upload" target="_blank" rel="noopener">TikTok Studio</a><a class="sbtn" href="https://studio.youtube.com/" target="_blank" rel="noopener">YouTube Studio</a>`)}
+    ${card('All posts as one text file', 'Every script and caption in reading order, for pasting by hand or into CapCut and Canva when you make the videos.', btn('md', 'nestia-posts.md'))}
+    ${card('Photos for the posts', 'The four photos per product are in the <code>img/</code> folder next to this page (700×700 WebP). For TikTok and Reels, drop them into CapCut or Canva with the script as the voice-over.', btn('imgs', 'photo links'))}
     <div id="expOut"></div>`;
   $$('#exports [data-dl]').forEach(b => b.onclick = async () => {
     const k = b.dataset.dl;
-    const [fname, data] = k === 'feed' ? ['nestia-feed.csv', feedCSV()] : k === 'posts' ? ['nestia-posts.csv', postsCSV()] : k === 'md' ? ['nestia-posts.md', postsMD()] : ['nestia-photos.txt', P.map(p => [0,1,2,3].map(i => absImg(p, i)).join('\n')).join('\n')];
-    if ((k === 'posts' || k === 'md') && !n){ show('Write the posts first.'); return; }
+    const [fname, build, needsPosts] = EXPORTS[k];
+    if (needsPosts && !n){ show('Write the posts first.'); return; }
+    const data = build();
     if (dl){
       try { await dl.save({filename: fname, data}); show(`${fname} saved.`); return; }
       catch (err) { if (err && err.code === 'declined') { show('Download cancelled.'); return; } }
