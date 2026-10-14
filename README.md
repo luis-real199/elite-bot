@@ -23,7 +23,7 @@ Site όπου οι καλλιτέχνες ανεβάζουν τα κομμάτι
 - **Vercel:** https://vercel.com, **Add New Project**, διάλεξε αυτό το repo, Framework **Other**, **Deploy**.
 - **Netlify:** σύρε τον φάκελο στο https://app.netlify.com/drop.
 
-Το dashboard σου είναι στο `https://to-site-sou/admin.html`.
+Site: https://www.blacklistrecords.site · Dashboard: https://www.blacklistrecords.site/admin
 
 ## Dashboard: συντομεύσεις (σε υπολογιστή)
 `Space` play/pause · `N`/`P` επόμενο/προηγούμενο · `←`/`→` ±10s · `S` shortlist · `X` απόρριψη · `1–5` αστέρια
