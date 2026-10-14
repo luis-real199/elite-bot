@@ -1,4 +1,5 @@
-/* Anonymous visit counter (no cookies, no IP): one row per page view in Supabase `visits`. */
+/* Anonymous visit counter (no cookies, no IP). One row per page view in Supabase `visits`,
+   plus a heartbeat every 15s while the page is open, for "live now" and time on site. */
 (function () {
   const C = window.BLACKLIST_CONFIG || {};
   if (!C.SUPABASE_URL || C.SUPABASE_URL.includes('YOUR_') || navigator.webdriver) return;
@@ -18,9 +19,21 @@
   const device = /iPad|Tablet/i.test(ua) ? 'tablet' : /Mobi|Android|iPhone/i.test(ua) ? 'mobile' : 'desktop';
   let tz = null;
   try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || null; } catch (e) { /* ignore */ }
-  fetch(`${C.SUPABASE_URL}/rest/v1/visits`, {
+
+  const rpc = (fn, body) => fetch(`${C.SUPABASE_URL}/rest/v1/rpc/${fn}`, {
     method: 'POST', keepalive: true,
-    headers: { apikey: C.SUPABASE_ANON_KEY, Authorization: 'Bearer ' + C.SUPABASE_ANON_KEY, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-    body: JSON.stringify({ visitor: id, path: location.pathname.slice(0, 200), source: source.slice(0, 100), device, tz: tz && tz.slice(0, 60), lang: (navigator.language || '').slice(0, 20) }),
-  }).catch(() => {});
+    headers: { apikey: C.SUPABASE_ANON_KEY, Authorization: 'Bearer ' + C.SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  rpc('start_visit', { p_visitor: id, p_path: location.pathname, p_source: source, p_device: device, p_tz: tz, p_lang: navigator.language || null })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((visit) => {
+      if (!visit) return;
+      const ping = () => rpc('ping_visit', { p_id: visit, p_visitor: id }).catch(() => {});
+      setInterval(() => !document.hidden && ping(), 15000);
+      document.addEventListener('visibilitychange', ping);
+      addEventListener('pagehide', ping);
+    })
+    .catch(() => {});
 })();

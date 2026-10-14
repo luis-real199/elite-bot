@@ -46,13 +46,13 @@
 
     <section class="wrap" id="submit">
       <h2>Submit a demo</h2>
-      <p class="lead">Upload up to 10 tracks or paste a private link.</p>
+      <p class="lead">Upload up to 10 tracks — audio or video.</p>
 
       <form id="demo-form" novalidate>
         <label>Artist name *<input name="artist" required maxlength="100" autocomplete="name"></label>
         <div class="grid full">
           <label>Instagram<input name="instagram" maxlength="200" placeholder="@yourname" autocapitalize="off"></label>
-          <label>Link<input name="link" type="url" maxlength="500" placeholder="SoundCloud / Drive / Spotify" autocapitalize="off"></label>
+          <label>Spotify<input name="link" type="url" maxlength="500" placeholder="Spotify link (if you have one)" autocapitalize="off"></label>
         </div>
 
         <label class="drop" id="drop">
@@ -61,11 +61,9 @@
           <span id="file-name">Up to 10 · audio or video · max 50 MB each</span>
         </label>
         <div class="tracks" id="tracks"></div>
-        <p class="hint">No files? Paste a private link above instead.</p>
 
         <label class="full">Message<textarea name="message" maxlength="2000" rows="4" placeholder="Tell us about you and the track"></textarea></label>
         <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
-        <label class="check"><input type="checkbox" name="rights"> I own the rights to this track.</label>
 
         <button class="btn" type="submit">Send demo</button>
         <div class="progress" hidden><i></i></div>

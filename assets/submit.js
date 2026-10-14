@@ -80,8 +80,7 @@
     const link = v('link');
 
     if (!v('artist')) return say('Please add your artist name.', true);
-    if (!tracks.length && !/^https?:\/\//i.test(link)) return say('Upload a track or paste a link.', true);
-    if (!form.rights.checked) return say('Please confirm you own the rights.', true);
+    if (!tracks.length && !/^https?:\/\//i.test(link)) return say('Upload at least one track.', true);
     if (!ready) return say('Submissions open soon.', true);
 
     btn.disabled = true;

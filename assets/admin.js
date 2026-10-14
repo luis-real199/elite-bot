@@ -22,7 +22,8 @@
   const name = (d) => d.title || (d.track_no ? `Track ${d.track_no}` : 'Link');
   const safeUrl = (u) => (/^https?:\/\//i.test(u || '') ? u : null);
 
-  let demos = [], tab = 'new', query = '', openId = null, current = null;
+  let demos = [], tab = 'new', query = '', openId = null, current = null, first = true;
+  const pinned = new Set(); // keep a demo in the current tab after its status changes
   const urls = new Map();
   const audio = $('media');
   const isVideo = (d) => /\.(mp4|m4v|mov|webm)$/i.test(d.file_path || '');
@@ -50,13 +51,16 @@
     const { data, error } = await sb.from('demos').select('*').order('created_at', { ascending: false }).order('track_no', { ascending: true }).limit(1000);
     if (error) { alert('Σφάλμα: ' + error.message); return; }
     demos = data;
+    pinned.clear();
+    if (first && tab === 'new' && !demos.some((d) => d.status === 'new')) tab = 'all';
+    first = false;
     render();
   }
 
   // ---------- render ----------
   const visible = () => {
     const q = query.toLowerCase();
-    return demos.filter((d) => (tab === 'all' || d.status === tab) &&
+    return demos.filter((d) => (tab === 'all' || d.status === tab || pinned.has(d.id)) &&
       (!q || [d.artist, d.title, d.feat, d.genre, d.email, d.instagram].some((x) => (x || '').toLowerCase().includes(q))));
   };
 
@@ -107,7 +111,7 @@
   // ---------- actions ----------
   $('tabs').addEventListener('click', (e) => {
     const b = e.target.closest('[data-tab]');
-    if (b) { tab = b.dataset.tab; render(); }
+    if (b) { tab = b.dataset.tab; pinned.clear(); render(); }
   });
   $('search').addEventListener('input', (e) => { query = e.target.value.trim(); render(); });
 
@@ -134,6 +138,7 @@
 
   async function save(d, patch, rerender = true) {
     const before = { ...d };
+    if (patch.status) pinned.add(d.id);
     Object.assign(d, patch);
     if (rerender) render();
     const { error } = await sb.from('demos').update(patch).eq('id', d.id);
@@ -203,12 +208,15 @@
   audio.addEventListener('loadedmetadata', () => {
     const v = audio.videoWidth > 0;
     $('player').classList.toggle('video', v);
-    document.body.classList.toggle('has-video', v);
+    if (!v) $('player').classList.remove('big');
   });
+  $('thumb').addEventListener('click', () => $('player').classList.contains('video') && $('player').classList.toggle('big'));
   audio.addEventListener('timeupdate', () => {
     $('t-cur').textContent = time(audio.currentTime);
     $('t-dur').textContent = time(audio.duration);
-    if (audio.duration) $('seek').value = Math.round((audio.currentTime / audio.duration) * 1000);
+    if (!audio.duration) return;
+    $('seek').value = Math.round((audio.currentTime / audio.duration) * 1000);
+    $('seek').style.setProperty('--p', (audio.currentTime / audio.duration) * 100 + '%');
   });
   $('seek').addEventListener('input', (e) => { if (audio.duration) audio.currentTime = (e.target.value / 1000) * audio.duration; });
   $('toggle').addEventListener('click', toggle);
@@ -224,6 +232,7 @@
   const place = (tz) => (!tz ? 'Άγνωστο' : /Athens/.test(tz) ? 'Ελλάδα' : /Nicosia|Famagusta/.test(tz) ? 'Κύπρος' : tz.split('/').pop().replace(/_/g, ' '));
   const day = (d) => new Date(d + 'T12:00:00').toLocaleDateString('el-GR', { day: 'numeric', month: 'short' });
   const num = (n) => Number(n || 0).toLocaleString('el-GR');
+  const dur = (s) => { s = Math.round(s || 0); return s < 60 ? `${s}s` : `${Math.floor(s / 60)}λ ${String(s % 60).padStart(2, '0')}s`; };
 
   function hbars(list, label) {
     const merged = {};
@@ -242,6 +251,8 @@
     const conv = t.visitors ? Math.round((t.submissions / t.visitors) * 1000) / 10 : 0;
     $('traffic').innerHTML = `
       <div class="kpis">
+        <div class="live"><small>Live τώρα</small><b>${num(t.live)}</b><span>στο site αυτή τη στιγμή</span></div>
+        <div><small>Μέσος χρόνος</small><b>${dur(t.avg_seconds)}</b><span>στο site ανά επίσκεψη</span></div>
         <div><small>Σήμερα</small><b>${num(t.today)}</b><span>επισκέπτες</span></div>
         <div><small>${days} ημέρες</small><b>${num(t.visitors)}</b><span>επισκέπτες</span></div>
         <div><small>Προβολές</small><b>${num(t.views)}</b><span>σελίδας</span></div>
@@ -250,7 +261,7 @@
       <section class="panel">
         <h3>Επισκέπτες ανά ημέρα</h3>
         <p class="readout" id="readout">Μέγιστο ${num(max)} · άγγιξε μια μπάρα</p>
-        <div class="bars">${t.daily.map((d) => `<button type="button" style="--h:${(d.visitors / max) * 100}%" data-tip="${day(d.day)} · ${num(d.visitors)} επισκέπτες · ${num(d.views)} προβολές" aria-label="${day(d.day)}: ${d.visitors} επισκέπτες"></button>`).join('')}</div>
+        <div class="bars">${t.daily.map((d) => `<button type="button" style="--h:${d.visitors ? Math.max(4, (d.visitors / max) * 100) : 0}%" data-tip="${day(d.day)} · ${num(d.visitors)} επισκέπτες · ${num(d.views)} προβολές" aria-label="${day(d.day)}: ${d.visitors} επισκέπτες"></button>`).join('')}</div>
         <div class="axis-x"><span>${t.daily.length ? day(t.daily[0].day) : ''}</span><span>Σήμερα</span></div>
       </section>
       <div class="panels">
@@ -272,6 +283,7 @@
     $('traffic-view').hidden = view !== 'traffic';
     if (view === 'traffic') loadTraffic();
   });
+  setInterval(() => view === 'traffic' && !document.hidden && loadTraffic(), 15000);
   $('range').addEventListener('click', (e) => {
     const b = e.target.closest('[data-days]');
     if (!b) return;
@@ -284,6 +296,7 @@
   document.addEventListener('keydown', (e) => {
     if (e.target.closest('input, textarea') || e.metaKey || e.ctrlKey || e.altKey || $('app').hidden || view !== 'demos') return;
     const k = e.key.toLowerCase();
+    if (k === 'escape') return $('player').classList.remove('big');
     if (k === ' ') { e.preventDefault(); current ? toggle() : step(1); }
     else if (k === 'n') step(1);
     else if (k === 'p') step(-1);

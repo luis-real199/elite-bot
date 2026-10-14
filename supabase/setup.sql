@@ -82,7 +82,8 @@ create table if not exists public.visits (
   source     text check (char_length(source) <= 100),
   device     text check (device in ('mobile', 'tablet', 'desktop')),
   tz         text check (char_length(tz) <= 60),
-  lang       text check (char_length(lang) <= 20)
+  lang       text check (char_length(lang) <= 20),
+  last_seen  timestamptz
 );
 create index if not exists visits_created_at on public.visits (created_at desc);
 alter table public.visits enable row level security;
@@ -90,6 +91,26 @@ drop policy if exists "anyone can log a visit" on public.visits;
 create policy "anyone can log a visit" on public.visits for insert to anon, authenticated with check (true);
 drop policy if exists "admins read visits" on public.visits;
 create policy "admins read visits" on public.visits for select to authenticated using (public.is_admin());
+
+create or replace function public.start_visit(p_visitor text, p_path text, p_source text, p_device text, p_tz text, p_lang text)
+returns bigint language sql security definer set search_path = public as $$
+  insert into public.visits (visitor, path, source, device, tz, lang, last_seen)
+  values (left(p_visitor, 40), left(p_path, 200), left(p_source, 100),
+          case when p_device in ('mobile', 'tablet', 'desktop') then p_device end,
+          left(p_tz, 60), left(p_lang, 20), now())
+  returning id;
+$$;
+
+create or replace function public.ping_visit(p_id bigint, p_visitor text) returns void
+language sql security definer set search_path = public as $$
+  update public.visits set last_seen = now()
+  where id = p_id and visitor is not distinct from p_visitor and created_at > now() - interval '6 hours';
+$$;
+
+revoke execute on function public.start_visit(text, text, text, text, text, text) from public;
+revoke execute on function public.ping_visit(bigint, text) from public;
+grant execute on function public.start_visit(text, text, text, text, text, text) to anon, authenticated;
+grant execute on function public.ping_visit(bigint, text) to anon, authenticated;
 
 create or replace function public.traffic_stats(days int default 30) returns json
 language plpgsql stable security definer set search_path = public as $$
@@ -99,6 +120,9 @@ declare
 begin
   if not public.is_admin() then raise exception 'not allowed'; end if;
   return json_build_object(
+    'live', (select count(distinct visitor) from visits where last_seen > now() - interval '45 seconds'),
+    'avg_seconds', (select coalesce(round(avg(extract(epoch from (last_seen - created_at)))), 0) from visits
+                    where created_at >= since and last_seen is not null),
     'visitors', (select count(distinct visitor) from visits where created_at >= since),
     'views', (select count(*) from visits where created_at >= since),
     'today', (select count(distinct visitor) from visits where created_at >= today),

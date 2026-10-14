@@ -50,7 +50,11 @@
   </section>
 
   <div class="player" id="player" hidden>
-    <video id="media" playsinline preload="auto"></video>
+    <div class="pin">
+    <button class="thumb" id="thumb" type="button" aria-label="Μεγέθυνση βίντεο">
+      <img src="assets/icon.png" alt="">
+      <video id="media" playsinline preload="auto"></video>
+    </button>
     <div class="now"><strong id="now-title"></strong><span id="now-artist"></span></div>
     <div class="controls">
       <button id="prev" type="button" aria-label="Προηγούμενο"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg></button>
@@ -58,6 +62,7 @@
       <button id="next" type="button" aria-label="Επόμενο"><svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6z"/></svg></button>
     </div>
     <div class="seek"><span id="t-cur">0:00</span><input id="seek" type="range" min="0" max="1000" value="0"><span id="t-dur">0:00</span></div>
+    </div>
   </div>
 
   <script src="config.js"></script>
