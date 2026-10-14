@@ -144,6 +144,17 @@ input:focus, textarea:focus { outline: none; border-color: rgba(245, 184, 102, 0
 .drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .drop strong { color: var(--gold2); font-size: 15px; }
 .drop.has { border-style: solid; background: rgba(245, 184, 102, 0.07); }
+.tracks { display: grid; gap: 8px; margin-top: 10px; }
+.track {
+  display: grid; grid-template-columns: 28px 1fr 36px; align-items: start; gap: 10px;
+  padding: 10px; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel);
+}
+.tnum { color: var(--gold2); font: 600 14px/44px "Cinzel", serif; text-align: center; }
+.tfields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; min-width: 0; }
+.tfields input { padding: 10px 12px; }
+.tfields small { grid-column: 1 / -1; color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 600px) { .tfields { grid-template-columns: 1fr; } }
+.tdel { width: 36px; height: 36px; margin-top: 4px; border-radius: 50%; border: 1px solid var(--line); background: none; color: var(--muted); font-size: 20px; line-height: 1; cursor: pointer; }
 .hint { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
 .check {
   flex-direction: row; align-items: center; gap: 10px; margin: 18px 0 20px;
@@ -243,6 +254,36 @@ footer {
 .controls .main { background: var(--gold); color: var(--ink); border: 0; }
 .seek { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .seek input { flex: 1; height: 20px; padding: 0; border: 0; background: none; accent-color: var(--gold); }
+
+.player video { display: none; grid-column: 1 / -1; width: 100%; max-height: 40vh; border-radius: 10px; background: #000; }
+.player.video video { display: block; }
+.has-video #list { padding-bottom: calc(45vh + 130px); }
+.views { display: flex; gap: 4px; max-width: 900px; margin: 12px auto 0; padding: 0 16px; }
+.views button {
+  flex: 1; padding: 10px; cursor: pointer; font-size: 14px; border-radius: 10px;
+  background: none; color: var(--muted); border: 1px solid var(--line);
+}
+.views button.on { color: var(--text); border-color: rgba(245, 184, 102, 0.5); background: rgba(245, 184, 102, 0.08); }
+.traffic { max-width: 900px; margin: 0 auto; padding: 0 16px calc(140px + env(safe-area-inset-bottom)); display: grid; gap: 12px; }
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+@media (max-width: 700px) { .kpis { grid-template-columns: 1fr 1fr; } }
+.kpis div, .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; min-width: 0; }
+.kpis small, .kpis span { display: block; color: var(--muted); font-size: 12px; }
+.kpis b { display: block; font-size: 28px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.panel h3 { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
+.panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.readout { margin: 0 0 10px; color: var(--muted); font-size: 12px; min-height: 1.4em; }
+.bars { display: flex; align-items: flex-end; gap: 2px; height: 140px; border-bottom: 1px solid var(--line); }
+.bars button { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; background: none; cursor: pointer; display: flex; align-items: flex-end; }
+.bars button::before { content: ""; display: block; width: 100%; height: max(var(--h), 2px); border-radius: 4px 4px 0 0; background: var(--gold); opacity: 0.85; }
+.bars button:hover::before, .bars button:focus::before { opacity: 1; background: var(--gold2); }
+.axis-x { display: flex; justify-content: space-between; margin-top: 6px; color: var(--muted); font-size: 11px; }
+.hbars { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.hbars li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; font-size: 13px; }
+.hbars span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hbars i { grid-column: 1 / -1; grid-row: 2; height: 6px; width: var(--w); min-width: 2px; border-radius: 0 4px 4px 0; background: var(--gold); opacity: 0.8; }
+.hbars b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.hbars .none { display: block; color: var(--muted); }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }

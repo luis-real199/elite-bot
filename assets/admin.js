@@ -19,12 +19,13 @@
   };
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const time = (s) => (isFinite(s) ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}` : '0:00');
+  const name = (d) => d.title || (d.track_no ? `Track ${d.track_no}` : 'Link');
   const safeUrl = (u) => (/^https?:\/\//i.test(u || '') ? u : null);
 
   let demos = [], tab = 'new', query = '', openId = null, current = null;
   const urls = new Map();
-  const audio = new Audio();
-  audio.preload = 'auto';
+  const audio = $('media');
+  const isVideo = (d) => /\.(mp4|m4v|mov|webm)$/i.test(d.file_path || '');
 
   // ---------- auth ----------
   $('login-form').addEventListener('submit', async (e) => {
@@ -46,7 +47,7 @@
   }
 
   async function load() {
-    const { data, error } = await sb.from('demos').select('*').order('created_at', { ascending: false }).limit(1000);
+    const { data, error } = await sb.from('demos').select('*').order('created_at', { ascending: false }).order('track_no', { ascending: true }).limit(1000);
     if (error) { alert('Σφάλμα: ' + error.message); return; }
     demos = data;
     render();
@@ -56,7 +57,7 @@
   const visible = () => {
     const q = query.toLowerCase();
     return demos.filter((d) => (tab === 'all' || d.status === tab) &&
-      (!q || [d.artist, d.title, d.genre, d.email, d.instagram].some((x) => (x || '').toLowerCase().includes(q))));
+      (!q || [d.artist, d.title, d.feat, d.genre, d.email, d.instagram].some((x) => (x || '').toLowerCase().includes(q))));
   };
 
   function render() {
@@ -71,10 +72,10 @@
   function card(d) {
     const playing = current && current.id === d.id;
     const icon = d.file_path ? (playing && !audio.paused ? ICON.pause : ICON.play) : ICON.link;
-    const sub = [d.artist, d.genre, d.bpm && `${d.bpm} BPM`].filter(Boolean).map(esc).join(' · ');
+    const sub = [d.artist + (d.feat ? ` feat. ${d.feat}` : ''), isVideo(d) && 'Video', d.genre, d.bpm && `${d.bpm} BPM`].filter(Boolean).map(esc).join(' · ');
     return `<article class="demo${playing ? ' playing' : ''}" data-id="${d.id}">
       <button class="play" type="button" data-act="play" aria-label="Play">${icon}</button>
-      <div class="meta" data-act="open"><strong>${esc(d.title)}</strong><span>${sub}</span></div>
+      <div class="meta" data-act="open"><strong>${esc(name(d))}</strong><span>${sub}</span></div>
       <div class="side"><span class="badge s-${d.status}">${STATUS[d.status]}</span><span class="stars">${'★'.repeat(d.rating || 0)}</span></div>
       ${openId === d.id ? details(d) : ''}
     </article>`;
@@ -85,7 +86,7 @@
     const link = safeUrl(d.link);
     const info = [
       ['Ημερομηνία', new Date(d.created_at).toLocaleString('el-GR')],
-      ['Email', `<a href="mailto:${esc(d.email)}">${esc(d.email)}</a>`, true],
+      d.email && ['Email', `<a href="mailto:${esc(d.email)}">${esc(d.email)}</a>`, true],
       ig && ['Instagram', `<a href="https://instagram.com/${encodeURIComponent(ig)}" target="_blank" rel="noopener">@${esc(ig)}</a>`, true],
       link && ['Link', `<a href="${esc(link)}" target="_blank" rel="noopener">${esc(link)}</a>`, true],
       d.music_key && ['Key', d.music_key],
@@ -148,12 +149,12 @@
   async function download(d) {
     try {
       const ext = d.file_path.split('.').pop();
-      location.href = await signed(d, { download: `${d.artist} - ${d.title}.${ext}` });
+      location.href = await signed(d, { download: `${d.artist} - ${name(d)}.${ext}` });
     } catch (err) { alert('Σφάλμα: ' + err.message); }
   }
 
   async function remove(d) {
-    if (!confirm(`Διαγραφή του "${d.title}" από ${d.artist};`)) return;
+    if (!confirm(`Διαγραφή του "${name(d)}" από ${d.artist};`)) return;
     if (current && current.id === d.id) { audio.pause(); current = null; $('player').hidden = true; }
     if (d.file_path) await sb.storage.from('demos').remove([d.file_path]);
     const { error } = await sb.from('demos').delete().eq('id', d.id);
@@ -166,7 +167,7 @@
   async function play(d) {
     current = d;
     $('player').hidden = false;
-    $('now-title').textContent = d.title;
+    $('now-title').textContent = name(d);
     $('now-artist').textContent = d.artist;
     try {
       const hit = urls.get(d.id);
@@ -199,6 +200,11 @@
   audio.addEventListener('play', paint);
   audio.addEventListener('pause', paint);
   audio.addEventListener('ended', () => step(1));
+  audio.addEventListener('loadedmetadata', () => {
+    const v = audio.videoWidth > 0;
+    $('player').classList.toggle('video', v);
+    document.body.classList.toggle('has-video', v);
+  });
   audio.addEventListener('timeupdate', () => {
     $('t-cur').textContent = time(audio.currentTime);
     $('t-dur').textContent = time(audio.duration);
@@ -210,8 +216,73 @@
   $('next').addEventListener('click', () => step(1));
   paint();
 
+  // ---------- traffic & visitors ----------
+  let view = 'demos', days = 30;
+  const SOURCES = { direct: 'Απευθείας', instagram: 'Instagram', tiktok: 'TikTok', google: 'Google', facebook: 'Facebook',
+    youtube: 'YouTube', twitter: 'X / Twitter', spotify: 'Spotify', whatsapp: 'WhatsApp', telegram: 'Telegram' };
+  const DEVICES = { mobile: 'Κινητό', desktop: 'Υπολογιστής', tablet: 'Tablet' };
+  const place = (tz) => (!tz ? 'Άγνωστο' : /Athens/.test(tz) ? 'Ελλάδα' : /Nicosia|Famagusta/.test(tz) ? 'Κύπρος' : tz.split('/').pop().replace(/_/g, ' '));
+  const day = (d) => new Date(d + 'T12:00:00').toLocaleDateString('el-GR', { day: 'numeric', month: 'short' });
+  const num = (n) => Number(n || 0).toLocaleString('el-GR');
+
+  function hbars(list, label) {
+    const merged = {};
+    list.forEach((x) => { const k = label(x.name); merged[k] = (merged[k] || 0) + x.n; });
+    const rows = Object.entries(merged).sort((a, b) => b[1] - a[1]);
+    const max = Math.max(1, ...rows.map((r) => r[1]));
+    return rows.length
+      ? rows.map(([k, n]) => `<li><span>${esc(k)}</span><i style="--w:${(n / max) * 100}%"></i><b>${num(n)}</b></li>`).join('')
+      : '<li class="none">Κανένα δεδομένο ακόμα</li>';
+  }
+
+  async function loadTraffic() {
+    const { data: t, error } = await sb.rpc('traffic_stats', { days });
+    if (error) { $('traffic').innerHTML = `<p class="empty">Σφάλμα: ${esc(error.message)}</p>`; return; }
+    const max = Math.max(1, ...t.daily.map((d) => d.visitors));
+    const conv = t.visitors ? Math.round((t.submissions / t.visitors) * 1000) / 10 : 0;
+    $('traffic').innerHTML = `
+      <div class="kpis">
+        <div><small>Σήμερα</small><b>${num(t.today)}</b><span>επισκέπτες</span></div>
+        <div><small>${days} ημέρες</small><b>${num(t.visitors)}</b><span>επισκέπτες</span></div>
+        <div><small>Προβολές</small><b>${num(t.views)}</b><span>σελίδας</span></div>
+        <div><small>Αποστολές</small><b>${num(t.submissions)}</b><span>${num(t.tracks)} tracks · ${conv}% των επισκεπτών</span></div>
+      </div>
+      <section class="panel">
+        <h3>Επισκέπτες ανά ημέρα</h3>
+        <p class="readout" id="readout">Μέγιστο ${num(max)} · άγγιξε μια μπάρα</p>
+        <div class="bars">${t.daily.map((d) => `<button type="button" style="--h:${(d.visitors / max) * 100}%" data-tip="${day(d.day)} · ${num(d.visitors)} επισκέπτες · ${num(d.views)} προβολές" aria-label="${day(d.day)}: ${d.visitors} επισκέπτες"></button>`).join('')}</div>
+        <div class="axis-x"><span>${t.daily.length ? day(t.daily[0].day) : ''}</span><span>Σήμερα</span></div>
+      </section>
+      <div class="panels">
+        <section class="panel"><h3>Από πού έρχονται</h3><ul class="hbars">${hbars(t.sources, (n) => SOURCES[n] || n || 'Άγνωστο')}</ul></section>
+        <section class="panel"><h3>Συσκευές</h3><ul class="hbars">${hbars(t.devices, (n) => DEVICES[n] || 'Άγνωστο')}</ul></section>
+        <section class="panel"><h3>Χώρες / περιοχές</h3><ul class="hbars">${hbars(t.places, place)}</ul></section>
+      </div>`;
+  }
+
+  const tip = (e) => { const b = e.target.closest('[data-tip]'); if (b) $('readout').textContent = b.dataset.tip; };
+  $('traffic').addEventListener('mouseover', tip);
+  $('traffic').addEventListener('click', tip);
+  $('views').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-view]');
+    if (!b) return;
+    view = b.dataset.view;
+    $('views').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+    $('demos-view').hidden = view !== 'demos';
+    $('traffic-view').hidden = view !== 'traffic';
+    if (view === 'traffic') loadTraffic();
+  });
+  $('range').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-days]');
+    if (!b) return;
+    days = +b.dataset.days;
+    $('range').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+    loadTraffic();
+  });
+  $('refresh').addEventListener('click', () => view === 'traffic' && loadTraffic());
+
   document.addEventListener('keydown', (e) => {
-    if (e.target.closest('input, textarea') || e.metaKey || e.ctrlKey || e.altKey || $('app').hidden) return;
+    if (e.target.closest('input, textarea') || e.metaKey || e.ctrlKey || e.altKey || $('app').hidden || view !== 'demos') return;
     const k = e.key.toLowerCase();
     if (k === ' ') { e.preventDefault(); current ? toggle() : step(1); }
     else if (k === 'n') step(1);

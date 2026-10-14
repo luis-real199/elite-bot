@@ -29,15 +29,28 @@
       <button class="icon-btn" id="refresh" type="button" aria-label="Ανανέωση">↻</button>
       <button class="icon-btn" id="logout" type="button">Έξοδος</button>
     </header>
+    <nav class="views" id="views">
+      <button type="button" data-view="demos" class="on">Demos</button>
+      <button type="button" data-view="traffic">Traffic &amp; Visitors</button>
+    </nav>
+    <div id="demos-view">
     <div class="tools">
       <div class="tabs" id="tabs"></div>
       <input id="search" type="search" placeholder="Αναζήτηση: καλλιτέχνης, τίτλος, είδος…">
     </div>
     <p class="keys">Space play/pause · N/P επόμενο/προηγούμενο · ←/→ ±10s · S shortlist · X απόρριψη · 1–5 αστέρια</p>
     <div id="list"></div>
+    </div>
+    <div id="traffic-view" hidden>
+      <div class="tools"><div class="tabs" id="range">
+        <button type="button" data-days="7">7 ημέρες</button><button type="button" data-days="30" class="on">30 ημέρες</button><button type="button" data-days="90">90 ημέρες</button>
+      </div></div>
+      <div class="traffic" id="traffic"><p class="empty">Φόρτωση…</p></div>
+    </div>
   </section>
 
   <div class="player" id="player" hidden>
+    <video id="media" playsinline preload="auto"></video>
     <div class="now"><strong id="now-title"></strong><span id="now-artist"></span></div>
     <div class="controls">
       <button id="prev" type="button" aria-label="Προηγούμενο"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg></button>

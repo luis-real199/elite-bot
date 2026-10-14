@@ -46,30 +46,22 @@
 
     <section class="wrap" id="submit">
       <h2>Submit a demo</h2>
-      <p class="lead">Upload your track or paste a private link. Fields with * are required.</p>
+      <p class="lead">Upload up to 10 tracks or paste a private link.</p>
 
       <form id="demo-form" novalidate>
-        <div class="grid">
-          <label>Artist name *<input name="artist" required maxlength="100" autocomplete="name"></label>
-          <label>Email *<input name="email" type="email" required maxlength="200" autocomplete="email" inputmode="email"></label>
-          <label>Track title *<input name="title" required maxlength="150"></label>
-          <label>Genre<input name="genre" maxlength="60" list="genres" placeholder="e.g. Trap"></label>
-          <label>BPM<input name="bpm" type="number" inputmode="numeric" min="40" max="250" placeholder="140"></label>
-          <label>Key<input name="music_key" maxlength="20" placeholder="e.g. A minor"></label>
+        <label>Artist name *<input name="artist" required maxlength="100" autocomplete="name"></label>
+        <div class="grid full">
           <label>Instagram<input name="instagram" maxlength="200" placeholder="@yourname" autocapitalize="off"></label>
           <label>Link<input name="link" type="url" maxlength="500" placeholder="SoundCloud / Drive / Spotify" autocapitalize="off"></label>
         </div>
-        <datalist id="genres">
-          <option>Hip-Hop</option><option>Trap</option><option>Drill</option><option>R&amp;B</option><option>Pop</option>
-          <option>Afro</option><option>Reggaeton</option><option>House</option><option>Techno</option><option>Rock</option>
-        </datalist>
 
         <label class="drop" id="drop">
-          <input type="file" name="file" accept=".mp3,.wav,.aif,.aiff,.flac,.m4a,audio/*">
-          <strong>Upload your track</strong>
-          <span id="file-name">MP3, WAV, AIFF, FLAC · max 50 MB</span>
+          <input type="file" name="file" multiple accept="audio/*,video/*,.mp3,.wav,.aif,.aiff,.flac,.m4a,.mp4,.mov">
+          <strong>Upload your tracks</strong>
+          <span id="file-name">Up to 10 · audio or video · max 50 MB each</span>
         </label>
-        <p class="hint">No file? Paste a private link above instead.</p>
+        <div class="tracks" id="tracks"></div>
+        <p class="hint">No files? Paste a private link above instead.</p>
 
         <label class="full">Message<textarea name="message" maxlength="2000" rows="4" placeholder="Tell us about you and the track"></textarea></label>
         <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
@@ -95,5 +87,6 @@
   <script src="assets/globe.js" defer></script>
   <script src="config.js" defer></script>
   <script src="assets/submit.js" defer></script>
+  <script src="assets/track.js" defer></script>
 </body>
 </html>

@@ -7,8 +7,11 @@ create table if not exists public.demos (
   id         uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
   artist     text not null check (char_length(artist) between 1 and 100),
-  email      text not null check (char_length(email) between 3 and 200),
-  title      text not null check (char_length(title) between 1 and 150),
+  email      text check (char_length(email) between 3 and 200),
+  title      text check (char_length(title) between 1 and 150),
+  feat       text check (char_length(feat) <= 150),
+  submission_id uuid,
+  track_no   int  check (track_no between 1 and 10),
   genre      text check (char_length(genre) <= 60),
   bpm        int  check (bpm between 40 and 250),
   music_key  text check (char_length(music_key) <= 20),
@@ -54,8 +57,7 @@ create policy "admins delete" on public.demos for delete to authenticated using 
 -- ---------- storage (private bucket, 50 MB per file, audio only) ----------
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('demos', 'demos', false, 52428800,
-        array['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/wave', 'audio/aiff', 'audio/x-aiff',
-              'audio/flac', 'audio/x-flac', 'audio/mp4', 'audio/x-m4a', 'audio/aac'])
+        array['audio/*', 'video/*'])
 on conflict (id) do update set public = false, file_size_limit = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
 
@@ -70,6 +72,52 @@ create policy "admins read demo files" on storage.objects for select to authenti
 drop policy if exists "admins delete demo files" on storage.objects;
 create policy "admins delete demo files" on storage.objects for delete to authenticated
   using (bucket_id = 'demos' and public.is_admin());
+
+-- ---------- traffic & visitors (anonymous, no IP) ----------
+create table if not exists public.visits (
+  id         bigint generated always as identity primary key,
+  created_at timestamptz not null default now(),
+  visitor    text check (char_length(visitor) <= 40),
+  path       text check (char_length(path) <= 200),
+  source     text check (char_length(source) <= 100),
+  device     text check (device in ('mobile', 'tablet', 'desktop')),
+  tz         text check (char_length(tz) <= 60),
+  lang       text check (char_length(lang) <= 20)
+);
+create index if not exists visits_created_at on public.visits (created_at desc);
+alter table public.visits enable row level security;
+drop policy if exists "anyone can log a visit" on public.visits;
+create policy "anyone can log a visit" on public.visits for insert to anon, authenticated with check (true);
+drop policy if exists "admins read visits" on public.visits;
+create policy "admins read visits" on public.visits for select to authenticated using (public.is_admin());
+
+create or replace function public.traffic_stats(days int default 30) returns json
+language plpgsql stable security definer set search_path = public as $$
+declare
+  since timestamptz := date_trunc('day', now() at time zone 'Europe/Athens') at time zone 'Europe/Athens' - make_interval(days => days - 1);
+  today timestamptz := date_trunc('day', now() at time zone 'Europe/Athens') at time zone 'Europe/Athens';
+begin
+  if not public.is_admin() then raise exception 'not allowed'; end if;
+  return json_build_object(
+    'visitors', (select count(distinct visitor) from visits where created_at >= since),
+    'views', (select count(*) from visits where created_at >= since),
+    'today', (select count(distinct visitor) from visits where created_at >= today),
+    'submissions', (select count(distinct coalesce(submission_id, id)) from demos where created_at >= since),
+    'tracks', (select count(*) from demos where created_at >= since and file_path is not null),
+    'daily', (select coalesce(json_agg(json_build_object('day', d::date, 'visitors', coalesce(v.n, 0), 'views', coalesce(v.p, 0)) order by d), '[]')
+              from generate_series(since at time zone 'Europe/Athens', today at time zone 'Europe/Athens', interval '1 day') d
+              left join (select date_trunc('day', created_at at time zone 'Europe/Athens') k, count(distinct visitor) n, count(*) p
+                         from visits where created_at >= since group by 1) v on v.k = d),
+    'sources', (select coalesce(json_agg(x), '[]') from (select source as name, count(distinct visitor) as n from visits
+                where created_at >= since group by 1 order by 2 desc limit 8) x),
+    'devices', (select coalesce(json_agg(x), '[]') from (select device as name, count(distinct visitor) as n from visits
+                where created_at >= since group by 1 order by 2 desc) x),
+    'places', (select coalesce(json_agg(x), '[]') from (select tz as name, count(distinct visitor) as n from visits
+               where created_at >= since group by 1 order by 2 desc limit 8) x)
+  );
+end $$;
+revoke execute on function public.traffic_stats(int) from public, anon;
+grant execute on function public.traffic_stats(int) to authenticated;
 
 -- ---------- ΒΑΛΕ ΤΟ ΔΙΚΟ ΣΟΥ EMAIL ----------
 insert into public.admins (email) values ('to-email-sou@example.com') on conflict do nothing;
