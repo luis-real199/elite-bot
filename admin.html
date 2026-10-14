@@ -15,8 +15,8 @@
   <section class="login" id="login" hidden>
     <form id="login-form">
       <img src="assets/logo-sm.jpg" alt="Blacklist Records">
-      <input name="email" type="email" placeholder="Email" required autocomplete="username">
-      <input name="password" type="password" placeholder="Κωδικός" required autocomplete="current-password">
+      <input name="email" type="hidden" autocomplete="username">
+      <input name="password" type="password" placeholder="Κωδικός" required autocomplete="current-password" autofocus>
       <button class="btn" type="submit">Είσοδος</button>
       <p class="msg bad" id="login-msg"></p>
     </form>

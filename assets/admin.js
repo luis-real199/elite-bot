@@ -8,6 +8,7 @@
     return;
   }
   const sb = supabase.createClient(C.SUPABASE_URL, C.SUPABASE_ANON_KEY);
+  $('login-form').email.value = C.ADMIN_EMAIL || '';
 
   const STATUS = { new: 'Νέο', listened: 'Ακούστηκε', shortlist: 'Shortlist', signed: 'Υπογράφηκε', rejected: 'Απορρίφθηκε' };
   const TABS = [['all', 'Όλα'], ...Object.entries(STATUS)];
@@ -30,8 +31,8 @@
     e.preventDefault();
     const f = e.target;
     $('login-msg').textContent = '';
-    const { error } = await sb.auth.signInWithPassword({ email: f.email.value.trim(), password: f.password.value });
-    if (error) $('login-msg').textContent = 'Λάθος email ή κωδικός.';
+    const { error } = await sb.auth.signInWithPassword({ email: C.ADMIN_EMAIL, password: f.password.value });
+    if (error) $('login-msg').textContent = 'Λάθος κωδικός.';
     else boot();
   });
   $('logout').addEventListener('click', async () => { await sb.auth.signOut(); location.reload(); });
