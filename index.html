@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Blacklist Records — Submit your demo</title>
+  <meta name="description" content="Blacklist Records. From Greece & Cyprus to the world. Send us your demo.">
+  <meta name="theme-color" content="#000000">
+  <meta property="og:title" content="Blacklist Records">
+  <meta property="og:description" content="From Greece & Cyprus to the world. Send us your demo.">
+  <meta property="og:image" content="assets/logo.jpg">
+  <link rel="icon" href="assets/icon.png">
+  <link rel="apple-touch-icon" href="assets/icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&display=swap">
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="preload" href="assets/world.json" as="fetch" crossorigin>
+</head>
+<body>
+  <header class="nav">
+    <a class="brand" href="#top">BLACKLIST</a>
+    <a class="nav-cta" href="#submit">Submit demo</a>
+  </header>
+
+  <main>
+    <section class="hero" id="top">
+      <div class="stage">
+        <canvas id="globe" aria-hidden="true"></canvas>
+        <i class="axis"></i><i class="spark s1"></i><i class="spark s2"></i>
+        <h1 class="mark"><span class="mark-main">BLACKLIST</span><span class="mark-sub">RECORDS</span></h1>
+      </div>
+      <p class="tag">From Greece &amp; Cyprus to the world</p>
+      <a class="btn" href="#submit">Submit your demo</a>
+    </section>
+
+    <section class="wrap">
+      <h2>The Label</h2>
+      <p class="lead">We're looking for the next sound. Send us your best track — every demo gets a listen.</p>
+      <ul class="pillars">
+        <li><b>We listen</b><span>Every submission is heard by our A&amp;R team.</span></li>
+        <li><b>Independent</b><span>Artist-first deals, built for the long run.</span></li>
+        <li><b>GR · CY</b><span>Rooted in Greece &amp; Cyprus, reaching the world.</span></li>
+      </ul>
+    </section>
+
+    <section class="wrap" id="submit">
+      <h2>Submit a demo</h2>
+      <p class="lead">Upload your track or paste a private link. Fields with * are required.</p>
+
+      <form id="demo-form" novalidate>
+        <div class="grid">
+          <label>Artist name *<input name="artist" required maxlength="100" autocomplete="name"></label>
+          <label>Email *<input name="email" type="email" required maxlength="200" autocomplete="email" inputmode="email"></label>
+          <label>Track title *<input name="title" required maxlength="150"></label>
+          <label>Genre<input name="genre" maxlength="60" list="genres" placeholder="e.g. Trap"></label>
+          <label>BPM<input name="bpm" type="number" inputmode="numeric" min="40" max="250" placeholder="140"></label>
+          <label>Key<input name="music_key" maxlength="20" placeholder="e.g. A minor"></label>
+          <label>Instagram<input name="instagram" maxlength="200" placeholder="@yourname" autocapitalize="off"></label>
+          <label>Link<input name="link" type="url" maxlength="500" placeholder="SoundCloud / Drive / Spotify" autocapitalize="off"></label>
+        </div>
+        <datalist id="genres">
+          <option>Hip-Hop</option><option>Trap</option><option>Drill</option><option>R&amp;B</option><option>Pop</option>
+          <option>Afro</option><option>Reggaeton</option><option>House</option><option>Techno</option><option>Rock</option>
+        </datalist>
+
+        <label class="drop" id="drop">
+          <input type="file" name="file" accept=".mp3,.wav,.aif,.aiff,.flac,.m4a,audio/*">
+          <strong>Upload your track</strong>
+          <span id="file-name">MP3, WAV, AIFF, FLAC · max 50 MB</span>
+        </label>
+        <p class="hint">No file? Paste a private link above instead.</p>
+
+        <label class="full">Message<textarea name="message" maxlength="2000" rows="4" placeholder="Tell us about you and the track"></textarea></label>
+        <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <label class="check"><input type="checkbox" name="rights"> I own the rights to this track.</label>
+
+        <button class="btn" type="submit">Send demo</button>
+        <div class="progress" hidden><i></i></div>
+        <p class="msg" role="status"></p>
+      </form>
+
+      <div class="done" id="done" hidden>
+        <h3>Received</h3>
+        <p>Thank you — we listen to every demo. If it's a fit, we'll reach out by email.</p>
+        <button class="btn ghost" id="again" type="button">Send another</button>
+      </div>
+    </section>
+  </main>
+
+  <footer>© Blacklist Records</footer>
+
+  <script src="assets/vendor/d3-array.min.js" defer></script>
+  <script src="assets/vendor/d3-geo.min.js" defer></script>
+  <script src="assets/globe.js" defer></script>
+  <script src="config.js" defer></script>
+  <script src="assets/submit.js" defer></script>
+</body>
+</html>
