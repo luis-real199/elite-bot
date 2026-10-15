@@ -288,9 +288,13 @@ footer {
 .player.video .thumb::after { content: "⤢"; position: absolute; right: 4px; bottom: 2px; color: #fff; font-size: 13px; text-shadow: 0 1px 4px #000; }
 .player.big .thumb {
   position: fixed; inset: 0; z-index: 30; width: auto; height: auto; border-radius: 0; cursor: zoom-out;
-  display: grid; place-items: center; padding: 16px 16px 150px; background: rgba(4, 4, 6, 0.92); box-shadow: none;
+  display: grid; place-items: center; padding: 56px 16px calc(150px + env(safe-area-inset-bottom)); background: rgba(4, 4, 6, 0.96); box-shadow: none;
 }
-.player.big .thumb video { width: auto; height: auto; max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 14px; }
+.player.big .thumb video {
+  width: auto; height: auto; object-fit: contain; border-radius: 14px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 210px); max-height: calc(100dvh - 210px - env(safe-area-inset-bottom));
+}
 .player.big .thumb::after { content: "✕"; position: fixed; top: calc(14px + env(safe-area-inset-top)); right: 18px; bottom: auto; font-size: 22px; }
 .player.big .now, .player.big .controls, .player.big .seek { position: relative; z-index: 31; }
 .now { grid-area: now; min-width: 0; }
