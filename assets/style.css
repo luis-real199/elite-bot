@@ -264,6 +264,7 @@ footer {
 .chip.danger { color: #ff8a7a; }
 .rate button { background: none; border: 0; padding: 2px 3px; font-size: 26px; line-height: 1; color: #3a3a3a; cursor: pointer; }
 .rate button.on { color: var(--gold); }
+.chip.more { justify-self: center; margin: 8px 0; padding: 12px 20px; }
 .empty { text-align: center; color: var(--muted); padding: 40px 0; }
 .player {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 6;

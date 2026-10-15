@@ -47,10 +47,21 @@
     load();
   }
 
+  const PAGE = 1000;
+  let shown = 150; // cards rendered at once; "Δείξε περισσότερα" adds more
+
   async function load() {
-    const { data, error } = await sb.from('demos').select('*').order('created_at', { ascending: false }).order('track_no', { ascending: true }).limit(1000);
-    if (error) { alert('Σφάλμα: ' + error.message); return; }
-    demos = data;
+    // Supabase returns at most 1000 rows per request, so page through all of them.
+    const all = [];
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await sb.from('demos').select('*')
+        .order('created_at', { ascending: false }).order('track_no', { ascending: true }).order('id')
+        .range(from, from + PAGE - 1);
+      if (error) { alert('Σφάλμα: ' + error.message); return; }
+      all.push(...data);
+      if (data.length < PAGE) break;
+    }
+    demos = all;
     pinned.clear();
     if (first && tab === 'new' && !demos.some((d) => d.status === 'new')) tab = 'all';
     first = false;
@@ -68,8 +79,10 @@
     const count = (k) => (k === 'all' ? demos.length : demos.filter((d) => d.status === k).length);
     $('tabs').innerHTML = TABS.map(([k, l]) => `<button type="button" data-tab="${k}" class="${tab === k ? 'on' : ''}">${l} · ${count(k)}</button>`).join('');
     const rows = visible();
+    const more = rows.length - shown;
     $('list').innerHTML = rows.length
-      ? rows.map(card).join('')
+      ? rows.slice(0, shown).map(card).join('') +
+        (more > 0 ? `<button type="button" class="chip more" data-more>Δείξε περισσότερα (${more} ακόμα)</button>` : '')
       : `<p class="empty">${demos.length ? 'Τίποτα εδώ.' : 'Δεν υπάρχουν demos ακόμα.<br>Αν περιμένεις, έλεγξε ότι το email σου είναι στον πίνακα admins.'}</p>`;
   }
 
@@ -111,11 +124,12 @@
   // ---------- actions ----------
   $('tabs').addEventListener('click', (e) => {
     const b = e.target.closest('[data-tab]');
-    if (b) { tab = b.dataset.tab; pinned.clear(); render(); }
+    if (b) { tab = b.dataset.tab; pinned.clear(); shown = 150; render(); }
   });
-  $('search').addEventListener('input', (e) => { query = e.target.value.trim(); render(); });
+  $('search').addEventListener('input', (e) => { query = e.target.value.trim(); shown = 150; render(); });
 
   $('list').addEventListener('click', (e) => {
+    if (e.target.closest('[data-more]')) { shown += 150; return render(); }
     const el = e.target.closest('[data-act]');
     const art = e.target.closest('[data-id]');
     if (!el || !art) return;
