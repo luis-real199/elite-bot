@@ -24,7 +24,7 @@ def test_slots_for_a_week(cfg):
     slots = planner.build_slots(cfg, at(cfg, 2026, 10, 19).date())
     # 2 daily slots x 7 + feed on tue/thu/sat + 20 fanvue
     assert len(slots) == 14 + 3 + 20
-    assert slots[0]["slot_at"] == at(cfg, 2026, 10, 19, 12, 30)
+    assert slots[0]["slot_at"] == at(cfg, 2026, 10, 19, 8, 0)
     assert sum(1 for s in slots if s["kind"] == "video") == 7
 
 
@@ -89,8 +89,8 @@ def test_generate_review_approve_publish(app):
     created = app.buffer.created
     targets = {(c["channelId"], c["metadata"]["instagram"]["type"] if "metadata" in c and "instagram" in c["metadata"] else None) for c in created}
     assert ("ch_ig", "story") in targets and ("ch_ig", "reel") in targets and ("ch_x", None) in targets
-    # up to Tue 22:00: Mon 12:30 story+x, Mon 19:00 reel+tiktok+yt, Tue 10:00 feed,
-    # Tue 12:30 story+x, Tue 19:00 reel+tiktok+yt = 11
+    # up to Tue 22:00: Mon 08:00 story+x, Mon 19:00 reel+tiktok+yt, Tue 08:00 story+x,
+    # Tue 12:30 feed, Tue 19:00 reel+tiktok+yt = 11
     assert len(created) == 11
     assert all(c["assets"][0].get("video", c["assets"][0].get("image"))["url"].startswith("https://cdn.example/") for c in created)
 
@@ -100,10 +100,10 @@ def test_generate_review_approve_publish(app):
     assert len(app.db.posts("scheduled")) == 5
 
     # public copies are removed a few days after they went out
-    # Fri 09:00 minus 3 days: Monday's 12:30 and 19:00 posts are old enough
-    assert jobs.cleanup_storage(app, at(cfg, 2026, 10, 23, 9, 0)) == 2
+    # Fri 09:00 minus 3 days: Monday's 08:00 and 19:00 posts are old enough, Tuesday's 08:00 is not
+    assert jobs.cleanup_storage(app, at(cfg, 2026, 10, 23, 7, 0)) == 2
     assert len(app.storage.deleted) == 2
-    assert jobs.cleanup_storage(app, at(cfg, 2026, 10, 23, 9, 0)) == 0
+    assert jobs.cleanup_storage(app, at(cfg, 2026, 10, 23, 7, 0)) == 0
 
 
 def test_fanvue_pack_sends_documents(app):
@@ -163,7 +163,7 @@ def test_late_approval_and_buffer_errors(app):
     jobs.generate_pending(app, at(cfg, 2026, 10, 18, 19, 0), limit=100)
     jobs.send_reviews(app)
     social = [p for p in app.db.posts("in_review") if p.social_targets]
-    first = social[0]  # Mon 12:30 story + x
+    first = social[0]  # Mon 08:00 story + x
     jobs.review_action(app, "a", first["id"])
 
     app.buffer.fail_with = "Invalid media URL"

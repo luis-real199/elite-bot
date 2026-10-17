@@ -78,7 +78,7 @@ def test_reel_input_shape(cfg):
 
     post = {"kind": "video", "caption": "Morning run #fit", "hashtags": ["#AI", "#fit"]}
     data = post_input(post, "instagram_reel", "ch_ig", "https://cdn/1.mp4", datetime(2026, 10, 20, 19, 0, tzinfo=cfg.tz))
-    assert data["dueAt"] == "2026-10-20T16:00:00.000Z"
+    assert data["dueAt"] == "2026-10-20T23:00:00.000Z"  # 19:00 New York (EDT) in UTC
     assert data["assets"] == [{"video": {"url": "https://cdn/1.mp4"}}]
     assert data["metadata"] == {"instagram": {"type": "reel", "shouldShareToFeed": True}}
     assert data["text"].endswith("#AI #fit")
