@@ -145,7 +145,7 @@ def test_feed_posts_one_per_day_rest_to_vault(fv_app):
     days = [p["publish_at"] for p in fv.posts]
     assert days[0] == datetime(2026, 10, 19, 20, 0, tzinfo=app.cfg.tz)
     assert days[-1] == datetime(2026, 10, 25, 20, 0, tzinfo=app.cfg.tz)
-    assert all("#AI" in p["text"] for p in fv.posts)
+    assert all(p["text"].endswith("#aigenerated") for p in fv.posts)
     assert len(app.db.fanvue_media(purpose="vault")) == 13
     assert len(app.db.posts("delivered")) == 20
     assert jobs.publish_fanvue(app, datetime(2026, 10, 18, 22, 5, tzinfo=app.cfg.tz)) == 0

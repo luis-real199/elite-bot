@@ -39,12 +39,15 @@ def violations(*texts):
 
 
 def with_disclosure(hashtags):
-    """Normalise hashtags and make sure at least one AI disclosure tag is present."""
+    """Normalise hashtags and make sure one AI disclosure tag is present, quietly at the end.
+
+    Captions themselves do not talk about being AI (the bio and Instagram's AI-generated profile
+    label do), but EU AI Act art. 50 and TikTok still want each realistic post marked."""
     tags = []
     for tag in hashtags or []:
         tag = "#" + tag.strip().lstrip("#").replace(" ", "")
         if len(tag) > 1 and tag.lower() not in {t.lower() for t in tags}:
             tags.append(tag)
     if not any(t.lower() in DISCLOSURE_TAGS for t in tags):
-        tags.insert(0, "#AI")
+        tags.append("#aigenerated")
     return tags

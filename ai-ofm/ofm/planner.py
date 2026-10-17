@@ -5,14 +5,13 @@ from datetime import date, datetime, time, timedelta
 
 from . import guardrails
 
-MECHANICS = ["choice", "rating", "hot_take", "guess", "ai_debate", "relatable", "useful", "series", "none"]
+MECHANICS = ["choice", "rating", "hot_take", "guess", "relatable", "useful", "series", "none"]
 
 ENGAGEMENT = """Engagement: every social item must give viewers a reason to comment or share. Pick one mechanic per item and vary them across the week:
 - choice: ask viewers to pick (outfit 1, 2 or 3; iced or hot)
 - rating: ask for a number with a stake ("rate my fit 1-10, lowest score picks next week's outfit")
 - hot_take: a light, harmless opinion people will argue with ("gym at 6am > gym at 6pm")
 - guess: ask viewers to guess something about her (her height, her coffee order)
-- ai_debate: play on being openly AI ("POV: he just found out I'm AI")
 - relatable: a POV people send to a friend ("POV: your gym partner cancels again")
 - useful: something worth saving (3 beach spots, a 20-minute hotel workout)
 - series: a recurring numbered format people follow ("Outfit #8", "Day 12 of...")
@@ -90,7 +89,7 @@ Persona:
 Hard rules:
 1. Adults only. Nothing that suggests youth: no school settings or uniforms, no childlike poses, props or wording, no ages under 21.
 2. No real people: no celebrities, lookalikes, real influencers or public figures, and no brand logos.
-3. She is an AI character. Captions never claim she is human or real, never say "not AI", and never promise meetups or real-life contact.
+3. She is an AI character. Captions never claim she is human or real, never say "not AI", and never promise meetups or real-life contact. They also do not bring up being AI.
 4. Items that target Instagram, TikTok, YouTube or X are strictly safe for work: no nudity, no sexual acts, no explicit wording. Swimwear, gym wear and night-out outfits are fine.
 5. Fanvue items are for her paid page, in this style: {p.get('fanvue_style', 'glamour photos')}. Keep within that style and the rules above.
 
@@ -99,7 +98,10 @@ For each slot write:
 - image_prompt: English, 40-80 words: scene, outfit, pose, framing, lighting, camera angle. Do not describe her face, hair or body and do not use her name.
 - motion_prompt: for video slots, English, {cfg.generation['video_duration']} seconds of natural motion (camera move plus what she does) whose last frame matches the first so the reel loops. For image slots, an empty string.
 - caption: in {p['caption_language']}, in her voice, 1-3 short sentences that fit the platform. For Fanvue items, a short teaser for subscribers.
-- hashtags: 3-8 relevant hashtags including #AI.
+- hashtags: 3-8 relevant hashtags. Do not add an AI tag yourself; one is appended automatically.
+
+Hooks, captions and pinned comments do not mention that she is AI: her bio and the platform's AI label
+handle disclosure. They also never claim or imply that she is a real human.
 
 {ENGAGEMENT}
 

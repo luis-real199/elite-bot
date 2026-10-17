@@ -32,6 +32,7 @@ def test_plan_stores_hook_pinned_comment_and_mechanic(app):
     assert vault["hook"] == "" and vault["mechanic"] == "none"
     system = app.claude.requests[0]["system"]
     assert "engagement bait" in system and "8 seconds" in system
+    assert "ai_debate" not in system and "do not mention that she is AI" in system
 
 
 def test_unsafe_hook_is_blocked(app):

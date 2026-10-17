@@ -63,7 +63,7 @@ def test_normal_captions_pass(text):
 
 
 def test_disclosure_tag_is_added_and_tags_normalised():
-    assert guardrails.with_disclosure(["travel", "#Greece", "greece"]) == ["#AI", "#travel", "#Greece"]
+    assert guardrails.with_disclosure(["travel", "#Greece", "greece"]) == ["#travel", "#Greece", "#aigenerated"]
     assert guardrails.with_disclosure(["#aigenerated", "fit"]) == ["#aigenerated", "#fit"]
 
 

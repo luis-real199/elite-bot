@@ -37,7 +37,7 @@ def test_plan_creates_posts_with_disclosure(app):
     assert request["fallbacks"] == "default"
     assert request["output_config"]["format"]["type"] == "json_schema"
     posts = app.db.posts("planned")
-    assert all("#AI" in p["hashtags"] for p in posts)
+    assert all(p["hashtags"][-1] == "#aigenerated" for p in posts)
     assert all(p["motion_prompt"] == "" for p in posts if p["kind"] == "image")
     assert app.db.kv_get("planned_until") == "2026-10-25"
     assert app.db.spent_last_week() == pytest.approx((2000 * 4 + 8000 * 20) / 1e6)
