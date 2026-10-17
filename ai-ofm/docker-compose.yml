@@ -1,0 +1,10 @@
+services:
+  ofm:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      TZ: Europe/Athens
+    volumes:
+      - ./data:/app/data
+      - ./persona.yaml:/app/persona.yaml:ro

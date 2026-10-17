@@ -1,0 +1,67 @@
+# Η περσόνα και το πρόγραμμα. Άλλαξε ό,τι θέλεις και κάνε restart.
+# Τα prompts για τις εικόνες είναι καλύτερα στα αγγλικά.
+
+persona:
+  name: "Mia Laurent"            # φανταστικό όνομα, όχι πραγματικό πρόσωπο
+  age: 24                        # τουλάχιστον 21, αλλιώς το σύστημα δεν ξεκινά
+  subject: "woman"
+  trigger_word: "m1alaur"        # η λέξη-κλειδί του LoRA, κάτι που δεν είναι πραγματική λέξη
+  appearance: "long wavy auburn hair, green eyes, light freckles, athletic build"
+  vibe: "Mediterranean lifestyle, Athens and the Greek islands"
+  niche: "fitness, travel and everyday lifestyle"
+  personality: "playful, confident, warm, a little teasing, never vulgar"
+  caption_language: "English"    # γλώσσα για τα captions
+  owner_language: "Greek"        # γλώσσα για τις περιγραφές που βλέπεις εσύ στο Telegram
+  disclosure: "AI-generated character"
+  content_pillars:
+    - "gym and workout moments"
+    - "beach and island travel"
+    - "cozy morning routine and coffee"
+    - "night out outfits"
+    - "behind-the-scenes, getting ready"
+  fanvue_style: "glamour and boudoir-style photos, lingerie and swimwear, tasteful and suggestive"
+  avoid:
+    - "any real person, celebrity or lookalike"
+    - "anything that looks underage, school-related or childlike"
+    - "politics, religion, tragedies, other brands' logos"
+
+style:
+  photo: "candid smartphone photo, natural light, realistic skin texture, sharp focus"
+
+schedule:
+  timezone: "Europe/Athens"
+  # Κάθε slot είναι ένα post. days: mon tue wed thu fri sat sun (κενό = κάθε μέρα)
+  slots:
+    - {time: "12:30", kind: image, targets: [instagram_story, x]}
+    - {time: "19:00", kind: video, targets: [instagram_reel, tiktok, youtube_short]}
+    - {time: "10:00", kind: image, targets: [instagram_feed], days: [tue, thu, sat]}
+  fanvue_per_week: 20            # εικόνες για το vault/PPV του Fanvue (τις ανεβάζεις εσύ)
+  plan: {day: sun, time: "18:00"}         # πότε φτιάχνεται το πλάνο της επόμενης εβδομάδας
+  report: {day: sun, time: "20:00"}       # εβδομαδιαία αναφορά στο Telegram
+  fanvue_pack: {day: mon, time: "09:00"}  # πότε σου στέλνει τα αρχεία για το Fanvue
+  publish_ahead_hours: 36        # πόσο νωρίτερα στέλνει τα posts στο Buffer
+
+budget:
+  weekly_usd: 15                 # μέγιστα έξοδα generation ανά 7 μέρες
+  estimates_usd:                 # εκτιμήσεις κόστους ανά κλήση (για το όριο)
+    image: 0.05
+    edit: 0.04
+    video: 0.40
+    training: 3.00
+
+generation:
+  image_size: {width: 896, height: 1600}  # κάθετο 9:16
+  video_duration: "5"
+  lora_scale: 1.0
+  training_steps: 1000
+  max_regenerations: 3
+  social_safety_checker: true    # πάντα ενεργό για Instagram/TikTok/YouTube/X
+  fanvue_safety_checker: true
+
+models:
+  claude: "claude-opus-5-5"
+  claude_usd_per_mtok: {input: 4.0, output: 20.0}
+  image: "fal-ai/flux-lora"
+  edit: "fal-ai/flux-pro/kontext"
+  video: "fal-ai/kling-video/v2.5-turbo/standard/image-to-video"
+  trainer: "fal-ai/flux-lora-fast-training"
