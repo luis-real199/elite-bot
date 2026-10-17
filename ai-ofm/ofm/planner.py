@@ -19,6 +19,7 @@ Never use engagement bait such as "like if", "tag 3 friends" or "comment YES": I
 The caption ends with the same question or stake as the hook, phrased naturally.
 - hook: on-screen text for the first seconds, max 8 words, no hashtags, no emoji, readable without sound
 - pinned_comment: the first comment she pins under the post, continuing the mechanic
+- alt_caption: only when targets include instagram_backup (her second Instagram account): the same idea and mechanic in different words, so the two accounts never share identical text. Otherwise an empty string.
 For Fanvue items use an empty hook and pinned_comment and mechanic "none"."""
 
 ITEM_SCHEMA = {
@@ -36,11 +37,12 @@ ITEM_SCHEMA = {
                     "caption": {"type": "string"},
                     "hashtags": {"type": "array", "items": {"type": "string"}},
                     "hook": {"type": "string"},
+                    "alt_caption": {"type": "string"},
                     "pinned_comment": {"type": "string"},
                     "mechanic": {"type": "string", "enum": MECHANICS},
                 },
                 "required": ["slot", "idea", "image_prompt", "motion_prompt", "caption", "hashtags",
-                             "hook", "pinned_comment", "mechanic"],
+                             "hook", "pinned_comment", "mechanic", "alt_caption"],
                 "additionalProperties": False,
             },
         }
@@ -194,6 +196,7 @@ def plan_ahead(app, now, days=7):
             hashtags=hashtags,
             hook=hook,
             pinned_comment=pinned,
+            alt_caption=item.get("alt_caption", "") if "instagram_backup" in slot["targets"] else "",
             mechanic=item.get("mechanic", "none") if social else "none",
             status="blocked" if bad else "planned",
             error=("guardrails: " + ", ".join(bad)) if bad else None,

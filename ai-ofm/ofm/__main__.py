@@ -1,7 +1,9 @@
 import argparse
 import logging
+import os
 import sys
 from datetime import datetime
+from pathlib import Path
 
 from . import bot, jobs, onboarding, planner
 from .app import App
@@ -11,7 +13,8 @@ from .telegram import Telegram
 
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="python -m ofm", description="AI OFM: πλάνο, generation, έγκριση, αποστολή")
-    parser.add_argument("--config", help="persona.yaml (default: persona.yaml)")
+    parser.add_argument("--persona", help="φάκελος στο personas/ (π.χ. mia), για χρήση εκτός Docker")
+    parser.add_argument("--config", help="διαδρομή προς persona.yaml (αντί για --persona)")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("run", help="τρέχει συνέχεια: Telegram bot + όλες οι προγραμματισμένες δουλειές")
     sub.add_parser("check", help="ελέγχει ρυθμίσεις και κλειδιά")
@@ -35,9 +38,15 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    config = args.config
+    if args.persona:
+        config = f"personas/{args.persona}/persona.yaml"
+        os.environ.setdefault("OFM_PERSONA", args.persona)
+    if config:
+        load_dotenv(Path(config).parent / ".env")  # her own keys first, then the shared ones
     load_dotenv(".env")
     try:
-        cfg = load_config(args.config)
+        cfg = load_config(config)
     except ConfigError as e:
         sys.exit(f"Ρυθμίσεις: {e}")
     if args.command == "telegram-id":
@@ -83,7 +92,7 @@ def main(argv=None):
 
 def check(app):
     cfg = app.cfg
-    print(f"Περσόνα: {cfg.persona['name']}, {cfg.persona['age']} · {len(cfg.slots)} slots στο πρόγραμμα · "
+    print(f"Περσόνα [{cfg.slug}]: {cfg.persona['name']}, {cfg.persona['age']} · {len(cfg.slots)} slots στο πρόγραμμα · "
           f"Fanvue {cfg.fanvue_per_week}/εβδομάδα · όριο ${cfg.weekly_budget}/εβδομάδα")
     for key in ENV_KEYS:
         print(f"  {'✅' if cfg.secret(key) else '—'} {key}")

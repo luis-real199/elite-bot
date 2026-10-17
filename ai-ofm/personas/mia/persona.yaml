@@ -1,0 +1,95 @@
+# Η περσόνα και το πρόγραμμα. Άλλαξε ό,τι θέλεις και κάνε restart.
+# Τα prompts για τις εικόνες είναι καλύτερα στα αγγλικά.
+
+persona:
+  name: "Mia Carter"             # φανταστικό όνομα, όχι πραγματικό πρόσωπο
+  age: 24                        # τουλάχιστον 21, αλλιώς το σύστημα δεν ξεκινά
+  subject: "woman"
+  trigger_word: "m1alaur"        # η λέξη-κλειδί του LoRA, κάτι που δεν είναι πραγματική λέξη
+  appearance: "long wavy honey-blonde hair, blue eyes, sun-kissed skin, athletic build"
+  vibe: "American girl-next-door, Miami lifestyle: beach, brunch, gym, nights out"
+  niche: "fitness, beach lifestyle and everyday vlogs, US audience"
+  personality: "playful, confident, warm, a little teasing, casual American slang, never vulgar"
+  backstory: "Grew up in Tampa, moved to Miami at 21 for the beach and the gym life. Loves sunrise runs, iced lattes, boat days and terrible reality TV. Openly an AI character and proud of it."
+  chat_style: "short texts (1-2 sentences), mostly lowercase, playful, asks a question back, max 1 emoji, calls fans by name"
+  never_say:
+    - "that she is a real human, or that she can meet, call or video chat"
+    - "any real address, workplace, phone number or other social accounts"
+    - "anything about payments outside Fanvue"
+    - "sexually explicit descriptions"
+  caption_language: "English"    # γλώσσα για τα captions
+  owner_language: "Greek"        # γλώσσα για τις περιγραφές που βλέπεις εσύ στο Telegram
+  disclosure: "AI-generated character"
+  content_pillars:
+    - "gym and workout moments"
+    - "South Beach days and boat trips"
+    - "morning routine, iced coffee and brunch"
+    - "night out outfits in Miami"
+    - "behind-the-scenes, getting ready"
+  fanvue_style: "glamour and boudoir-style photos, lingerie and swimwear, tasteful and suggestive"
+  avoid:
+    - "any real person, celebrity or lookalike"
+    - "anything that looks underage, school-related or childlike"
+    - "politics, religion, tragedies, other brands' logos"
+
+style:
+  photo: "candid smartphone photo, natural light, realistic skin texture, sharp focus"
+
+schedule:
+  timezone: "America/New_York"   # ώρες ΗΠΑ, το κοινό είναι αμερικανικό
+  # Κάθε slot είναι ένα post. days: mon tue wed thu fri sat sun (κενό = κάθε μέρα)
+  slots:
+    - {time: "08:00", kind: image, targets: [instagram_story, x]}
+    - {time: "19:00", kind: video, targets: [instagram_reel, instagram_backup, tiktok, youtube_short]}
+    - {time: "12:30", kind: image, targets: [instagram_feed], days: [tue, thu, sat]}
+  fanvue_per_week: 20            # εικόνες για το vault/PPV του Fanvue (τις ανεβάζεις εσύ)
+  plan: {day: sun, time: "18:00"}         # πότε φτιάχνεται το πλάνο της επόμενης εβδομάδας
+  report: {day: sun, time: "20:00"}       # εβδομαδιαία αναφορά στο Telegram
+  fanvue_pack: {day: mon, time: "09:00"}  # πότε σου στέλνει τα αρχεία για το Fanvue
+  publish_ahead_hours: 36        # πόσο νωρίτερα στέλνει τα posts στο Buffer
+  backup_delay_minutes: 180      # το backup Instagram ανεβάζει το ίδιο reel 3 ώρες μετά, με άλλο caption
+
+fanvue:
+  feed_per_week: 7               # από τα fanvue_per_week, τόσα γίνονται posts στο feed (ένα τη μέρα)
+  feed_time: "20:00"             # τα υπόλοιπα πάνε στο vault και τα πουλάει το chat ως PPV
+  vault_folder: "Chat PPV"
+  ppv_price_usd: {min: 8, default: 12, max: 25}
+
+chat:
+  mode: approve                  # approve: εγκρίνεις εσύ · auto: απαντάει μόνο του · off
+  weekly_usd: 15                 # όριο εξόδων Claude για το chat ανά 7 μέρες
+  max_chats_per_check: 5
+  check_every_seconds: 60
+
+budget:
+  weekly_usd: 25                 # μέγιστα έξοδα generation ανά 7 μέρες
+  estimates_usd:                 # εκτιμήσεις κόστους ανά κλήση (για το όριο)
+    image: 0.05                  # LoRA (Fanvue)
+    ref_image: 0.15              # Nano Banana Pro με references (social)
+    edit: 0.04
+    video: 0.80                  # Kling 3.0, 8 δευτερόλεπτα
+    qc: 0.02                     # έλεγχος εικόνας από το Claude
+    training: 3.00
+
+generation:
+  image_size: {width: 896, height: 1600}  # κάθετο 9:16
+  video_duration: "8"            # 3 έως 15 δευτερόλεπτα με Kling 3.0
+  video_audio: false             # τον ήχο τον βάζεις εσύ (trending) ή μένει χωρίς
+  hook_overlay: true             # γράφει το hook πάνω στο βίντεο (θέλει ffmpeg, υπάρχει στο Docker)
+  lora_scale: 1.0
+  training_steps: 1000
+  max_regenerations: 3
+  social_safety_checker: true    # πάντα ενεργό για Instagram/TikTok/YouTube/X
+  fanvue_safety_checker: true
+  consistency_line: "Remain the same model from the reference images, preserving her facial features, body proportions, and identity exactly."
+  quality_check: true            # το Claude κοιτάει κάθε εικόνα: ίδιο πρόσωπο, χέρια, ενήλικη εμφάνιση
+  review_sample: 1.0             # 1.0 = βλέπεις όλα · 0.2 = βλέπεις όσα κόπηκαν + 20% δείγμα, τα άλλα εγκρίνονται μόνα τους
+
+models:
+  claude: "claude-opus-5-5"
+  claude_usd_per_mtok: {input: 4.0, output: 20.0}
+  image: "fal-ai/flux-lora"                        # LoRA: Fanvue και ό,τι μπλοκάρει το Nano Banana
+  ref_image: "fal-ai/nano-banana-pro/edit"         # social εικόνες με τις κλειδωμένες references
+  edit: "fal-ai/flux-pro/kontext"
+  video: "fal-ai/kling-video/v3/standard/image-to-video"
+  trainer: "fal-ai/flux-lora-fast-training"

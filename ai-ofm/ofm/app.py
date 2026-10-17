@@ -24,7 +24,7 @@ class App:
         if storage is None:
             url, key = cfg.secret("SUPABASE_URL"), cfg.secret("SUPABASE_SECRET_KEY")
             bucket = cfg.secret("SUPABASE_BUCKET") or "ofm-media"
-            storage = SupabaseStorage(url, key, bucket) if url and key else SourceUrlStorage()
+            storage = SupabaseStorage(url, key, bucket, prefix=f"{cfg.slug}/") if url and key else SourceUrlStorage()
         self.storage = storage
         if buffer is None and cfg.secret("BUFFER_API_KEY"):
             buffer = Buffer(cfg.secret("BUFFER_API_KEY"))

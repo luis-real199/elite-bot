@@ -9,7 +9,7 @@ from conftest import ROOT
 
 
 def write_config(tmp_path, **changes):
-    raw = yaml.safe_load((ROOT / "persona.yaml").read_text(encoding="utf-8"))
+    raw = yaml.safe_load((ROOT / "persona.example.yaml").read_text(encoding="utf-8"))
     for dotted, value in changes.items():
         section, key = dotted.split(".")
         raw[section][key] = value

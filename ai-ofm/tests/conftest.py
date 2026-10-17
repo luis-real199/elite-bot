@@ -250,7 +250,7 @@ def default_items(n):
 def cfg(tmp_path):
     env = {"TELEGRAM_OWNER_ID": str(OWNER), "BUFFER_CHANNEL_INSTAGRAM": "ch_ig", "BUFFER_CHANNEL_TIKTOK": "ch_tt",
            "BUFFER_CHANNEL_YOUTUBE": "ch_yt", "BUFFER_CHANNEL_X": "ch_x", "OFM_DATA_DIR": str(tmp_path / "data")}
-    return load_config(ROOT / "persona.yaml", env=env)
+    return load_config(ROOT / "persona.example.yaml", env=env)
 
 
 @pytest.fixture

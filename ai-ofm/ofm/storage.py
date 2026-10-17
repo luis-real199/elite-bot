@@ -12,15 +12,16 @@ class StorageError(Exception):
 
 
 class SupabaseStorage:
-    def __init__(self, url, key, bucket, session=None):
+    def __init__(self, url, key, bucket, session=None, prefix=""):
         self.url = url.rstrip("/")
         self.key = key
         self.bucket = bucket
+        self.prefix = prefix  # one folder per persona, since post ids repeat across personas
         self.http = session or requests.Session()
 
     def upload(self, path, post_id, source_url=None):
         path = Path(path)
-        name = f"{post_id}-{secrets.token_hex(8)}{path.suffix}"
+        name = f"{self.prefix}{post_id}-{secrets.token_hex(8)}{path.suffix}"
         mime = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
         with open(path, "rb") as f:
             r = self.http.post(

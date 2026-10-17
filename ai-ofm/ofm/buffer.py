@@ -12,6 +12,7 @@ CHANNEL_ENV = {
     "instagram_reel": "BUFFER_CHANNEL_INSTAGRAM",
     "instagram_story": "BUFFER_CHANNEL_INSTAGRAM",
     "instagram_feed": "BUFFER_CHANNEL_INSTAGRAM",
+    "instagram_backup": "BUFFER_CHANNEL_INSTAGRAM_BACKUP",
     "tiktok": "BUFFER_CHANNEL_TIKTOK",
     "youtube_short": "BUFFER_CHANNEL_YOUTUBE",
     "x": "BUFFER_CHANNEL_X",
@@ -46,7 +47,8 @@ def literal(value):
 
 def post_text(post, target):
     tags = " ".join(post["hashtags"])
-    text = f"{post['caption']}\n\n{tags}".strip()
+    caption = post.get("alt_caption") if target == "instagram_backup" and post.get("alt_caption") else post["caption"]
+    text = f"{caption}\n\n{tags}".strip()
     if target == "x" and len(text) > 280:
         text = text[:279] + "…"
     return text
@@ -62,9 +64,10 @@ def post_input(post, target, channel_id, media_url, due_at):
         "dueAt": due_at.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z"),
         "assets": [{"video": {"url": media_url}} if is_video else {"image": {"url": media_url}}],
     }
-    if target in INSTAGRAM_TYPE:
-        instagram = {"type": Enum(INSTAGRAM_TYPE[target])}
-        if target == "instagram_reel":
+    if target in INSTAGRAM_TYPE or target == "instagram_backup":
+        kind = INSTAGRAM_TYPE.get(target) or ("reel" if is_video else "post")
+        instagram = {"type": Enum(kind)}
+        if kind == "reel":
             instagram["shouldShareToFeed"] = True
         data["metadata"] = {"instagram": instagram}
     elif target == "youtube_short":

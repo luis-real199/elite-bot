@@ -40,13 +40,14 @@ schedule:
   # Κάθε slot είναι ένα post. days: mon tue wed thu fri sat sun (κενό = κάθε μέρα)
   slots:
     - {time: "08:00", kind: image, targets: [instagram_story, x]}
-    - {time: "19:00", kind: video, targets: [instagram_reel, tiktok, youtube_short]}
+    - {time: "19:00", kind: video, targets: [instagram_reel, instagram_backup, tiktok, youtube_short]}
     - {time: "12:30", kind: image, targets: [instagram_feed], days: [tue, thu, sat]}
   fanvue_per_week: 20            # εικόνες για το vault/PPV του Fanvue (τις ανεβάζεις εσύ)
   plan: {day: sun, time: "18:00"}         # πότε φτιάχνεται το πλάνο της επόμενης εβδομάδας
   report: {day: sun, time: "20:00"}       # εβδομαδιαία αναφορά στο Telegram
   fanvue_pack: {day: mon, time: "09:00"}  # πότε σου στέλνει τα αρχεία για το Fanvue
   publish_ahead_hours: 36        # πόσο νωρίτερα στέλνει τα posts στο Buffer
+  backup_delay_minutes: 180      # το backup Instagram ανεβάζει το ίδιο reel 3 ώρες μετά, με άλλο caption
 
 fanvue:
   feed_per_week: 7               # από τα fanvue_per_week, τόσα γίνονται posts στο feed (ένα τη μέρα)

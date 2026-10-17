@@ -95,6 +95,7 @@ POST_COLUMNS_ADDED = [
     ("mechanic", "TEXT"),
     ("qc", "TEXT"),
     ("auto_approved", "INTEGER NOT NULL DEFAULT 0"),
+    ("alt_caption", "TEXT"),
 ]
 
 

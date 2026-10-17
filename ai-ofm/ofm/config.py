@@ -7,12 +7,12 @@ from zoneinfo import ZoneInfo
 import yaml
 
 DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
-SOCIAL_TARGETS = {"instagram_reel", "instagram_story", "instagram_feed", "tiktok", "youtube_short", "x"}
+SOCIAL_TARGETS = {"instagram_reel", "instagram_story", "instagram_feed", "instagram_backup", "tiktok", "youtube_short", "x"}
 VIDEO_TARGETS = {"instagram_reel", "tiktok", "youtube_short"}
 TARGETS = SOCIAL_TARGETS | {"fanvue"}
 TARGET_LABELS = {
     "instagram_reel": "IG Reel", "instagram_story": "IG Story", "instagram_feed": "IG Feed",
-    "tiktok": "TikTok", "youtube_short": "YT Shorts", "x": "X", "fanvue": "Fanvue",
+    "instagram_backup": "IG backup", "tiktok": "TikTok", "youtube_short": "YT Shorts", "x": "X", "fanvue": "Fanvue",
 }
 MIN_AGE = 21
 
@@ -32,7 +32,7 @@ CONSISTENCY_LINE = (
 
 ENV_KEYS = [
     "ANTHROPIC_API_KEY", "FAL_KEY", "TELEGRAM_BOT_TOKEN", "TELEGRAM_OWNER_ID",
-    "BUFFER_API_KEY", "BUFFER_CHANNEL_INSTAGRAM", "BUFFER_CHANNEL_TIKTOK",
+    "BUFFER_API_KEY", "BUFFER_CHANNEL_INSTAGRAM", "BUFFER_CHANNEL_INSTAGRAM_BACKUP", "BUFFER_CHANNEL_TIKTOK",
     "BUFFER_CHANNEL_YOUTUBE", "BUFFER_CHANNEL_X",
     "SUPABASE_URL", "SUPABASE_SECRET_KEY", "SUPABASE_BUCKET", "LORA_URL",
     "FANVUE_CLIENT_ID", "FANVUE_CLIENT_SECRET", "FANVUE_REDIRECT_URI",
@@ -77,6 +77,8 @@ class Config:
     chat: dict
     env: dict
     data_dir: Path
+    slug: str = "persona"
+    backup_delay_minutes: int = 180
 
     def secret(self, key):
         return self.env.get(key) or None
@@ -132,11 +134,11 @@ def _slots(raw):
 
 
 def load_config(path=None, env=None):
-    path = Path(path or os.environ.get("OFM_CONFIG", "persona.yaml"))
+    env = dict(os.environ) if env is None else env
+    path = Path(path or env.get("OFM_CONFIG", "persona.yaml"))
     if not path.exists():
         raise ConfigError(f"Δεν βρέθηκε το {path}")
     raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    env = dict(os.environ) if env is None else env
 
     persona = raw.get("persona") or {}
     for key in ("name", "age", "trigger_word", "appearance"):
@@ -204,5 +206,7 @@ def load_config(path=None, env=None):
         fanvue=fanvue,
         chat=chat,
         env={k: env.get(k, "") for k in ENV_KEYS},
-        data_dir=Path(env.get("OFM_DATA_DIR", "data")),
+        data_dir=Path(env.get("OFM_DATA_DIR") or path.parent / "data"),
+        slug=env.get("OFM_PERSONA") or path.parent.resolve().name,
+        backup_delay_minutes=int(schedule.get("backup_delay_minutes", 180)),
     )

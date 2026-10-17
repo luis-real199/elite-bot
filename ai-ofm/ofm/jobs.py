@@ -236,7 +236,6 @@ def publish_due(app, now, dry_run=False):
                 if not db.publication(post["id"], target) and not dry_run:
                     db.save_publication(post["id"], target, "missed", error="εγκρίθηκε πολύ αργά")
         else:
-            due = max(post["slot_at"], now + timedelta(minutes=10))
             if not post["public_url"] and not dry_run:
                 try:
                     url = app.storage.upload(post["media_path"], post["id"], source_url=post["video_url"] or post["image_url"])
@@ -248,6 +247,8 @@ def publish_due(app, now, dry_run=False):
             for target in targets:
                 if _publication_done(db.publication(post["id"], target)):
                     continue
+                delay = timedelta(minutes=cfg.backup_delay_minutes if target == "instagram_backup" else 0)
+                due = max(post["slot_at"] + delay, now + timedelta(minutes=10))
                 channel = cfg.secret(CHANNEL_ENV[target])
                 data = post_input(post, target, channel or "CHANNEL_ID", post["public_url"] or "MEDIA_URL", due)
                 if dry_run:
