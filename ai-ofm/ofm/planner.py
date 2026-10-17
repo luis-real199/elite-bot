@@ -83,18 +83,19 @@ For each slot write:
 Spread the pillars, settings and outfits across the week, match the time of day of each slot, and return exactly one item per slot number."""
 
 
-def user_prompt(slots, recent_ideas):
+def user_prompt(slots, recent_ideas, fan_requests=()):
     lines = []
     for i, s in enumerate(slots):
         when = "vault" if s["targets"] == ["fanvue"] else s["slot_at"].strftime("%a %d %b %H:%M")
         lines.append({"slot": i, "when": when, "kind": s["kind"], "targets": s["targets"]})
     return (
         f"Plan these {len(slots)} slots:\n{json.dumps(lines)}\n\n"
-        f"Recent ideas, don't repeat them:\n{_bullets(recent_ideas)}"
+        f"Recent ideas, don't repeat them:\n{_bullets(recent_ideas)}\n\n"
+        f"What paying fans asked for in chat (make several Fanvue items match these):\n{_bullets(fan_requests)}"
     )
 
 
-def request_plan(client, cfg, db, slots):
+def request_plan(client, cfg, db, slots, fan_requests=()):
     with client.beta.messages.stream(
         model=cfg.models["claude"],
         max_tokens=64000,
@@ -102,7 +103,7 @@ def request_plan(client, cfg, db, slots):
         fallbacks="default",
         output_config={"effort": "medium", "format": {"type": "json_schema", "schema": ITEM_SCHEMA}},
         system=system_prompt(cfg),
-        messages=[{"role": "user", "content": user_prompt(slots, db.recent_ideas())}],
+        messages=[{"role": "user", "content": user_prompt(slots, db.recent_ideas(), fan_requests)}],
     ) as stream:
         response = stream.get_final_message()
 
@@ -137,7 +138,9 @@ def plan_ahead(app, now, days=7):
     cfg, db = app.cfg, app.db
     start = next_start(db, now)
     slots = build_slots(cfg, start, days)
-    items = request_plan(app.claude, cfg, db, slots)
+    requests = db.fan_requests()
+    items = request_plan(app.claude, cfg, db, slots, [r["text"] for r in requests])
+    db.mark_requests_used([r["id"] for r in requests])
 
     summary = {"start": start, "end": start + timedelta(days=days - 1), "created": 0, "blocked": 0, "missing": 0}
     for i, slot in enumerate(slots):

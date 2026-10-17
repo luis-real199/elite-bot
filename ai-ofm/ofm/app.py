@@ -2,6 +2,7 @@ import logging
 
 from .buffer import Buffer
 from .db import DB
+from .fanvue import Fanvue
 from .media import Media
 from .storage import SourceUrlStorage, SupabaseStorage
 from .telegram import Telegram
@@ -12,7 +13,7 @@ log = logging.getLogger("ofm")
 class App:
     """Wires config, database and API clients together; tests pass fakes in."""
 
-    def __init__(self, cfg, db=None, tg=None, media=None, storage=None, buffer=None, claude=None):
+    def __init__(self, cfg, db=None, tg=None, media=None, storage=None, buffer=None, claude=None, fanvue=None):
         self.cfg = cfg
         self.db = db or DB(cfg.data_dir / "ofm.sqlite3")
         token, owner = cfg.secret("TELEGRAM_BOT_TOKEN"), cfg.secret("TELEGRAM_OWNER_ID")
@@ -26,6 +27,10 @@ class App:
         if buffer is None and cfg.secret("BUFFER_API_KEY"):
             buffer = Buffer(cfg.secret("BUFFER_API_KEY"))
         self.buffer = buffer
+        fanvue_keys = [cfg.secret(k) for k in ("FANVUE_CLIENT_ID", "FANVUE_CLIENT_SECRET", "FANVUE_REDIRECT_URI")]
+        if fanvue is None and all(fanvue_keys):
+            fanvue = Fanvue(*fanvue_keys, self.db)
+        self.fanvue = fanvue
         self._claude = claude
 
     @property

@@ -1,11 +1,9 @@
-"""Fan chat on Fanvue: Claude drafts replies in the persona's voice and suggests PPV from the vault.
+"""Fan chat on Fanvue: Claude drafts replies in the persona's voice and offers PPV from the vault.
 
-Nothing is ever sent to a fan without the owner: every draft goes to Telegram and is sent only
-when the owner taps 📤 or replies with their own text.
-
-Modes (chat.mode in persona.yaml):
-- approve: drafts come to Telegram for one-tap approval
-- off: nothing is read or drafted
+Modes (chat.mode in persona.yaml, or /chat_approve, /chat_auto, /chat_off on Telegram):
+- approve: every draft comes to Telegram first; one tap sends it (default)
+- auto: replies and PPV offers go out on their own; escalations still come to Telegram
+- off: nothing is read or sent
 """
 
 import json
@@ -199,6 +197,11 @@ def poll_chats(app, now):
         media_uuid, price_cents = _clean_offer(cfg, db, fan["uuid"], draft)
         name = fan.get("displayName") or fan.get("handle") or "fan"
 
+        if mode == "auto" and not reasons and draft.get("reply"):
+            send_reply(app, fan["uuid"], draft["reply"], media_uuid, price_cents)
+            db.add_draft(fan["uuid"], name, draft["reply"], media_uuid, price_cents, None, "sent_auto")
+            continue
+
         draft_id = db.add_draft(fan["uuid"], name, draft.get("reply") or "", media_uuid, price_cents,
                                 "; ".join(reasons) or None, "pending")
         if app.tg:
@@ -243,7 +246,7 @@ def chat_status(app):
     mode = db.kv_get("chat_mode") or app.cfg.chat["mode"]
     return (
         f"💬 Chat: {mode}{' · Fanvue ✅' if app.fanvue and app.fanvue.connected else ' · Fanvue ❌ (/fanvue_login)'}\n"
-        f"7 ημέρες: {counts.get('sent', 0) + counts.get('sent_custom', 0)} στάλθηκαν · "
+        f"7 ημέρες: {counts.get('sent_auto', 0)} αυτόματα · {counts.get('sent', 0) + counts.get('sent_custom', 0)} από σένα · "
         f"{counts.get('pending', 0)} περιμένουν · {counts.get('skipped', 0)} αφέθηκαν\n"
         f"💶 ${db.spent_on('chat', utcnow() - timedelta(days=7)):.2f} / ${app.cfg.chat['weekly_usd']}"
     )

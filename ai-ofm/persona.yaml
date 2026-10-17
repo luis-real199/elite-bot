@@ -10,6 +10,13 @@ persona:
   vibe: "American girl-next-door, Miami lifestyle: beach, brunch, gym, nights out"
   niche: "fitness, beach lifestyle and everyday vlogs, US audience"
   personality: "playful, confident, warm, a little teasing, casual American slang, never vulgar"
+  backstory: "Grew up in Tampa, moved to Miami at 21 for the beach and the gym life. Loves sunrise runs, iced lattes, boat days and terrible reality TV. Openly an AI character and proud of it."
+  chat_style: "short texts (1-2 sentences), mostly lowercase, playful, asks a question back, max 1 emoji, calls fans by name"
+  never_say:
+    - "that she is a real human, or that she can meet, call or video chat"
+    - "any real address, workplace, phone number or other social accounts"
+    - "anything about payments outside Fanvue"
+    - "sexually explicit descriptions"
   caption_language: "English"    # γλώσσα για τα captions
   owner_language: "Greek"        # γλώσσα για τις περιγραφές που βλέπεις εσύ στο Telegram
   disclosure: "AI-generated character"
@@ -41,8 +48,20 @@ schedule:
   fanvue_pack: {day: mon, time: "09:00"}  # πότε σου στέλνει τα αρχεία για το Fanvue
   publish_ahead_hours: 36        # πόσο νωρίτερα στέλνει τα posts στο Buffer
 
+fanvue:
+  feed_per_week: 7               # από τα fanvue_per_week, τόσα γίνονται posts στο feed (ένα τη μέρα)
+  feed_time: "20:00"             # τα υπόλοιπα πάνε στο vault και τα πουλάει το chat ως PPV
+  vault_folder: "Chat PPV"
+  ppv_price_usd: {min: 8, default: 12, max: 25}
+
+chat:
+  mode: approve                  # approve: εγκρίνεις εσύ · auto: απαντάει μόνο του · off
+  weekly_usd: 15                 # όριο εξόδων Claude για το chat ανά 7 μέρες
+  max_chats_per_check: 5
+  check_every_seconds: 60
+
 budget:
-  weekly_usd: 15                 # μέγιστα έξοδα generation ανά 7 μέρες
+  weekly_usd: 15                # μέγιστα έξοδα generation ανά 7 μέρες
   estimates_usd:                 # εκτιμήσεις κόστους ανά κλήση (για το όριο)
     image: 0.05
     edit: 0.04

@@ -5,7 +5,7 @@ import time
 
 import requests
 
-from . import jobs, onboarding
+from . import chat, jobs, onboarding
 from .telegram import TelegramError, keyboard
 
 log = logging.getLogger("ofm")
@@ -16,6 +16,13 @@ HELP = """🤖 Εντολές
 /fanvue — στείλε τώρα τα εγκεκριμένα για Fanvue
 /report — αναφορά 7 ημερών
 /pause, /resume — σταμάτα/ξεκίνα generation και αποστολές
+
+Fanvue και chat:
+/fanvue_login — σύνδεση με το Fanvue (μία φορά)
+/chat — κατάσταση του chat
+/chat_approve — κάθε απάντηση την εγκρίνεις εσύ (προεπιλογή)
+/chat_auto — το bot απαντάει και πουλάει PPV μόνο του
+/chat_off — σταματάει το chat
 
 Πρώτο στήσιμο (μία φορά):
 /faces — 6 υποψήφια πρόσωπα, διαλέγεις με ⭐
@@ -37,6 +44,8 @@ def handle_callback(app, cq):
         elif action == "d":
             onboarding.drop_dataset_image(app, arg)
             reply, label = "🗑 Πετάχτηκε", "🗑 Πετάχτηκε"
+        elif action in ("cs", "cx"):
+            reply, label = chat.draft_action(app, action, int(arg))
     except ValueError as e:
         reply = str(e)
     app.tg.answer(cq["id"], reply)
@@ -64,6 +73,26 @@ def handle_command(app, text, now):
     elif command == "/resume":
         db.kv_set("paused", False)
         app.notify("▶️ Συνεχίζουμε.")
+    elif command == "/fanvue_login":
+        if not app.fanvue:
+            app.notify("Βάλε πρώτα FANVUE_CLIENT_ID, FANVUE_CLIENT_SECRET και FANVUE_REDIRECT_URI στο .env.")
+        else:
+            app.notify(
+                "1. Άνοιξε αυτό το link και κάνε login στο Fanvue της περσόνας:\n"
+                f"{app.fanvue.login_url()}\n\n"
+                "2. Θα καταλήξεις σε σελίδα που ίσως δεν ανοίγει. Δεν πειράζει: αντέγραψε ολόκληρη τη διεύθυνση "
+                "από πάνω (ξεκινάει με https και έχει code=) και στείλ' τη μου εδώ."
+            )
+    elif command == "/chat":
+        app.notify(chat.chat_status(app))
+    elif command in ("/chat_approve", "/chat_auto", "/chat_off"):
+        mode = command.split("_")[1]
+        db.kv_set("chat_mode", mode)
+        app.notify({
+            "approve": "💬 Κάθε απάντηση έρχεται πρώτα σε σένα για ✅.",
+            "auto": "💬 Το bot απαντάει και στέλνει PPV μόνο του. Σε σένα έρχονται μόνο οι δύσκολες περιπτώσεις.",
+            "off": "💬 Το chat σταμάτησε.",
+        }[mode])
     elif command == "/faces":
         onboarding.faces(app)
     elif command == "/dataset":
@@ -82,9 +111,16 @@ def handle_update(app, update, now):
         if update.get("callback_query"):
             handle_callback(app, update["callback_query"])
         else:
-            text = ((update.get("message") or {}).get("text") or "").strip()
+            message = update.get("message") or {}
+            text = (message.get("text") or "").strip()
+            replied_to = (message.get("reply_to_message") or {}).get("message_id")
             if text.startswith("/"):
                 handle_command(app, text, now)
+            elif replied_to and text and chat.send_custom(app, replied_to, text):
+                pass
+            elif text.startswith("http") and "code=" in text and app.fanvue:
+                me = app.fanvue.finish_login(text)
+                app.notify(f"✅ Συνδέθηκε το Fanvue: @{me.get('handle')}. Από τώρα τα εγκεκριμένα ανεβαίνουν μόνα τους.")
     except Exception as e:
         log.exception("update failed")
         app.notify(f"⚠️ {type(e).__name__}: {e}")

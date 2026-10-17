@@ -32,7 +32,7 @@ ENV_KEYS = [
     "SUPABASE_URL", "SUPABASE_SECRET_KEY", "SUPABASE_BUCKET", "LORA_URL",
     "FANVUE_CLIENT_ID", "FANVUE_CLIENT_SECRET", "FANVUE_REDIRECT_URI",
 ]
-CHAT_MODES = ("approve", "off")  # no auto-send: every fan message needs the owner's tap
+CHAT_MODES = ("approve", "auto", "off")
 
 
 class ConfigError(Exception):

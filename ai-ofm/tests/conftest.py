@@ -118,13 +118,27 @@ class FakeBuffer:
 
 
 class FakeClaude:
-    """Mimics client.beta.messages.stream(...).get_final_message()."""
+    """Mimics client.beta.messages.stream(...) for plans and .create(...) for chat replies."""
 
     def __init__(self, make_items=None, stop_reason="end_turn"):
         self.requests = []
         self.make_items = make_items
         self.stop_reason = stop_reason
-        self.beta = SimpleNamespace(messages=SimpleNamespace(stream=self._stream))
+        self.chat_replies = []
+        self.chat_requests = []
+        self.beta = SimpleNamespace(messages=SimpleNamespace(stream=self._stream, create=self._create))
+
+    def _create(self, **kwargs):
+        self.chat_requests.append(kwargs)
+        reply = {"reply": "hey you 😊 what are you up to tonight?", "offer_media_uuid": "", "offer_price_usd": 0,
+                 "escalate": False, "escalate_reason": "", "fan_request": ""}
+        if self.chat_replies:
+            reply.update(self.chat_replies.pop(0))
+        return SimpleNamespace(
+            stop_reason=self.stop_reason,
+            content=[SimpleNamespace(type="thinking", thinking=""), SimpleNamespace(type="text", text=json.dumps(reply))],
+            usage=SimpleNamespace(input_tokens=3000, output_tokens=300),
+        )
 
     @contextmanager
     def _stream(self, **kwargs):
@@ -137,6 +151,56 @@ class FakeClaude:
             usage=SimpleNamespace(input_tokens=2000, output_tokens=8000),
         )
         yield SimpleNamespace(get_final_message=lambda: message)
+
+
+class FakeFanvue:
+    """In-memory stand-in for ofm.fanvue.Fanvue: records uploads, posts and messages."""
+
+    def __init__(self, me_uuid="me-1"):
+        self.connected = True
+        self.me_uuid = me_uuid
+        self.uploads, self.posts, self.sent, self.vault = [], [], [], []
+        self.chats = []        # what unread_chats() returns
+        self.history = {}      # fan uuid -> messages
+        self.read = []
+
+    def me(self):
+        return {"uuid": self.me_uuid, "handle": "mia"}
+
+    def upload(self, path, media_type, name=None):
+        self.uploads.append((str(path), media_type))
+        return f"media-{len(self.uploads)}"
+
+    def wait_ready(self, media_uuid, timeout=180, every=5):
+        return True
+
+    def create_post(self, text, media_uuids, publish_at=None, price_cents=None, audience="subscribers"):
+        self.posts.append({"text": text, "media": list(media_uuids), "publish_at": publish_at, "price": price_cents})
+        return f"post-{len(self.posts)}"
+
+    def add_to_vault(self, folder, media_uuids):
+        self.vault += list(media_uuids)
+
+    def unread_chats(self, size=20):
+        return list(self.chats)
+
+    def messages(self, fan_uuid, size=20, mark_read=False):
+        if mark_read:
+            self.read.append(fan_uuid)
+        return list(self.history.get(fan_uuid, []))
+
+    def send_message(self, fan_uuid, text, media_uuids=None, price_cents=None):
+        self.sent.append({"fan": fan_uuid, "text": text, "media": media_uuids, "price": price_cents})
+        return f"msg-{len(self.sent)}"
+
+    def fan_says(self, fan_uuid, text, msg_uuid, top=False, name="Jake"):
+        """Queue an unread chat where the fan's last message is `text`."""
+        self.history.setdefault(fan_uuid, []).append(
+            {"uuid": msg_uuid, "text": text, "sentAt": msg_uuid, "sender": {"uuid": fan_uuid}})
+        self.chats = [c for c in self.chats if c["user"]["uuid"] != fan_uuid] + [{
+            "user": {"uuid": fan_uuid, "handle": name.lower(), "displayName": name, "isTopSpender": top},
+            "lastMessage": {"uuid": msg_uuid, "text": text, "senderUuid": fan_uuid},
+        }]
 
 
 def default_items(n):
@@ -171,6 +235,12 @@ def fake_download(monkeypatch):
     monkeypatch.setattr(jobs, "download", download)
     monkeypatch.setattr(onboarding, "download", download)
     return download
+
+
+@pytest.fixture
+def fv_app(app):
+    app.fanvue = FakeFanvue()
+    return app
 
 
 @pytest.fixture

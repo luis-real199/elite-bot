@@ -1,12 +1,13 @@
 """The weekly loop: generate → review on Telegram → schedule on Buffer → Fanvue pack → report."""
 
 import logging
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
-from . import planner
+from . import chat, planner
 from .buffer import CHANNEL_ENV, BufferError, create_post_mutation, post_input
 from .config import TARGET_LABELS
 from .db import utcnow
+from .fanvue import FanvueError
 from .media import GenerationError, download
 from .storage import StorageError
 from .telegram import TelegramError, keyboard
@@ -216,6 +217,47 @@ def cleanup_storage(app, now, keep_days=3):
     return removed
 
 
+def publish_fanvue(app, now):
+    """Upload approved Fanvue items: the first feed_per_week of each batch become daily feed posts,
+    the rest go to the vault as PPV the chat can offer."""
+    fv, cfg, db = app.fanvue, app.cfg, app.db
+    if not fv or not fv.connected or db.kv_get("paused"):
+        return 0
+    done = {"feed": 0, "vault": 0}
+    for post in db.posts("approved"):
+        if "fanvue" not in post["targets"] or post["sent_to_fanvue"]:
+            continue
+        try:
+            media_uuid = fv.upload(post["media_path"], "video" if post["kind"] == "video" else "image", name=f"post-{post['id']}")
+        except (FanvueError, OSError) as e:
+            _report_error(app, "fanvue", f"#{post['id']}: {e}")
+            continue
+        batch, description = post["batch"], post["image_prompt"][:160]
+        feed_count = len(db.fanvue_media(purpose="feed", batch=batch))
+        purpose = "feed" if feed_count < cfg.fanvue["feed_per_week"] else "vault"
+        if purpose == "feed":
+            publish_at = datetime.combine(date.fromisoformat(batch) + timedelta(days=feed_count), cfg.fanvue["feed_time"], cfg.tz)
+            when = publish_at if publish_at > now + timedelta(minutes=10) else None
+            try:
+                fv.wait_ready(media_uuid)
+                post_uuid = fv.create_post(f"{post['caption']}\n\n{' '.join(post['hashtags'])}", [media_uuid], publish_at=when)
+                db.add_fanvue_media(post["id"], media_uuid, "feed", batch, description, post_uuid, (when or now).isoformat())
+            except FanvueError as e:
+                _report_error(app, "fanvue", f"post #{post['id']}: {e}")
+                purpose = "vault"
+        if purpose == "vault":
+            try:
+                fv.add_to_vault(cfg.fanvue["vault_folder"], [media_uuid])
+            except FanvueError as e:
+                log.warning("vault folder: %s", e)
+            db.add_fanvue_media(post["id"], media_uuid, "vault", batch, description)
+        done[purpose] += 1
+        db.update_post(post["id"], sent_to_fanvue=1, status="delivered" if not post.social_targets else "approved")
+    if sum(done.values()):
+        app.notify(f"📤 Fanvue: {done['feed']} posts στο feed (ένα τη μέρα), {done['vault']} στο vault για PPV στο chat.", silent=True)
+    return sum(done.values())
+
+
 def send_fanvue_pack(app):
     if not app.tg:
         return 0
@@ -253,6 +295,7 @@ def status_text(app):
         ("LoRA", bool(app.lora_url())),
         ("Buffer", bool(app.buffer)),
         ("Supabase", type(app.storage).__name__ == "SupabaseStorage"),
+        ("Fanvue", bool(app.fanvue and app.fanvue.connected)),
     ]
     return (
         f"📋 Κατάσταση{' (⏸ σε παύση)' if db.kv_get('paused') else ''}\n"
@@ -274,7 +317,8 @@ def report_text(app, now):
         f"{pubs.get('missed', 0)} έχασαν την ώρα τους\n"
         f"💶 Κόστος: ${db.spent_last_week():.2f} / ${app.cfg.weekly_budget:.2f} "
         f"(+ setup ${db.spent(since, include_setup=True) - db.spent_last_week():.2f})\n"
-        f"🗓 Πλάνο μέχρι: {db.kv_get('planned_until') or '—'}\n\n"
+        f"🗓 Πλάνο μέχρι: {db.kv_get('planned_until') or '—'}\n"
+        f"{chat.chat_status(app)}\n\n"
         "Για σένα: δες τα στατιστικά σε Instagram και Fanvue (5') και άλλαξε στο persona.yaml ό,τι δεν δουλεύει."
     )
 
@@ -338,9 +382,17 @@ def tick(app, now):
         guarded("cleanup", lambda: cleanup_storage(app, now))
 
     week = _week_id(now)
-    if _at_or_after(cfg.fanvue_pack_at, now) and db.kv_get("fanvue_pack_week") != week:
+    if app.fanvue and app.fanvue.connected:
+        guarded("fanvue", lambda: publish_fanvue(app, now))
+    elif _at_or_after(cfg.fanvue_pack_at, now) and db.kv_get("fanvue_pack_week") != week:
         db.kv_set("fanvue_pack_week", week)
         guarded("fanvue", lambda: send_fanvue_pack(app))
+
+    last_check = db.kv_get("chat_last_check")
+    if not last_check or (now - datetime.fromisoformat(last_check)).total_seconds() >= cfg.chat["check_every_seconds"]:
+        db.kv_set("chat_last_check", now.isoformat())
+        guarded("chat", lambda: chat.poll_chats(app, now))
+
     if _at_or_after(cfg.report_at, now) and db.kv_get("report_week") != week:
         db.kv_set("report_week", week)
         guarded("report", lambda: app.notify(report_text(app, now)))
