@@ -2,22 +2,22 @@
 # Τα prompts για τις εικόνες είναι καλύτερα στα αγγλικά.
 
 persona:
-  name: "Mia Laurent"            # φανταστικό όνομα, όχι πραγματικό πρόσωπο
+  name: "Mia Carter"             # φανταστικό όνομα, όχι πραγματικό πρόσωπο
   age: 24                        # τουλάχιστον 21, αλλιώς το σύστημα δεν ξεκινά
   subject: "woman"
   trigger_word: "m1alaur"        # η λέξη-κλειδί του LoRA, κάτι που δεν είναι πραγματική λέξη
-  appearance: "long wavy auburn hair, green eyes, light freckles, athletic build"
-  vibe: "Mediterranean lifestyle, Athens and the Greek islands"
-  niche: "fitness, travel and everyday lifestyle"
-  personality: "playful, confident, warm, a little teasing, never vulgar"
+  appearance: "long wavy honey-blonde hair, blue eyes, sun-kissed skin, athletic build"
+  vibe: "American girl-next-door, Miami lifestyle: beach, brunch, gym, nights out"
+  niche: "fitness, beach lifestyle and everyday vlogs, US audience"
+  personality: "playful, confident, warm, a little teasing, casual American slang, never vulgar"
   caption_language: "English"    # γλώσσα για τα captions
   owner_language: "Greek"        # γλώσσα για τις περιγραφές που βλέπεις εσύ στο Telegram
   disclosure: "AI-generated character"
   content_pillars:
     - "gym and workout moments"
-    - "beach and island travel"
-    - "cozy morning routine and coffee"
-    - "night out outfits"
+    - "South Beach days and boat trips"
+    - "morning routine, iced coffee and brunch"
+    - "night out outfits in Miami"
     - "behind-the-scenes, getting ready"
   fanvue_style: "glamour and boudoir-style photos, lingerie and swimwear, tasteful and suggestive"
   avoid:
@@ -29,12 +29,12 @@ style:
   photo: "candid smartphone photo, natural light, realistic skin texture, sharp focus"
 
 schedule:
-  timezone: "Europe/Athens"
+  timezone: "America/New_York"   # ώρες ΗΠΑ, το κοινό είναι αμερικανικό
   # Κάθε slot είναι ένα post. days: mon tue wed thu fri sat sun (κενό = κάθε μέρα)
   slots:
-    - {time: "12:30", kind: image, targets: [instagram_story, x]}
+    - {time: "08:00", kind: image, targets: [instagram_story, x]}
     - {time: "19:00", kind: video, targets: [instagram_reel, tiktok, youtube_short]}
-    - {time: "10:00", kind: image, targets: [instagram_feed], days: [tue, thu, sat]}
+    - {time: "12:30", kind: image, targets: [instagram_feed], days: [tue, thu, sat]}
   fanvue_per_week: 20            # εικόνες για το vault/PPV του Fanvue (τις ανεβάζεις εσύ)
   plan: {day: sun, time: "18:00"}         # πότε φτιάχνεται το πλάνο της επόμενης εβδομάδας
   report: {day: sun, time: "20:00"}       # εβδομαδιαία αναφορά στο Telegram
