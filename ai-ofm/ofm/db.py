@@ -41,6 +41,44 @@ CREATE TABLE IF NOT EXISTS costs(
   detail TEXT
 );
 CREATE TABLE IF NOT EXISTS kv(key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS fanvue_media(
+  id INTEGER PRIMARY KEY,
+  post_id INTEGER NOT NULL REFERENCES posts(id),
+  media_uuid TEXT NOT NULL,
+  purpose TEXT NOT NULL,
+  batch TEXT,
+  description TEXT,
+  fanvue_post_uuid TEXT,
+  publish_at TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS chat_seen(fan_uuid TEXT PRIMARY KEY, message_uuid TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS chat_drafts(
+  id INTEGER PRIMARY KEY,
+  fan_uuid TEXT NOT NULL,
+  fan_name TEXT,
+  text TEXT NOT NULL,
+  offer_media_uuid TEXT,
+  offer_price_cents INTEGER,
+  reason TEXT,
+  status TEXT NOT NULL,
+  tg_message_id INTEGER,
+  created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS offers(
+  fan_uuid TEXT NOT NULL,
+  media_uuid TEXT NOT NULL,
+  price_cents INTEGER,
+  ts TEXT NOT NULL,
+  PRIMARY KEY(fan_uuid, media_uuid)
+);
+CREATE TABLE IF NOT EXISTS fan_requests(
+  id INTEGER PRIMARY KEY,
+  fan_uuid TEXT,
+  text TEXT NOT NULL,
+  ts TEXT NOT NULL,
+  used INTEGER NOT NULL DEFAULT 0
+);
 """
 
 
@@ -154,13 +192,99 @@ class DB:
             )
 
     def spent(self, since, include_setup=False):
-        sql = "SELECT COALESCE(SUM(usd), 0) s FROM costs WHERE ts >= ?"
+        """Generation spend; chat has its own budget (spent_on)."""
+        sql = "SELECT COALESCE(SUM(usd), 0) s FROM costs WHERE ts >= ? AND kind != 'chat'"
         if not include_setup:
             sql += " AND kind NOT LIKE 'setup%'"
         return self.conn.execute(sql, (since.isoformat(),)).fetchone()["s"]
 
+    def spent_on(self, kind, since):
+        sql = "SELECT COALESCE(SUM(usd), 0) s FROM costs WHERE ts >= ? AND kind = ?"
+        return self.conn.execute(sql, (since.isoformat(), kind)).fetchone()["s"]
+
     def spent_last_week(self):
         return self.spent(utcnow() - timedelta(days=7))
+
+    # ---------- Fanvue ----------
+
+    def add_fanvue_media(self, post_id, media_uuid, purpose, batch, description, fanvue_post_uuid=None, publish_at=None):
+        with self.conn:
+            self.conn.execute(
+                """INSERT INTO fanvue_media(post_id, media_uuid, purpose, batch, description, fanvue_post_uuid, publish_at, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (post_id, media_uuid, purpose, batch, description, fanvue_post_uuid, publish_at, utcnow().isoformat()),
+            )
+
+    def fanvue_media(self, purpose=None, batch=None):
+        sql, args = "SELECT * FROM fanvue_media WHERE 1 = 1", []
+        if purpose:
+            sql += " AND purpose = ?"
+            args.append(purpose)
+        if batch:
+            sql += " AND batch = ?"
+            args.append(batch)
+        return [dict(r) for r in self.conn.execute(sql + " ORDER BY id", args)]
+
+    def chat_seen(self, fan_uuid):
+        row = self.conn.execute("SELECT message_uuid FROM chat_seen WHERE fan_uuid = ?", (fan_uuid,)).fetchone()
+        return row["message_uuid"] if row else None
+
+    def set_chat_seen(self, fan_uuid, message_uuid):
+        with self.conn:
+            self.conn.execute(
+                "INSERT INTO chat_seen(fan_uuid, message_uuid) VALUES (?, ?) "
+                "ON CONFLICT(fan_uuid) DO UPDATE SET message_uuid = excluded.message_uuid",
+                (fan_uuid, message_uuid),
+            )
+
+    def add_draft(self, fan_uuid, fan_name, text, offer_media_uuid, offer_price_cents, reason, status):
+        with self.conn:
+            cur = self.conn.execute(
+                """INSERT INTO chat_drafts(fan_uuid, fan_name, text, offer_media_uuid, offer_price_cents, reason, status, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (fan_uuid, fan_name, text, offer_media_uuid, offer_price_cents, reason, status, utcnow().isoformat()),
+            )
+        return cur.lastrowid
+
+    def draft(self, draft_id=None, tg_message_id=None):
+        if tg_message_id is not None:
+            row = self.conn.execute("SELECT * FROM chat_drafts WHERE tg_message_id = ?", (tg_message_id,)).fetchone()
+        else:
+            row = self.conn.execute("SELECT * FROM chat_drafts WHERE id = ?", (draft_id,)).fetchone()
+        return dict(row) if row else None
+
+    def update_draft(self, draft_id, **fields):
+        sets = ", ".join(f"{k} = ?" for k in fields)
+        with self.conn:
+            self.conn.execute(f"UPDATE chat_drafts SET {sets} WHERE id = ?", [*fields.values(), draft_id])
+
+    def draft_counts(self, since):
+        rows = self.conn.execute(
+            "SELECT status, COUNT(*) n FROM chat_drafts WHERE created_at >= ? GROUP BY status", (since.isoformat(),)
+        )
+        return {r["status"]: r["n"] for r in rows}
+
+    def add_offer(self, fan_uuid, media_uuid, price_cents):
+        with self.conn:
+            self.conn.execute(
+                "INSERT OR REPLACE INTO offers(fan_uuid, media_uuid, price_cents, ts) VALUES (?, ?, ?, ?)",
+                (fan_uuid, media_uuid, price_cents, utcnow().isoformat()),
+            )
+
+    def offered_to(self, fan_uuid):
+        return {r["media_uuid"] for r in self.conn.execute("SELECT media_uuid FROM offers WHERE fan_uuid = ?", (fan_uuid,))}
+
+    def add_fan_request(self, fan_uuid, text):
+        with self.conn:
+            self.conn.execute("INSERT INTO fan_requests(fan_uuid, text, ts) VALUES (?, ?, ?)", (fan_uuid, text, utcnow().isoformat()))
+
+    def fan_requests(self, limit=15):
+        rows = self.conn.execute("SELECT id, text FROM fan_requests WHERE used = 0 ORDER BY id DESC LIMIT ?", (limit,))
+        return [dict(r) for r in rows]
+
+    def mark_requests_used(self, ids):
+        with self.conn:
+            self.conn.executemany("UPDATE fan_requests SET used = 1 WHERE id = ?", [(i,) for i in ids])
 
     def kv_get(self, key, default=None):
         row = self.conn.execute("SELECT value FROM kv WHERE key = ?", (key,)).fetchone()

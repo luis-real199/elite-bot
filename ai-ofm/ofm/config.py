@@ -30,7 +30,9 @@ ENV_KEYS = [
     "BUFFER_API_KEY", "BUFFER_CHANNEL_INSTAGRAM", "BUFFER_CHANNEL_TIKTOK",
     "BUFFER_CHANNEL_YOUTUBE", "BUFFER_CHANNEL_X",
     "SUPABASE_URL", "SUPABASE_SECRET_KEY", "SUPABASE_BUCKET", "LORA_URL",
+    "FANVUE_CLIENT_ID", "FANVUE_CLIENT_SECRET", "FANVUE_REDIRECT_URI",
 ]
+CHAT_MODES = ("approve", "off")  # no auto-send: every fan message needs the owner's tap
 
 
 class ConfigError(Exception):
@@ -66,6 +68,8 @@ class Config:
     estimates: dict
     generation: dict
     models: dict
+    fanvue: dict
+    chat: dict
     env: dict
     data_dir: Path
 
@@ -139,6 +143,8 @@ def load_config(path=None, env=None):
     persona.setdefault("caption_language", "English")
     persona.setdefault("owner_language", "Greek")
     persona.setdefault("disclosure", "AI-generated character")
+    persona.setdefault("never_say", [])
+    persona.setdefault("chat_style", "short, playful texts, asks questions back")
 
     schedule = raw.get("schedule") or {}
     slots = _slots(schedule.get("slots"))
@@ -158,6 +164,16 @@ def load_config(path=None, env=None):
     # The social checker is not optional: mainstream platforms ban explicit content.
     generation["social_safety_checker"] = True
 
+    fanvue = {"feed_per_week": 7, "feed_time": "20:00", "vault_folder": "Chat PPV", **(raw.get("fanvue") or {})}
+    fanvue["feed_time"] = _time(fanvue["feed_time"], "fanvue.feed_time")
+    price = {"min": 8, "default": 12, "max": 25, **(fanvue.get("ppv_price_usd") or {})}
+    if float(price["min"]) < 3:
+        raise ConfigError("fanvue.ppv_price_usd.min: το Fanvue δέχεται από $3 και πάνω")
+    fanvue["ppv_price_usd"] = {k: float(v) for k, v in price.items()}
+    chat = {"mode": "approve", "weekly_usd": 15, "max_chats_per_check": 5, "check_every_seconds": 60, **(raw.get("chat") or {})}
+    if chat["mode"] not in CHAT_MODES:
+        raise ConfigError(f"chat.mode πρέπει να είναι ένα από {CHAT_MODES}")
+
     return Config(
         persona=persona,
         style=raw.get("style") or {},
@@ -172,6 +188,8 @@ def load_config(path=None, env=None):
         estimates={"image": 0.05, "edit": 0.04, "video": 0.40, "training": 3.0, **(budget.get("estimates_usd") or {})},
         generation=generation,
         models={**DEFAULT_MODELS, **(raw.get("models") or {})},
+        fanvue=fanvue,
+        chat=chat,
         env={k: env.get(k, "") for k in ENV_KEYS},
         data_dir=Path(env.get("OFM_DATA_DIR", "data")),
     )
