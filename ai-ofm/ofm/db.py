@@ -72,6 +72,12 @@ CREATE TABLE IF NOT EXISTS offers(
   ts TEXT NOT NULL,
   PRIMARY KEY(fan_uuid, media_uuid)
 );
+CREATE TABLE IF NOT EXISTS swipes(
+  id INTEGER PRIMARY KEY,
+  text TEXT NOT NULL,
+  ts TEXT NOT NULL,
+  used INTEGER NOT NULL DEFAULT 0
+);
 CREATE TABLE IF NOT EXISTS fan_requests(
   id INTEGER PRIMARY KEY,
   fan_uuid TEXT,
@@ -80,6 +86,16 @@ CREATE TABLE IF NOT EXISTS fan_requests(
   used INTEGER NOT NULL DEFAULT 0
 );
 """
+
+
+# Columns added after the first release; created on start-up for existing databases.
+POST_COLUMNS_ADDED = [
+    ("hook", "TEXT"),
+    ("pinned_comment", "TEXT"),
+    ("mechanic", "TEXT"),
+    ("qc", "TEXT"),
+    ("auto_approved", "INTEGER NOT NULL DEFAULT 0"),
+]
 
 
 def utcnow():
@@ -103,6 +119,11 @@ class DB:
         self.conn = sqlite3.connect(str(path))
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript(SCHEMA)
+        existing = {r["name"] for r in self.conn.execute("PRAGMA table_info(posts)")}
+        with self.conn:
+            for column, kind in POST_COLUMNS_ADDED:
+                if column not in existing:
+                    self.conn.execute(f"ALTER TABLE posts ADD COLUMN {column} {kind}")
 
     def _post(self, row):
         if row is None:
@@ -158,6 +179,12 @@ class DB:
             args.append(since.isoformat())
         sql += " GROUP BY status"
         return {r["status"]: r["n"] for r in self.conn.execute(sql, args)}
+
+    def auto_approved_count(self, since):
+        row = self.conn.execute(
+            "SELECT COUNT(*) n FROM posts WHERE auto_approved = 1 AND created_at >= ?", (since.isoformat(),)
+        ).fetchone()
+        return row["n"]
 
     def publication(self, post_id, target):
         row = self.conn.execute(
@@ -273,6 +300,18 @@ class DB:
 
     def offered_to(self, fan_uuid):
         return {r["media_uuid"] for r in self.conn.execute("SELECT media_uuid FROM offers WHERE fan_uuid = ?", (fan_uuid,))}
+
+    def add_swipe(self, text):
+        with self.conn:
+            self.conn.execute("INSERT INTO swipes(text, ts) VALUES (?, ?)", (text, utcnow().isoformat()))
+
+    def swipes(self, limit=10):
+        rows = self.conn.execute("SELECT id, text FROM swipes WHERE used = 0 ORDER BY id DESC LIMIT ?", (limit,))
+        return [dict(r) for r in rows]
+
+    def mark_swipes_used(self, ids):
+        with self.conn:
+            self.conn.executemany("UPDATE swipes SET used = 1 WHERE id = ?", [(i,) for i in ids])
 
     def add_fan_request(self, fan_uuid, text):
         with self.conn:

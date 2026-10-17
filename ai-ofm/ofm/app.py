@@ -1,5 +1,7 @@
 import logging
 
+import requests
+
 from .buffer import Buffer
 from .db import DB
 from .fanvue import Fanvue
@@ -31,6 +33,7 @@ class App:
         if fanvue is None and all(fanvue_keys):
             fanvue = Fanvue(*fanvue_keys, self.db)
         self.fanvue = fanvue
+        self.http = requests.Session()  # plain checks such as "does this file URL still open?"
         self._claude = claude
 
     @property
@@ -49,8 +52,16 @@ class App:
     def setup_dir(self):
         return self.cfg.data_dir / "setup"
 
+    @property
+    def lora_backup(self):
+        return self.setup_dir / "lora.safetensors"
+
     def lora_url(self):
         return self.cfg.secret("LORA_URL") or self.db.kv_get("lora_url")
+
+    def reference_urls(self):
+        """The locked reference photos (face first) that keep her identity on every social post."""
+        return self.db.kv_get("reference_urls") or []
 
     def notify(self, text, markup=None, silent=False):
         log.info(text)

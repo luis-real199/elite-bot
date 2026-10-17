@@ -16,6 +16,7 @@ HELP = """🤖 Εντολές
 /fanvue — στείλε τώρα τα εγκεκριμένα για Fanvue
 /report — αναφορά 7 ημερών
 /pause, /resume — σταμάτα/ξεκίνα generation και αποστολές
+/swipe <περιγραφή ή link> — ένα viral βίντεο άλλου creator: η φόρμα του μπαίνει στο επόμενο πλάνο
 
 Fanvue και chat:
 /fanvue_login — σύνδεση με το Fanvue (μία φορά)
@@ -27,7 +28,8 @@ Fanvue και chat:
 Πρώτο στήσιμο (μία φορά):
 /faces — 6 υποψήφια πρόσωπα, διαλέγεις με ⭐
 /dataset — 24 φωτογραφίες με το ίδιο πρόσωπο, πετάς όσες δεν μοιάζουν
-/train — εκπαίδευση LoRA (~$3)"""
+/train — εκπαίδευση LoRA (~$3), κλειδώνει και τις references
+/lock — ξανακλείδωμα των references (αν άλλαξες το dataset)"""
 
 
 def handle_callback(app, cq):
@@ -93,6 +95,15 @@ def handle_command(app, text, now):
             "auto": "💬 Το bot απαντάει και στέλνει PPV μόνο του. Σε σένα έρχονται μόνο οι δύσκολες περιπτώσεις.",
             "off": "💬 Το chat σταμάτησε.",
         }[mode])
+    elif command == "/swipe":
+        idea = text.split(maxsplit=1)[1].strip() if len(text.split(maxsplit=1)) > 1 else ""
+        if not idea:
+            app.notify("Γράψε μετά το /swipe τι γίνεται στο βίντεο, π.χ.\n/swipe κοπέλα ρωτάει 'rate my fit 1-10', 3 outfits με snap transition, 2M views")
+        else:
+            db.add_swipe(idea[:500])
+            app.notify(f"🗂 Μπήκε στο swipe file ({len(db.swipes())} για το επόμενο πλάνο).")
+    elif command == "/lock":
+        onboarding.lock_references(app)
     elif command == "/faces":
         onboarding.faces(app)
     elif command == "/dataset":

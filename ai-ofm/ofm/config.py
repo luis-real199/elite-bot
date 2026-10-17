@@ -20,10 +20,15 @@ DEFAULT_MODELS = {
     "claude": "claude-opus-5-5",
     "claude_usd_per_mtok": {"input": 4.0, "output": 20.0},
     "image": "fal-ai/flux-lora",
+    "ref_image": "fal-ai/nano-banana-pro/edit",
     "edit": "fal-ai/flux-pro/kontext",
-    "video": "fal-ai/kling-video/v2.5-turbo/standard/image-to-video",
+    "video": "fal-ai/kling-video/v3/standard/image-to-video",
     "trainer": "fal-ai/flux-lora-fast-training",
 }
+CONSISTENCY_LINE = (
+    "Remain the same model from the reference images, preserving her facial features, "
+    "body proportions, and identity exactly."
+)
 
 ENV_KEYS = [
     "ANTHROPIC_API_KEY", "FAL_KEY", "TELEGRAM_BOT_TOKEN", "TELEGRAM_OWNER_ID",
@@ -153,16 +158,23 @@ def load_config(path=None, env=None):
     budget = raw.get("budget") or {}
     generation = {
         "image_size": {"width": 896, "height": 1600},
-        "video_duration": "5",
+        "video_duration": "8",
+        "video_audio": False,
+        "hook_overlay": True,
         "lora_scale": 1.0,
         "training_steps": 1000,
         "max_regenerations": 3,
         "social_safety_checker": True,
         "fanvue_safety_checker": True,
+        "consistency_line": CONSISTENCY_LINE,
+        "quality_check": True,
+        "review_sample": 1.0,
         **(raw.get("generation") or {}),
     }
     # The social checker is not optional: mainstream platforms ban explicit content.
     generation["social_safety_checker"] = True
+    if not 0 <= float(generation["review_sample"]) <= 1:
+        raise ConfigError("generation.review_sample πρέπει να είναι από 0 έως 1")
 
     fanvue = {"feed_per_week": 7, "feed_time": "20:00", "vault_folder": "Chat PPV", **(raw.get("fanvue") or {})}
     fanvue["feed_time"] = _time(fanvue["feed_time"], "fanvue.feed_time")
@@ -185,7 +197,8 @@ def load_config(path=None, env=None):
         fanvue_pack_at=_moment(schedule.get("fanvue_pack") or {"day": "mon", "time": "09:00"}, "schedule.fanvue_pack"),
         publish_ahead_hours=int(schedule.get("publish_ahead_hours", 36)),
         weekly_budget=float(budget.get("weekly_usd", 15)),
-        estimates={"image": 0.05, "edit": 0.04, "video": 0.40, "training": 3.0, **(budget.get("estimates_usd") or {})},
+        estimates={"image": 0.05, "ref_image": 0.15, "edit": 0.04, "video": 0.80, "qc": 0.02, "training": 3.0,
+                   **(budget.get("estimates_usd") or {})},
         generation=generation,
         models={**DEFAULT_MODELS, **(raw.get("models") or {})},
         fanvue=fanvue,

@@ -61,26 +61,34 @@ chat:
   check_every_seconds: 60
 
 budget:
-  weekly_usd: 15                # μέγιστα έξοδα generation ανά 7 μέρες
+  weekly_usd: 25                 # μέγιστα έξοδα generation ανά 7 μέρες
   estimates_usd:                 # εκτιμήσεις κόστους ανά κλήση (για το όριο)
-    image: 0.05
+    image: 0.05                  # LoRA (Fanvue)
+    ref_image: 0.15              # Nano Banana Pro με references (social)
     edit: 0.04
-    video: 0.40
+    video: 0.80                  # Kling 3.0, 8 δευτερόλεπτα
+    qc: 0.02                     # έλεγχος εικόνας από το Claude
     training: 3.00
 
 generation:
   image_size: {width: 896, height: 1600}  # κάθετο 9:16
-  video_duration: "5"
+  video_duration: "8"            # 3 έως 15 δευτερόλεπτα με Kling 3.0
+  video_audio: false             # τον ήχο τον βάζεις εσύ (trending) ή μένει χωρίς
+  hook_overlay: true             # γράφει το hook πάνω στο βίντεο (θέλει ffmpeg, υπάρχει στο Docker)
   lora_scale: 1.0
   training_steps: 1000
   max_regenerations: 3
   social_safety_checker: true    # πάντα ενεργό για Instagram/TikTok/YouTube/X
   fanvue_safety_checker: true
+  consistency_line: "Remain the same model from the reference images, preserving her facial features, body proportions, and identity exactly."
+  quality_check: true            # το Claude κοιτάει κάθε εικόνα: ίδιο πρόσωπο, χέρια, ενήλικη εμφάνιση
+  review_sample: 1.0             # 1.0 = βλέπεις όλα · 0.2 = βλέπεις όσα κόπηκαν + 20% δείγμα, τα άλλα εγκρίνονται μόνα τους
 
 models:
   claude: "claude-opus-5-5"
   claude_usd_per_mtok: {input: 4.0, output: 20.0}
-  image: "fal-ai/flux-lora"
+  image: "fal-ai/flux-lora"                        # LoRA: Fanvue και ό,τι μπλοκάρει το Nano Banana
+  ref_image: "fal-ai/nano-banana-pro/edit"         # social εικόνες με τις κλειδωμένες references
   edit: "fal-ai/flux-pro/kontext"
-  video: "fal-ai/kling-video/v2.5-turbo/standard/image-to-video"
+  video: "fal-ai/kling-video/v3/standard/image-to-video"
   trainer: "fal-ai/flux-lora-fast-training"

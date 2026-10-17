@@ -52,6 +52,7 @@ class FakeMedia:
         self.calls = []
         self.flag_next = 0
         self.fail_next = 0
+        self.ref_fail_next = 0
 
     def check_budget(self, *kinds):
         from ofm.media import BudgetExceeded
@@ -72,18 +73,28 @@ class FakeMedia:
         self.flag_next = max(0, self.flag_next - 1)
         return f"https://fal.media/img{len(self.calls)}.jpg", flagged
 
+    def ref_image(self, prompt, reference_urls):
+        from ofm.media import GenerationError
+
+        self.calls.append(("ref_image", prompt, list(reference_urls)))
+        if self.ref_fail_next:
+            self.ref_fail_next -= 1
+            raise GenerationError("IMAGE_SAFETY")
+        self.db.add_cost("ref_image", self.cfg.estimates["ref_image"])
+        return f"https://fal.media/ref{len(self.calls)}.jpg"
+
     def edit(self, image_url, prompt, setup=False):
         self.calls.append(("edit", prompt, image_url))
         return f"https://fal.media/edit{len(self.calls)}.jpg"
 
-    def video(self, image_url, motion_prompt):
-        self.calls.append(("video", motion_prompt, image_url))
+    def video(self, image_url, motion_prompt, reference_urls=()):
+        self.calls.append(("video", motion_prompt, image_url, list(reference_urls)))
         self.db.add_cost("video", self.cfg.estimates["video"])
         return f"https://fal.media/vid{len(self.calls)}.mp4"
 
-    def upload(self, path):
-        self.calls.append(("upload", str(path)))
-        return "https://fal.media/dataset.zip"
+    def upload(self, path, keep=False):
+        self.calls.append(("upload", str(path), keep))
+        return f"https://fal.media/{Path(path).name}"
 
     def train_lora(self, zip_url, trigger_word):
         self.calls.append(("train", zip_url, trigger_word))
@@ -108,6 +119,9 @@ class FakeBuffer:
         self.created = []
         self.fail_with = None
 
+    def query(self, query):
+        return {"account": {"organizations": [{"id": "org1"}]}}
+
     def create_post(self, data):
         from ofm.buffer import BufferError
 
@@ -126,9 +140,21 @@ class FakeClaude:
         self.stop_reason = stop_reason
         self.chat_replies = []
         self.chat_requests = []
+        self.qc_replies = []
+        self.qc_requests = []
         self.beta = SimpleNamespace(messages=SimpleNamespace(stream=self._stream, create=self._create))
 
     def _create(self, **kwargs):
+        if "verdict" in kwargs["output_config"]["format"]["schema"]["properties"]:
+            self.qc_requests.append(kwargs)
+            verdict = {"same_person": True, "clearly_adult": True, "defects": [], "verdict": "pass", "reason": ""}
+            if self.qc_replies:
+                verdict.update(self.qc_replies.pop(0))
+            return SimpleNamespace(
+                stop_reason="end_turn",
+                content=[SimpleNamespace(type="text", text=json.dumps(verdict))],
+                usage=SimpleNamespace(input_tokens=3000, output_tokens=100),
+            )
         self.chat_requests.append(kwargs)
         reply = {"reply": "hey you 😊 what are you up to tonight?", "offer_media_uuid": "", "offer_price_usd": 0,
                  "escalate": False, "escalate_reason": "", "fan_request": ""}
@@ -212,6 +238,9 @@ def default_items(n):
             "motion_prompt": "she turns towards the camera and smiles",
             "caption": f"Golden hour again {i}",
             "hashtags": ["travel", "greece"],
+            "hook": "Rate my fit 1-10",
+            "pinned_comment": "lowest score picks next week's outfit",
+            "mechanic": "rating",
         }
         for i in range(n)
     ]
@@ -243,10 +272,24 @@ def fv_app(app):
     return app
 
 
+class FakeHTTP:
+    """For health checks: every URL answers with `status`."""
+
+    def __init__(self, status=200):
+        self.status, self.checked = status, []
+
+    def head(self, url, **kwargs):
+        self.checked.append(url)
+        return SimpleNamespace(status_code=self.status)
+
+    get = head
+
+
 @pytest.fixture
 def app(cfg, fake_download):
     db = DB(":memory:")
     a = App(cfg, db=db, tg=FakeTelegram(), media=FakeMedia(cfg, db), storage=FakeStorage(),
             buffer=FakeBuffer(), claude=FakeClaude())
+    a.http = FakeHTTP()
     db.kv_set("lora_url", "https://fal.media/lora.safetensors")
     return a

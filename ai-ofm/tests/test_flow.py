@@ -79,7 +79,7 @@ def test_generate_review_approve_publish(app):
 
     assert jobs.send_reviews(app) == 37
     assert app.tg.media[0]["markup"]["inline_keyboard"][0][0]["callback_data"].startswith("a:")
-    assert app.tg.messages[-1] == "🗂 Όλα έτοιμα: 37 posts περιμένουν έγκριση."
+    assert "🗂 Όλα έτοιμα: 37 posts περιμένουν έγκριση." in app.tg.messages
 
     for post in app.db.posts("in_review"):
         assert jobs.review_action(app, "a", post["id"])[0] == "✅ Εγκρίθηκε"

@@ -37,6 +37,7 @@ DATASET_SHOTS = [
 
 DATASET_NAME = re.compile(r"^\d{2}\.jpg$")
 MIN_DATASET = 12
+MAX_REFERENCES = 10
 
 
 def _subject(cfg):
@@ -104,6 +105,19 @@ def drop_dataset_image(app, name):
     return path
 
 
+def lock_references(app, count=MAX_REFERENCES):
+    """Lock the chosen face plus the best dataset photos as permanent references (never expire on fal)."""
+    face = (app.db.kv_get("reference_face") or {}).get("path")
+    files = ([Path(face)] if face and Path(face).exists() else []) + sorted((app.setup_dir / "dataset").glob("*.jpg"))
+    if not files:
+        raise ValueError("Δεν υπάρχουν φωτογραφίες. Κάνε πρώτα /faces και /dataset.")
+    urls = [app.media.upload(f, keep=True) for f in files[:count]]
+    app.db.kv_set("reference_urls", urls)
+    app.db.kv_set("reference_files", [str(f) for f in files[:count]])
+    app.notify(f"🔒 Κλείδωσαν {len(urls)} references. Κάθε social post θα κρατάει αυτό το πρόσωπο.")
+    return urls
+
+
 def train(app):
     files = sorted((app.setup_dir / "dataset").glob("*.jpg"))
     if len(files) < MIN_DATASET:
@@ -116,6 +130,12 @@ def train(app):
     zip_url = app.media.upload(zip_path)
     lora = app.media.train_lora(zip_url, app.cfg.persona["trigger_word"])
     app.db.kv_set("lora_url", lora)
+    try:
+        download(lora, app.lora_backup)  # if fal ever drops the file, health_check re-uploads this copy
+    except OSError as e:
+        app.notify(f"⚠️ Δεν κράτησα αντίγραφο του LoRA: {e}", silent=True)
+    if not app.reference_urls():
+        lock_references(app)
 
     test = {"image_prompt": "casual selfie at a cafe terrace, sunny afternoon"}
     url, _ = app.media.image(full_prompt(app.cfg, test), lora, safety=True, setup=True)

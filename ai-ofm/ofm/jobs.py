@@ -3,7 +3,7 @@
 import logging
 from datetime import date, datetime, timedelta
 
-from . import chat, planner
+from . import chat, health, overlay, planner, qc
 from .buffer import CHANNEL_ENV, BufferError, create_post_mutation, post_input
 from .config import TARGET_LABELS
 from .db import utcnow
@@ -38,6 +38,15 @@ def full_prompt(cfg, post):
     return ", ".join(x.strip().rstrip(",") for x in parts if x and x.strip())
 
 
+def ref_prompt(cfg, post):
+    """Prompt for the reference-image model: the locked references carry the identity."""
+    p = cfg.persona
+    return (
+        f"{cfg.generation['consistency_line']} She is an adult {p['age']}-year-old {p['subject']}. "
+        f"{post['image_prompt']}. {cfg.style.get('photo', '')}. Vertical 9:16 photo."
+    )
+
+
 def _retry_or_fail(app, post, error):
     attempts = (post["attempts"] or 0) + 1
     if attempts > app.cfg.generation["max_regenerations"]:
@@ -47,25 +56,59 @@ def _retry_or_fail(app, post, error):
         app.db.update_post(post["id"], status="planned", attempts=attempts, error=error)
 
 
+def _first_image(app, post, refs, lora):
+    """Social posts use the locked references (Nano Banana); Fanvue, or a reference model refusal, use the LoRA.
+    Returns the image URL; raises GenerationError, or returns None after scheduling a retry."""
+    cfg = app.cfg
+    if post.social_targets and refs:
+        try:
+            return app.media.ref_image(ref_prompt(cfg, post), refs)
+        except GenerationError as e:
+            log.info("reference model refused #%s, falling back to LoRA: %s", post["id"], e)
+    if not lora:
+        raise GenerationError("Δεν υπάρχει LoRA για αυτό το post. Κάνε /train.")
+    safety = True if post.social_targets else cfg.generation["fanvue_safety_checker"]
+    image_url, flagged = app.media.image(full_prompt(cfg, post), lora, safety)
+    if flagged:
+        _retry_or_fail(app, post, "safety checker: NSFW")
+        return None
+    return image_url
+
+
 def generate_post(app, post):
     cfg, db = app.cfg, app.db
-    lora = app.lora_url()
-    if not lora:
-        raise SetupNeeded("Δεν υπάρχει LoRA ακόμα. Κάνε πρώτα /faces, /dataset και /train.")
-    kinds = ("image", "video") if post["kind"] == "video" else ("image",)
+    lora, refs = app.lora_url(), app.reference_urls()
+    if not lora and not refs:
+        raise SetupNeeded("Δεν υπάρχει ούτε LoRA ούτε references. Κάνε πρώτα /faces, /dataset και /train.")
+    kinds = ["ref_image" if post.social_targets and refs else "image"]
+    if post["kind"] == "video":
+        kinds.append("video")
+    if cfg.generation["quality_check"]:
+        kinds.append("qc")
     app.media.check_budget(*kinds)
-    safety = True if post.social_targets else cfg.generation["fanvue_safety_checker"]
 
     db.update_post(post["id"], status="generating")
     try:
-        image_url, flagged = app.media.image(full_prompt(cfg, post), lora, safety)
-        if flagged:
-            return _retry_or_fail(app, post, "safety checker: NSFW")
+        image_url = _first_image(app, post, refs, lora)
+        if image_url is None:
+            return
+        reference = refs[0] if refs else (db.kv_get("reference_face") or {}).get("url")
+        if cfg.generation["quality_check"] and reference:
+            passed, reason = qc.check_image(app, image_url, reference)
+            if not passed:
+                return _retry_or_fail(app, post, f"QC: {reason}")
+            db.update_post(post["id"], qc="pass")
         path = download(image_url, app.media_dir / f"{post['id']}.jpg")
         video_url = None
         if post["kind"] == "video":
-            video_url = app.media.video(image_url, post["motion_prompt"] or "subtle natural movement, slow camera push-in")
+            motion = post["motion_prompt"] or "subtle natural movement, slow camera push-in"
+            video_url = app.media.video(image_url, motion, refs)
             path = download(video_url, app.media_dir / f"{post['id']}.mp4")
+            if post["hook"] and post.social_targets and cfg.generation["hook_overlay"]:
+                try:
+                    path = overlay.burn_hook(path, app.media_dir / f"{post['id']}-hook.mp4", post["hook"]) or path
+                except overlay.OverlayError as e:
+                    log.warning("hook overlay #%s: %s", post["id"], e)
     except (GenerationError, OSError) as e:
         return _retry_or_fail(app, post, str(e))
     db.update_post(post["id"], status="ready", image_url=image_url, video_url=video_url, media_path=str(path), error=None)
@@ -97,12 +140,26 @@ def when_label(post):
 
 def review_caption(post):
     targets = ", ".join(TARGET_LABELS[t] for t in post["targets"])
+    extra = ""
+    if post["hook"]:
+        extra += f"\n🪝 {post['hook']}"
+    if post["pinned_comment"]:
+        extra += f"\n📌 {post['pinned_comment']}"
+    qc_line = " · ✅ QC" if post["qc"] == "pass" else ""
     return (
-        f"#{post['id']} · {when_label(post)} · {ICON[post['kind']]}\n"
+        f"#{post['id']} · {when_label(post)} · {ICON[post['kind']]}{qc_line}\n"
         f"→ {targets}\n"
-        f"💡 {post['idea']}\n\n"
+        f"💡 {post['idea']}{extra}\n\n"
         f"📝 {post['caption']}\n{' '.join(post['hashtags'])}"
     )
+
+
+def sampled_for_review(app, post):
+    """With generation.review_sample < 1, QC-passed posts skip review except a fixed sample."""
+    rate = float(app.cfg.generation["review_sample"])
+    if rate >= 1 or post["qc"] != "pass":
+        return True
+    return (post["id"] * 37) % 100 < rate * 100
 
 
 def review_buttons(post_id):
@@ -114,6 +171,9 @@ def send_reviews(app):
         return 0
     sent = 0
     for post in app.db.posts("ready"):
+        if not sampled_for_review(app, post):
+            app.db.update_post(post["id"], status="approved", auto_approved=1)
+            continue
         try:
             msg = app.tg.send_media(post["media_path"], review_caption(post), review_buttons(post["id"]), silent=True)
         except (TelegramError, OSError) as e:
@@ -125,6 +185,8 @@ def send_reviews(app):
     if sent and not app.db.posts(("planned", "generating", "ready")):
         waiting = len(app.db.posts("in_review"))
         app.notify(f"🗂 Όλα έτοιμα: {waiting} posts περιμένουν έγκριση.")
+        if waiting and any(p["pinned_comment"] for p in app.db.posts("in_review")):
+            app.notify("📌 Το καρφιτσωμένο σχόλιο κάθε post το βάζεις εσύ από την εφαρμογή (προαιρετικό, 10″ ανά post).", silent=True)
     return sent
 
 
@@ -313,6 +375,7 @@ def report_text(app, now):
     return (
         f"📊 Εβδομαδιαία αναφορά ({(now - timedelta(days=7)):%d/%m}–{now:%d/%m})\n"
         f"Posts που φτιάχτηκαν αυτή την εβδομάδα:\n{_counts_text(db.status_counts(since))}\n"
+        f"Εγκρίθηκαν αυτόματα μετά το QC: {db.auto_approved_count(since)}\n"
         f"Buffer: {pubs.get('scheduled', 0)} προγραμματίστηκαν · {pubs.get('failed', 0)} απέτυχαν · "
         f"{pubs.get('missed', 0)} έχασαν την ώρα τους\n"
         f"💶 Κόστος: ${db.spent_last_week():.2f} / ${app.cfg.weekly_budget:.2f} "
@@ -380,6 +443,7 @@ def tick(app, now):
     if db.kv_get("cleanup_day") != now.date().isoformat():
         db.kv_set("cleanup_day", now.date().isoformat())
         guarded("cleanup", lambda: cleanup_storage(app, now))
+        guarded("health", lambda: health.health_check(app))
 
     week = _week_id(now)
     if app.fanvue and app.fanvue.connected:

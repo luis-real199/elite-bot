@@ -71,6 +71,22 @@ class Media:
         flagged = bool((result.get("has_nsfw_concepts") or [False])[0])
         return images[0]["url"], flagged
 
+    def ref_image(self, prompt, reference_urls):
+        """Reference-image generation (Nano Banana): the locked references carry the identity, no LoRA."""
+        arguments = {
+            "prompt": prompt,
+            "image_urls": list(reference_urls),
+            "num_images": 1,
+            "aspect_ratio": "9:16",
+            "output_format": "jpeg",
+        }
+        result = self._call("ref_image", arguments, IMAGE_TIMEOUT)
+        self._charge("ref_image", prompt[:80])
+        images = result.get("images") or []
+        if not images:
+            raise GenerationError(f"Καμία εικόνα στην απάντηση: {result}")
+        return images[0]["url"]
+
     def edit(self, image_url, prompt, setup=False):
         result = self._call("edit", {"prompt": prompt, "image_url": image_url}, IMAGE_TIMEOUT)
         self._charge("edit", prompt[:80], setup)
@@ -79,12 +95,18 @@ class Media:
             raise GenerationError(f"Καμία εικόνα στην απάντηση: {result}")
         return images[0]["url"]
 
-    def video(self, image_url, motion_prompt):
-        arguments = {
-            "prompt": motion_prompt,
-            "image_url": image_url,
-            "duration": str(self.cfg.generation["video_duration"]),
-        }
+    def video(self, image_url, motion_prompt, reference_urls=()):
+        gen = self.cfg.generation
+        arguments = {"prompt": motion_prompt, "duration": str(gen["video_duration"])}
+        if "/v3/" in self.cfg.models["video"] or "/o3/" in self.cfg.models["video"]:
+            # Kling 3.0: start frame plus an "element" built from the persona's references keeps the face
+            arguments["start_image_url"] = image_url
+            arguments["generate_audio"] = bool(gen["video_audio"])
+            refs = list(reference_urls)
+            if refs:
+                arguments["elements"] = [{"frontal_image_url": refs[0], "reference_image_urls": refs[1:4] or refs[:1]}]
+        else:
+            arguments["image_url"] = image_url
         result = self._call("video", arguments, VIDEO_TIMEOUT)
         self._charge("video", motion_prompt[:80])
         url = (result.get("video") or {}).get("url")
@@ -92,8 +114,11 @@ class Media:
             raise GenerationError(f"Κανένα βίντεο στην απάντηση: {result}")
         return url
 
-    def upload(self, path):
+    def upload(self, path, keep=False):
+        """keep=True asks fal to never expire the file (references, LoRA backup)."""
         try:
+            if keep:
+                return self.fal.upload_file(Path(path), lifecycle=self.fal.StorageSettings(expires_in="never"))
             return self.fal.upload_file(Path(path))
         except Exception as e:
             raise GenerationError(f"upload {path}: {e}") from e
