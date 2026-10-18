@@ -172,6 +172,7 @@ def load_config(path=None, env=None):
     persona.setdefault("owner_language", "Greek")
     persona.setdefault("disclosure", "AI-generated character")
     persona.setdefault("disclosure_tag", "#aigenerated")
+    persona.setdefault("hashtags", True)
     persona.setdefault("never_say", [])
     persona.setdefault("chat_style", "short, playful texts, asks questions back")
 

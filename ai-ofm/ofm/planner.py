@@ -12,12 +12,12 @@ ENGAGEMENT = """Engagement: every social item must give viewers a reason to comm
 - rating: ask for a number with a stake ("rate my fit 1-10, lowest score picks next week's outfit")
 - hot_take: a light, harmless opinion people will argue with ("gym at 6am > gym at 6pm")
 - guess: ask viewers to guess something about her (her height, her coffee order)
-- relatable: a POV people send to a friend ("POV: your gym partner cancels again")
+- relatable: a POV or a short skit people send to a friend ("POV: your gym partner cancels again", "When he says he's not hungry then eats my fries")
 - useful: something worth saving (3 beach spots, a 20-minute hotel workout)
 - series: a recurring numbered format people follow ("Outfit #8", "Day 12 of...")
 Never use engagement bait such as "like if", "tag 3 friends" or "comment YES": Instagram demotes it.
 The caption ends with the same question or stake as the hook, phrased naturally.
-- hook: on-screen text for the first seconds, max 8 words, no hashtags, no emoji, readable without sound
+- hook: on-screen text for the first seconds, like a meme caption, max 10 words and under 50 characters, no hashtags, no emoji, readable without sound
 - pinned_comment: the first comment she pins under the post, continuing the mechanic
 - alt_caption: only when targets include instagram_backup (her second Instagram account): the same idea and mechanic in different words, so the two accounts never share identical text. Otherwise an empty string.
 For Fanvue items use an empty hook and pinned_comment and mechanic "none"."""
@@ -89,7 +89,7 @@ Persona:
 {_bullets(p.get('avoid'))}
 
 Hard rules:
-1. Adults only. Nothing that suggests youth: no school settings or uniforms, no childlike poses, props or wording, no ages under 21.
+1. Adults only. Nothing that suggests youth: no school settings or uniforms, no childlike poses, props or wording, no ages under 21. Other people may appear in a scene (boyfriend, friend, her mom, a waiter): always fictional adults, never children or teens.
 2. No real people: no celebrities, lookalikes, real influencers or public figures, and no brand logos.
 3. She is an AI character. Captions never claim she is human or real, never say "not AI", and never promise meetups or real-life contact. They also do not bring up being AI.
 4. Items that target Instagram, TikTok, YouTube or X are strictly safe for work: no nudity, no sexual acts, no explicit wording. Swimwear, gym wear and night-out outfits are fine and wanted (she lives on the beach): name the outfit plainly ("black bikini", "sports bra and leggings") and describe the scene, never her body parts.
@@ -100,7 +100,7 @@ For each slot write:
 - image_prompt: English, 40-80 words: scene, outfit, pose, framing, lighting, camera angle. Write it as a real, unposed photo someone took on a phone (mirror selfie, friend holding the phone, arm's-length selfie, candid mid-action): everyday places with real clutter, natural or ambient light, imperfect framing. Never use words like 8k, render, hyperrealistic, cinematic, studio, flawless, perfect, glowing or airbrushed. Do not describe her face, hair or body and do not use her name.
 - motion_prompt: for video slots, English, {cfg.generation['video_duration']} seconds of natural motion (camera move plus what she does) whose last frame matches the first so the reel loops. For image slots, an empty string.
 - caption: in {p['caption_language']}, in her voice, 1-3 short sentences that fit the platform. For Fanvue items, a short teaser for subscribers.
-- hashtags: 3-8 relevant hashtags. Do not add any AI tag yourself.
+- hashtags: {"3-8 relevant hashtags. Do not add any AI tag yourself." if p["hashtags"] else "always an empty list: she never uses hashtags, not in captions either."}
 
 Hooks, captions and pinned comments do not mention that she is AI: her bio and the platform's AI label
 handle disclosure. They also never claim or imply that she is a real human.
@@ -174,9 +174,12 @@ def next_start(db, now):
     return start
 
 
-def post_fields(slot, item, tag="#aigenerated"):
+def post_fields(slot, item, tag="#aigenerated", use_hashtags=True):
     """The post columns for one planned item, checked by the guardrails."""
-    hashtags = guardrails.with_disclosure(item["hashtags"], tag)
+    hashtags = guardrails.with_disclosure(item["hashtags"], tag) if use_hashtags else []
+    if not use_hashtags:
+        item = {**item, "caption": guardrails.without_hashtags(item["caption"]),
+                "alt_caption": guardrails.without_hashtags(item.get("alt_caption", ""))}
     motion = item["motion_prompt"] if slot["kind"] == "video" else ""
     social = slot["targets"] != ["fanvue"]
     hook = item.get("hook", "") if social else ""
@@ -212,7 +215,7 @@ def remake_next_reel(app, now, swipe_id, lead=timedelta(hours=6)):
     item = request_plan(app, [slot], remake=swipe["text"]).get(0)
     if not item:
         raise PlanError("Το μοντέλο δεν έδωσε σχέδιο για το reel")
-    fields = post_fields(slot, item, app.cfg.persona["disclosure_tag"])
+    fields = post_fields(slot, item, app.cfg.persona["disclosure_tag"], app.cfg.persona["hashtags"])
     fields["hashtags"] = json.dumps(fields["hashtags"], ensure_ascii=False)
     db.update_post(post["id"], **fields)
     db.mark_swipes_used([swipe_id])
@@ -234,7 +237,7 @@ def plan_ahead(app, now, days=7):
         if not item:
             summary["missing"] += 1
             continue
-        fields = post_fields(slot, item, cfg.persona["disclosure_tag"])
+        fields = post_fields(slot, item, cfg.persona["disclosure_tag"], cfg.persona["hashtags"])
         db.insert_post(batch=start.isoformat(), slot_at=slot["slot_at"], kind=slot["kind"], targets=slot["targets"], **fields)
         bad = fields["status"] == "blocked"
         summary["blocked" if bad else "created"] += 1

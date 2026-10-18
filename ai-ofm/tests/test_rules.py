@@ -45,6 +45,7 @@ def test_video_target_needs_video_slot(tmp_path):
     ("wearing a school uniform", "minor"),
     ("she looks 16 years old", "minor"),
     ("μαθήτρια στο σχολείο", "minor"),
+    ("POV: my daughter met a boy", "minor"),
     ("Taylor Swift lookalike", "real_person"),
     ("I'm real, not AI 😘", "claims_human"),
 ])
@@ -67,6 +68,7 @@ def test_disclosure_tag_is_added_and_tags_normalised():
     assert guardrails.with_disclosure(["#aigenerated", "fit"]) == ["#aigenerated", "#fit"]
     # disclosure on the profile only: no tag, and none the model slipped in either
     assert guardrails.with_disclosure(["#AIgenerated", "fit", "#aimodel"], tag="") == ["#fit"]
+    assert guardrails.without_hashtags("leg day 🍑 #gym #fit\nbe honest #1") == "leg day 🍑\nbe honest"
 
 
 def test_instagram_and_youtube_metadata(cfg):

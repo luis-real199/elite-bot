@@ -344,6 +344,21 @@ def test_turning_the_tag_off_cleans_posts_not_yet_sent(app):
     plan(app)
     assert all(p["hashtags"][-1] == "#aigenerated" for p in app.db.posts("planned"))
     app.cfg.persona["disclosure_tag"] = ""
-    assert jobs.apply_disclosure_tag(app) == 37
+    assert jobs.apply_tag_settings(app) == 37
     assert not any("#aigenerated" in p["hashtags"] for p in app.db.posts("planned"))
-    assert jobs.apply_disclosure_tag(app) == 0
+    assert jobs.apply_tag_settings(app) == 0
+
+
+def test_no_hashtags_persona_posts_clean_captions(app):
+    def items(n):
+        out = __import__("conftest").default_items(n)
+        for item in out:
+            item["caption"] = "leg day 🍑 1-10? #gym #fitgirl"
+        return out
+
+    app._claude = FakeClaude(items)
+    app.cfg.persona["hashtags"] = False
+    plan(app)
+    post = app.db.posts("planned")[0]
+    assert post["hashtags"] == [] and post["caption"] == "leg day 🍑 1-10?"
+    assert "she never uses hashtags" in app.claude.requests[0]["system"]

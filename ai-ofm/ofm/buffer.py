@@ -28,7 +28,7 @@ class BufferError(Exception):
 def post_text(post, target):
     tags = " ".join(post["hashtags"])
     caption = post.get("alt_caption") if target == "instagram_backup" and post.get("alt_caption") else post["caption"]
-    text = f"{caption}\n\n{tags}".strip()
+    text = f"{caption}\n\n{tags}".strip() if tags else (caption or "").strip()
     if target == "x" and len(text) > 280:
         text = text[:279] + "…"
     return text

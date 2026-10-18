@@ -57,14 +57,21 @@ def ref_prompt(cfg, post):
     )
 
 
-def apply_disclosure_tag(app):
-    """Posts not yet sent anywhere follow the current persona.disclosure_tag (it may change between plans)."""
-    changed = 0
+def apply_tag_settings(app):
+    """Posts not yet sent anywhere follow the current persona.hashtags and disclosure_tag (they may change)."""
+    p, changed = app.cfg.persona, 0
     for status in ("planned", "ready", "in_review", "approved"):
         for post in app.db.posts(status):
-            tags = guardrails.with_disclosure(post["hashtags"], app.cfg.persona["disclosure_tag"])
-            if tags != post["hashtags"]:
-                app.db.update_post(post["id"], hashtags=json.dumps(tags, ensure_ascii=False))
+            if p["hashtags"]:
+                fields = {"hashtags": guardrails.with_disclosure(post["hashtags"], p["disclosure_tag"])}
+            else:
+                fields = {"hashtags": [], "caption": guardrails.without_hashtags(post["caption"]),
+                          "alt_caption": guardrails.without_hashtags(post["alt_caption"])}
+            fields = {k: v for k, v in fields.items() if v != post[k]}
+            if fields:
+                if "hashtags" in fields:
+                    fields["hashtags"] = json.dumps(fields["hashtags"], ensure_ascii=False)
+                app.db.update_post(post["id"], **fields)
                 changed += 1
     return changed
 
@@ -177,7 +184,7 @@ def review_caption(post):
         f"#{post['id']} · {when_label(post)} · {ICON[post['kind']]}{qc_line}\n"
         f"→ {targets}\n"
         f"💡 {post['idea']}{extra}\n\n"
-        f"📝 {post['caption']}\n{' '.join(post['hashtags'])}"
+        f"📝 {post['caption']}" + (f"\n{' '.join(post['hashtags'])}" if post["hashtags"] else "")
     )
 
 
@@ -330,7 +337,8 @@ def publish_fanvue(app, now):
             when = publish_at if publish_at > now + timedelta(minutes=10) else None
             try:
                 fv.wait_ready(media_uuid)
-                post_uuid = fv.create_post(f"{post['caption']}\n\n{' '.join(post['hashtags'])}", [media_uuid], publish_at=when)
+                text = f"{post['caption']}\n\n{' '.join(post['hashtags'])}".strip()
+                post_uuid = fv.create_post(text, [media_uuid], publish_at=when)
                 db.add_fanvue_media(post["id"], media_uuid, "feed", batch, description, post_uuid, (when or now).isoformat())
             except FanvueError as e:
                 _report_error(app, "fanvue", f"post #{post['id']}: {e}")
@@ -355,7 +363,7 @@ def send_fanvue_pack(app):
     for post in app.db.posts("approved"):
         if "fanvue" not in post["targets"] or post["sent_to_fanvue"]:
             continue
-        caption = f"#{post['id']} {post['caption']}\n{' '.join(post['hashtags'])}"
+        caption = f"#{post['id']} {post['caption']}\n{' '.join(post['hashtags'])}".strip()
         app.tg.send_media(post["media_path"], caption, silent=True, as_document=True)
         app.db.update_post(post["id"], sent_to_fanvue=1, status="delivered" if not post.social_targets else "approved")
         sent += 1

@@ -7,7 +7,8 @@ MINOR_PATTERNS = [
     r"\bschool ?girls?\b", r"\bschool uniform", r"\bhigh ?school", r"\bloli", r"\bbarely legal",
     r"\byoung[- ]looking", r"\blittle girl", r"\bjailbait", r"\bbaby ?face",
     r"\b1[0-7][- ]?(year|yr|yo\b|y/o)",
-    r"ανήλικ", r"μαθήτρι", r"σχολικ", r"κοριτσάκι",
+    r"\bdaughters?\b", r"\bstep-?(sis|sister|daughter|bro|brother)\b",
+    r"ανήλικ", r"μαθήτρι", r"σχολικ", r"κοριτσάκι", r"κόρη",
 ]
 
 REAL_PERSON_PATTERNS = [
@@ -36,6 +37,11 @@ def violations(*texts):
         if any(re.search(p, blob, re.IGNORECASE) for p in patterns):
             found.append(name)
     return found
+
+
+def without_hashtags(text):
+    """A caption with any #words taken out (for personas that post without hashtags)."""
+    return re.sub(r"[ \t]*#\w+", "", text or "").strip()
 
 
 def with_disclosure(hashtags, tag="#aigenerated"):

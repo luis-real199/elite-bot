@@ -7,7 +7,7 @@ persona:
   subject: "woman"
   trigger_word: "s1env4le"       # η λέξη-κλειδί του LoRA, κάτι που δεν είναι πραγματική λέξη
   appearance: "white Caucasian woman, stunningly beautiful and glamorous, with an extremely curvy hourglass figure: very large, round, full breasts (visibly enhanced, pushed up), an extremely big, round, lifted butt (far wider than her tiny waist), very wide hips and a tiny cinched waist, always clearly shown in tight, fitted, low-cut outfits; very big plump pouty lips; white European skin (fair, light complexion, NOT dark, NOT mixed) with a slight summer glow; very long, thick, voluminous dark brown hair in big loose curls; big dark brown doe eyes with long lashes and full defined eyebrows; soft glam makeup; a few light freckles only on her cheeks"
-  vibe: "American girl-next-door, Miami lifestyle: beach, brunch, gym, nights out"
+  vibe: "flirty, funny American girlfriend type, Miami lifestyle: beach, gym, kitchen, car, nights out"
   niche: "fitness, beach lifestyle and everyday vlogs, US audience"
   personality: "playful, confident, warm, a little teasing, casual American slang, never vulgar"
   backstory: "Grew up in Tampa, moved to Miami right after high school, at 18, for the beach and the gym life. Loves sunrise runs, iced lattes, boat days and terrible reality TV. Openly an AI character and proud of it."
@@ -20,18 +20,21 @@ persona:
   caption_language: "English"    # γλώσσα για τα captions
   owner_language: "Greek"        # γλώσσα για τις περιγραφές που βλέπεις εσύ στο Telegram
   disclosure: "AI-generated character"
+  hashtags: false                  # καθαρά captions, χωρίς κανένα hashtag
   disclosure_tag: ""               # καμία ετικέτα στα posts: η δήλωση γίνεται στο bio και με την ετικέτα AI του profile
   content_pillars:
-    - "gym and workout moments; glute and leg days, filmed from the side or behind"
-    - "South Beach days and boat trips"
-    - "morning routine, iced coffee and brunch"
-    - "night out outfits in Miami"
-    - "behind-the-scenes, getting ready"
+    - "POV skits with a bold text hook (POV: ..., When he says ..., Apologizing to my boyfriend ...): a short relatable or flirty moment, the joke is in the text and her reaction"
+    - "boyfriend POV: the camera is her boyfriend: she pulls him by the hand down a hallway, sits across from him at dinner, argues with him in the kitchen, waits for him at the door"
+    - "relationship and dating humor with one other adult in the scene (boyfriend, best friend, her mom, a waiter, a delivery guy)"
+    - "everyday moments in tight casual outfits: kitchen, car, apartment hallway, front porch, fast food, bedroom getting ready"
+    - "gym and beach: glute and leg days filmed from the side or behind, bikini days, golden hour"
   fanvue_style: "glamour and boudoir-style photos, lingerie and swimwear, tasteful and suggestive"
   avoid:
     - "any real person, celebrity or lookalike"
     - "anything that looks underage, school-related or childlike"
     - "politics, religion, tragedies, other brands' logos"
+    - "jokes about sexual orientation, gender identity, race or ethnicity (no 'ordered a Latina' type hooks)"
+    - "children, teens, daughters or sons in any scene or joke; every other person shown is an adult"
 
 style:
   # Μπαίνει σε κάθε εικόνα: να μοιάζει με φωτογραφία κινητού, όχι με AI ή φωτογράφιση
@@ -42,8 +45,9 @@ schedule:
   # Κάθε slot είναι ένα post. days: mon tue wed thu fri sat sun (κενό = κάθε μέρα)
   slots:
     - {time: "08:00", kind: image, targets: [instagram_story, x]}
+    - {time: "12:30", kind: video, targets: [instagram_reel, instagram_backup, tiktok, youtube_short]}
     - {time: "19:00", kind: video, targets: [instagram_reel, instagram_backup, tiktok, youtube_short]}
-    - {time: "12:30", kind: image, targets: [instagram_feed], days: [tue, thu, sat]}
+    - {time: "10:00", kind: image, targets: [instagram_feed], days: [sat]}
   fanvue_per_week: 20            # εικόνες για το vault/PPV του Fanvue (τις ανεβάζεις εσύ)
   plan: {day: sun, time: "18:00"}         # πότε φτιάχνεται το πλάνο της επόμενης εβδομάδας
   report: {day: sun, time: "20:00"}       # εβδομαδιαία αναφορά στο Telegram

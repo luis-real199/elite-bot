@@ -20,6 +20,7 @@ persona:
   caption_language: "English"    # γλώσσα για τα captions
   owner_language: "Greek"        # γλώσσα για τις περιγραφές που βλέπεις εσύ στο Telegram
   disclosure: "AI-generated character"
+  hashtags: true                   # false = κανένα hashtag στα posts
   disclosure_tag: "#aigenerated"   # μπαίνει στο τέλος των hashtags· "" = καμία, η δήλωση γίνεται μόνο στο profile
   content_pillars:
     - "gym and workout moments"
