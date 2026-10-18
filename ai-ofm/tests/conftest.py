@@ -73,14 +73,19 @@ class FakeMedia:
         self.flag_next = max(0, self.flag_next - 1)
         return f"https://fal.media/img{len(self.calls)}.jpg", flagged
 
-    def ref_image(self, prompt, reference_urls):
+    def face(self, prompt):
+        self.calls.append(("face", prompt))
+        self.db.add_cost("setup:face", self.cfg.estimates["face"])
+        return f"https://fal.media/face{len(self.calls)}.jpg", False
+
+    def ref_image(self, prompt, reference_urls, setup=False):
         from ofm.media import GenerationError
 
         self.calls.append(("ref_image", prompt, list(reference_urls)))
         if self.ref_fail_next:
             self.ref_fail_next -= 1
             raise GenerationError("IMAGE_SAFETY")
-        self.db.add_cost("ref_image", self.cfg.estimates["ref_image"])
+        self.db.add_cost(("setup:" if setup else "") + "ref_image", self.cfg.estimates["ref_image"])
         return f"https://fal.media/ref{len(self.calls)}.jpg"
 
     def edit(self, image_url, prompt, setup=False):

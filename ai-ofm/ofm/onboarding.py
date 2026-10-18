@@ -44,7 +44,7 @@ FACE_VARIANTS = [  # face structure only: eyes, lips and hair stay as persona.ya
     "round face, a small beauty mark on the cheek",
     "long face, defined chin, high arched eyebrows",
     "diamond-shaped face, sharp cheekbones, Roman nose, natural thick brows",
-    "soft features, light freckles across the nose, small chin",
+    "soft features, small chin, rounded jaw",
     "angular features, almond-shaped eyes, straight brows, defined jaw",
     "wide face, full cheeks, button nose",
     "delicate features, pointed chin, thin arched brows",
@@ -68,9 +68,14 @@ def faces(app, n=6):
     candidates = []
     for i in range(n):
         variant = FACE_VARIANTS[(start + i) % len(FACE_VARIANTS)]
-        prompt = (f"{_subject(cfg)}, clearly a grown woman, {variant}, natural skin texture, distinctive real face, "
-                  f"head and shoulders portrait, looking at the camera, plain light background, {cfg.style.get('photo', '')}")
-        url, flagged = app.media.image(prompt, safety=True, setup=True)
+        prompt = (f"Casual selfie of {_subject(cfg)[len('photo of '):]}, clearly a grown woman, {variant}. "
+                  "Taken with an iPhone front camera at arm's length at home by a window, head and shoulders, "
+                  f"looking at the camera, everyday makeup. {cfg.style.get('photo', '')}")
+        try:
+            url, flagged = app.media.face(prompt)
+        except GenerationError as e:
+            app.notify(f"⚠️ Πρόσωπο {i + 1}: {e}", silent=True)
+            continue
         if flagged:
             continue
         idx = len(candidates)
@@ -98,12 +103,14 @@ def dataset(app, n=len(DATASET_SHOTS)):
         raise ValueError("Διάλεξε πρώτα πρόσωπο (/faces)")
     out = app.setup_dir / "dataset"
     out.mkdir(parents=True, exist_ok=True)
-    style = app.cfg.style.get("photo", "")
+    cfg = app.cfg
+    style = cfg.style.get("photo", "")
     made = 0
     for i, shot in enumerate(DATASET_SHOTS[:n]):
-        prompt = f"Keep exactly the same person: same face, same hair, same skin. She is an adult. {shot}. Photorealistic photo, {style}"
+        prompt = (f"{cfg.generation['consistency_line']} She is an adult {cfg.persona['age']}-year-old woman. "
+                  f"{shot}. {style}")
         try:
-            url = app.media.edit(ref["url"], prompt, setup=True)
+            url = app.media.ref_image(prompt, [ref["url"]], setup=True)
         except GenerationError as e:
             app.notify(f"⚠️ Dataset {i + 1}: {e}", silent=True)
             continue

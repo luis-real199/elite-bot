@@ -71,7 +71,17 @@ class Media:
         flagged = bool((result.get("has_nsfw_concepts") or [False])[0])
         return images[0]["url"], flagged
 
-    def ref_image(self, prompt, reference_urls):
+    def face(self, prompt):
+        """A new face from text alone (Nano Banana Pro: the most photo-like faces). Returns (url, flagged)."""
+        arguments = {"prompt": prompt, "num_images": 1, "aspect_ratio": "9:16", "output_format": "jpeg"}
+        result = self._call("face", arguments, IMAGE_TIMEOUT)
+        self._charge("face", prompt[:80], setup=True)
+        images = result.get("images") or []
+        if not images:
+            raise GenerationError(f"Καμία εικόνα στην απάντηση: {result}")
+        return images[0]["url"], False
+
+    def ref_image(self, prompt, reference_urls, setup=False):
         """Reference-image generation (Nano Banana): the locked references carry the identity, no LoRA."""
         arguments = {
             "prompt": prompt,
@@ -81,7 +91,7 @@ class Media:
             "output_format": "jpeg",
         }
         result = self._call("ref_image", arguments, IMAGE_TIMEOUT)
-        self._charge("ref_image", prompt[:80])
+        self._charge("ref_image", prompt[:80], setup)
         images = result.get("images") or []
         if not images:
             raise GenerationError(f"Καμία εικόνα στην απάντηση: {result}")

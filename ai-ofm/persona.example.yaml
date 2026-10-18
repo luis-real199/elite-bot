@@ -33,7 +33,8 @@ persona:
     - "politics, religion, tragedies, other brands' logos"
 
 style:
-  photo: "candid smartphone photo, natural light, realistic skin texture, sharp focus"
+  # Μπαίνει σε κάθε εικόνα: να μοιάζει με φωτογραφία κινητού, όχι με AI ή φωτογράφιση
+  photo: "Looks like a real unedited iPhone photo: natural light, real skin texture with visible pores and tiny imperfections, slight grain, no beauty filter, no airbrushing, no studio look"
 
 schedule:
   timezone: "America/New_York"   # ώρες ΗΠΑ, το κοινό είναι αμερικανικό
@@ -65,7 +66,8 @@ budget:
   weekly_usd: 25                 # μέγιστα έξοδα generation ανά 7 μέρες
   estimates_usd:                 # εκτιμήσεις κόστους ανά κλήση (για το όριο)
     image: 0.07                  # LoRA (Fanvue), 896x1600 χρεώνεται ως 2 MP
-    ref_image: 0.15              # Nano Banana Pro με references (social)
+    ref_image: 0.15              # Nano Banana Pro με references (social, dataset)
+    face: 0.15                   # Nano Banana Pro, /faces
     edit: 0.04
     video: 0.68                  # Kling 3.0, 8 δευτερόλεπτα χωρίς ήχο (με ήχο ~1.01)
     qc: 0.02                     # έλεγχος εικόνας από το Claude
@@ -95,6 +97,7 @@ models:
   claude_usd_per_mtok: {input: 4.0, output: 20.0}
   image: "fal-ai/flux-lora"                        # LoRA: Fanvue και ό,τι μπλοκάρει το Nano Banana
   ref_image: "fal-ai/nano-banana-pro/edit"         # social εικόνες με τις κλειδωμένες references
+  face: "fal-ai/nano-banana-pro"                   # /faces: πρόσωπα που μοιάζουν με αληθινές φωτογραφίες
   edit: "fal-ai/flux-pro/kontext"
   video: "fal-ai/kling-video/v3/standard/image-to-video"
   trainer: "fal-ai/flux-lora-fast-training"
