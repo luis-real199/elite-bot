@@ -36,7 +36,7 @@
 ## Στήσιμο (μία φορά, ~2 ώρες)
 
 ### 1. Λογαριασμοί και κλειδιά
-1. **Claude:** https://console.anthropic.com, **API Keys**, φτιάξε key και βάλε λίγα credits.
+1. **Μοντέλο κειμένου (δωρεάν):** https://console.groq.com/keys, φτιάξε key (χωρίς κάρτα). Αν θες αργότερα καλύτερη ποιότητα, άλλαξε στο `persona.yaml` το `models.llm.provider` σε `claude` και βάλε `ANTHROPIC_API_KEY`.
 2. **fal.ai:** https://fal.ai/dashboard/keys, φτιάξε key και βάλε ~$20 credits.
 3. **Telegram bot:** στο Telegram γράψε στον **@BotFather** την εντολή `/newbot` και κράτα το token. Κάθε περσόνα έχει δικό της bot.
 4. **Buffer:** https://buffer.com (πλάνο Essentials). Σύνδεσε Instagram (Business ή Creator, κύριο και backup), TikTok (Business), YouTube, X. Μετά **Settings**, **API**, φτιάξε key.
@@ -107,13 +107,20 @@ docker compose up -d --build           # τρέχουν και οι δύο
 ## Εντολές Telegram
 `/status` · `/plan` · `/swipe` · `/fanvue` · `/report` · `/pause` · `/resume` · `/lock` · `/fanvue_login` · `/chat` · `/chat_approve` · `/chat_auto` · `/chat_off` · `/faces` · `/dataset` · `/train` · `/help`
 
+## Ποιο μοντέλο κειμένου
+| | Κόστος | Σημειώσεις |
+|---|---|---|
+| **Groq** (προεπιλογή) | δωρεάν | ~1.000 αιτήματα τη μέρα, αρκεί για την αρχή. Όταν μεγαλώσει το chat, θα φτάσεις το όριο |
+| **Gemini** | δωρεάν | Η Google χρησιμοποιεί τα δεδομένα της δωρεάν έκδοσης για εκπαίδευση και τα διαβάζουν άνθρωποι: όχι καλή ιδέα για μηνύματα fans |
+| **Claude** | ~$15–45/μήνα | Καλύτερες ιδέες, captions, chat και έλεγχος εικόνων |
+
+Αλλάζει με μία γραμμή στο `persona.yaml` (`models.llm.provider`) και `docker compose restart`.
+
 ## Κόστος (περίπου)
 | | ανά μήνα |
 |---|---|
 | fal.ai: ~150 εικόνες (Nano Banana $0,15 / LoRA $0,05) + ~30 βίντεο Kling 3.0 των 8″ | $40–60 |
-| Claude: έλεγχος εικόνων (~2 σεντς η καθεμία) | ~$3 |
-| Claude: 4 πλάνα | ~$1 |
-| Claude: chat (~2–3 σεντς ανά απάντηση) | ~$10–40, με όριο στο `chat.weekly_usd` |
+| Πλάνα, captions, έλεγχος εικόνων, chat με Groq (δωρεάν) | €0 · με Claude: ~$15–45 |
 | Buffer Essentials, 5 κανάλια ανά περσόνα | ~$30 |
 | VPS | ~€5 |
 | Supabase | δωρεάν (τα αρχεία σβήνονται 3 μέρες μετά το post) |
@@ -128,7 +135,7 @@ docker compose up -d --build           # τρέχουν και οι δύο
 - `personas/<όνομα>/persona.yaml`: περσόνα, πρόγραμμα, όριο εξόδων, μοντέλα
 - `personas/<όνομα>/.env`: τα κλειδιά της περσόνας · `.env`: τα κοινά (κανένα δεν ανεβαίνει στο GitHub)
 - `persona.example.yaml`: το πρότυπο για νέες περσόνες · `scripts/new_persona.py`: φτιάχνει νέα περσόνα
-- `ofm/`: ο κώδικας (`planner` = Claude, `media` = fal.ai, `jobs` = η εβδομαδιαία ροή, `bot` = Telegram, `fanvue` = Fanvue API, `chat` = απαντήσεις σε fans)
+- `ofm/`: ο κώδικας (`llm` = Groq/Gemini/Claude, `planner` = πλάνο, `media` = fal.ai, `jobs` = η εβδομαδιαία ροή, `bot` = Telegram, `fanvue` = Fanvue API, `chat` = απαντήσεις σε fans)
 - `personas/<όνομα>/data/`: βάση δεδομένων και αρχεία που φτιάχτηκαν
 - Tests: `pip install -r requirements.txt pytest && pytest`
 

@@ -1,4 +1,5 @@
 import logging
+import time
 
 import requests
 
@@ -34,6 +35,8 @@ class App:
             fanvue = Fanvue(*fanvue_keys, self.db)
         self.fanvue = fanvue
         self.http = requests.Session()  # plain checks such as "does this file URL still open?"
+        self.llm_http = requests.Session()  # free OpenAI-compatible APIs (Groq, Gemini)
+        self.sleep = time.sleep
         self._claude = claude
 
     @property

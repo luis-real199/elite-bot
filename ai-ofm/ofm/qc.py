@@ -1,6 +1,6 @@
 """Claude looks at every generated image before the owner does: same face, adult look, no visible defects."""
 
-import json
+from . import llm
 
 QC_SCHEMA = {
     "type": "object",
@@ -28,32 +28,20 @@ Small lighting or style differences are fine. Keep reason to one short sentence.
 
 
 def check_image(app, image_url, reference_url):
-    """Returns (passed, reason). Costs are recorded as kind 'qc'."""
-    response = app.claude.beta.messages.create(
-        model=app.cfg.models["claude"],
-        max_tokens=4000,
-        betas=["server-side-fallback-2026-07-01"],
-        fallbacks="default",
-        output_config={"effort": "low", "format": {"type": "json_schema", "schema": QC_SCHEMA}},
-        messages=[{
-            "role": "user",
-            "content": [
-                {"type": "image", "source": {"type": "url", "url": reference_url}},
-                {"type": "image", "source": {"type": "url", "url": image_url}},
-                {"type": "text", "text": INSTRUCTIONS},
-            ],
-        }],
-    )
-    price = app.cfg.models["claude_usd_per_mtok"]
-    usage = response.usage
-    app.db.add_cost("qc", (usage.input_tokens * price["input"] + usage.output_tokens * price["output"]) / 1_000_000, image_url[-40:])
-    if response.stop_reason == "refusal":
-        return False, "ο έλεγχος αρνήθηκε την εικόνα"
-    text = next((b.text for b in response.content if b.type == "text"), "")
+    """Returns (passed, reason); passed is None when the check could not run, so the post goes to review."""
+    content = [
+        {"type": "image", "source": {"type": "url", "url": reference_url}},
+        {"type": "image", "source": {"type": "url", "url": image_url}},
+        {"type": "text", "text": INSTRUCTIONS},
+    ]
     try:
-        result = json.loads(text)
-    except ValueError:
-        return True, "ο έλεγχος δεν απάντησε καθαρά, πάει για έγκριση"
+        result = llm.ask_json(app, system=None, content=content, schema=QC_SCHEMA, kind="qc", effort="low", max_tokens=4000)
+    except llm.LLMRefusal:
+        return False, "ο έλεγχος αρνήθηκε την εικόνα"
+    except llm.LLMError as e:
+        return None, f"ο έλεγχος δεν έγινε ({e}), πάει για έγκριση"
+    if not isinstance(result.get("defects"), list):
+        result["defects"] = []
     passed = result["verdict"] == "pass" and result["same_person"] and result["clearly_adult"]
     reason = result["reason"] or ", ".join(result["defects"])
     return passed, reason

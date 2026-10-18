@@ -6,11 +6,10 @@ Modes (chat.mode in persona.yaml, or /chat_approve, /chat_auto, /chat_off on Tel
 - off: nothing is read or sent
 """
 
-import json
 import logging
 from datetime import timedelta
 
-from . import guardrails
+from . import guardrails, llm
 from .db import utcnow
 from .fanvue import FanvueError
 from .telegram import keyboard
@@ -92,33 +91,22 @@ def transcript(messages, me_uuid, limit=20):
 
 def draft_reply(app, fan, messages, me_uuid):
     cfg, db = app.cfg, app.db
-    response = app.claude.beta.messages.create(
-        model=cfg.models["claude"],
-        max_tokens=8000,
-        betas=["server-side-fallback-2026-07-01"],
-        fallbacks="default",
-        output_config={"effort": "low", "format": {"type": "json_schema", "schema": REPLY_SCHEMA}},
-        system=[
-            {"type": "text", "text": system_prompt(cfg), "cache_control": {"type": "ephemeral"}},
-            {"type": "text", "text": catalogue_text(db, fan["uuid"])},
-        ],
-        messages=[{
-            "role": "user",
-            "content": (
-                f"Fan: {fan.get('displayName') or fan.get('handle')}"
-                f"{' (top spender)' if fan.get('isTopSpender') else ''}\n\n"
-                f"Chat so far, oldest first:\n{transcript(messages, me_uuid)}\n\nWrite her next reply."
-            ),
-        }],
+    content = (
+        f"Fan: {fan.get('displayName') or fan.get('handle')}"
+        f"{' (top spender)' if fan.get('isTopSpender') else ''}\n\n"
+        f"Chat so far, oldest first:\n{transcript(messages, me_uuid)}\n\nWrite her next reply."
     )
-    price = cfg.models["claude_usd_per_mtok"]
-    usage = response.usage
-    db.add_cost("chat", (usage.input_tokens * price["input"] + usage.output_tokens * price["output"]) / 1_000_000, fan["uuid"])
-    if response.stop_reason == "refusal":
-        return {"reply": "", "offer_media_uuid": "", "offer_price_usd": 0, "escalate": True,
-                "escalate_reason": "το Claude δεν απάντησε σε αυτό το chat", "fan_request": ""}
-    text = next((b.text for b in response.content if b.type == "text"), "")
-    return json.loads(text)
+    try:
+        return llm.ask_json(
+            app, cached_system=system_prompt(cfg), system=catalogue_text(db, fan["uuid"]),
+            content=content, schema=REPLY_SCHEMA, kind="chat", effort="low", max_tokens=8000,
+        )
+    except llm.LLMRefusal:
+        reason = "το μοντέλο δεν απάντησε σε αυτό το chat"
+    except llm.LLMError as e:
+        reason = f"δεν βγήκε απάντηση: {e}"
+    return {"reply": "", "offer_media_uuid": "", "offer_price_usd": 0, "escalate": True,
+            "escalate_reason": reason, "fan_request": ""}
 
 
 def _clean_offer(cfg, db, fan_uuid, draft):

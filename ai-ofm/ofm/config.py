@@ -36,8 +36,10 @@ ENV_KEYS = [
     "BUFFER_CHANNEL_YOUTUBE", "BUFFER_CHANNEL_X",
     "SUPABASE_URL", "SUPABASE_SECRET_KEY", "SUPABASE_BUCKET", "LORA_URL",
     "FANVUE_CLIENT_ID", "FANVUE_CLIENT_SECRET", "FANVUE_REDIRECT_URI",
+    "GROQ_API_KEY", "GEMINI_API_KEY",
 ]
 CHAT_MODES = ("approve", "auto", "off")
+LLM_PROVIDERS = ("claude", "groq", "gemini")
 
 
 class ConfigError(Exception):
@@ -184,6 +186,9 @@ def load_config(path=None, env=None):
     if float(price["min"]) < 3:
         raise ConfigError("fanvue.ppv_price_usd.min: το Fanvue δέχεται από $3 και πάνω")
     fanvue["ppv_price_usd"] = {k: float(v) for k, v in price.items()}
+    llm_settings = (raw.get("models") or {}).get("llm") or {}
+    if llm_settings.get("provider") not in (None, "", *LLM_PROVIDERS):
+        raise ConfigError(f"models.llm.provider πρέπει να είναι ένα από {LLM_PROVIDERS}")
     chat = {"mode": "approve", "weekly_usd": 15, "max_chats_per_check": 5, "check_every_seconds": 60, **(raw.get("chat") or {})}
     if chat["mode"] not in CHAT_MODES:
         raise ConfigError(f"chat.mode πρέπει να είναι ένα από {CHAT_MODES}")

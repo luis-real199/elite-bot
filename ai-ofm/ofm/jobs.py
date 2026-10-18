@@ -95,9 +95,10 @@ def generate_post(app, post):
         reference = refs[0] if refs else (db.kv_get("reference_face") or {}).get("url")
         if cfg.generation["quality_check"] and reference:
             passed, reason = qc.check_image(app, image_url, reference)
-            if not passed:
+            if passed is False:
                 return _retry_or_fail(app, post, f"QC: {reason}")
-            db.update_post(post["id"], qc="pass")
+            if passed:
+                db.update_post(post["id"], qc="pass")
         path = download(image_url, app.media_dir / f"{post['id']}.jpg")
         video_url = None
         if post["kind"] == "video":

@@ -3,7 +3,7 @@
 import json
 from datetime import date, datetime, time, timedelta
 
-from . import guardrails
+from . import guardrails, llm
 
 MECHANICS = ["choice", "rating", "hot_take", "guess", "relatable", "useful", "series", "none"]
 
@@ -110,13 +110,13 @@ handle disclosure. They also never claim or imply that she is a real human.
 Spread the pillars, settings and outfits across the week, match the time of day of each slot, and return exactly one item per slot number."""
 
 
-def user_prompt(slots, recent_ideas, fan_requests=(), swipes=()):
+def user_prompt(indexed_slots, recent_ideas, fan_requests=(), swipes=()):
     lines = []
-    for i, s in enumerate(slots):
+    for i, s in indexed_slots:
         when = "vault" if s["targets"] == ["fanvue"] else s["slot_at"].strftime("%a %d %b %H:%M")
         lines.append({"slot": i, "when": when, "kind": s["kind"], "targets": s["targets"]})
     return (
-        f"Plan these {len(slots)} slots:\n{json.dumps(lines)}\n\n"
+        f"Plan these {len(lines)} slots:\n{json.dumps(lines)}\n\n"
         f"Recent ideas, don't repeat them:\n{_bullets(recent_ideas)}\n\n"
         f"What paying fans asked for in chat (make several Fanvue items match these):\n{_bullets(fan_requests)}\n\n"
         "Formats that went viral for other creators. Use several for her reels, adapting the format and mechanic "
@@ -124,35 +124,30 @@ def user_prompt(slots, recent_ideas, fan_requests=(), swipes=()):
     )
 
 
-def request_plan(client, cfg, db, slots, fan_requests=(), swipes=()):
-    with client.beta.messages.stream(
-        model=cfg.models["claude"],
-        max_tokens=64000,
-        betas=["server-side-fallback-2026-07-01"],
-        fallbacks="default",
-        output_config={"effort": "medium", "format": {"type": "json_schema", "schema": ITEM_SCHEMA}},
-        system=system_prompt(cfg),
-        messages=[{"role": "user", "content": user_prompt(slots, db.recent_ideas(), fan_requests, swipes)}],
-    ) as stream:
-        response = stream.get_final_message()
-
-    price = cfg.models["claude_usd_per_mtok"]
-    usage = response.usage
-    db.add_cost(
-        "claude",
-        (usage.input_tokens * price["input"] + usage.output_tokens * price["output"]) / 1_000_000,
-        f"plan {len(slots)} slots",
-    )
-    if response.stop_reason == "refusal":
-        raise PlanError("Το Claude αρνήθηκε το πλάνο. Έλεγξε τα κείμενα στο persona.yaml.")
-    if response.stop_reason == "max_tokens":
-        raise PlanError("Το πλάνο κόπηκε (max_tokens). Μείωσε τα slots ή το fanvue_per_week.")
-    text = next((b.text for b in response.content if b.type == "text"), "")
-    try:
-        items = json.loads(text)["items"]
-    except (ValueError, KeyError) as e:
-        raise PlanError(f"Μη έγκυρη απάντηση από το Claude: {e}")
-    return {item["slot"]: item for item in items if isinstance(item.get("slot"), int)}
+def request_plan(app, slots, fan_requests=(), swipes=()):
+    """Claude plans the whole week in one call; free APIs get it in chunks that fit their per-minute limits."""
+    cfg, db = app.cfg, app.db
+    s = llm.settings(cfg)
+    indexed = list(enumerate(slots))
+    size = len(indexed) if s["provider"] == "claude" else s["plan_chunk"]
+    items = {}
+    for start in range(0, len(indexed), size):
+        chunk = indexed[start:start + size]
+        try:
+            data = llm.ask_json(
+                app, system=system_prompt(cfg), schema=ITEM_SCHEMA, kind="claude", effort="medium",
+                max_tokens=64000, stream=True,
+                content=user_prompt(chunk, db.recent_ideas() + [i["idea"] for i in items.values()], fan_requests, swipes),
+            )
+        except llm.LLMRefusal:
+            raise PlanError("Το μοντέλο αρνήθηκε το πλάνο. Έλεγξε τα κείμενα στο persona.yaml.")
+        except llm.LLMError as e:
+            raise PlanError(f"Το πλάνο απέτυχε: {e}")
+        wanted = {i for i, _ in chunk}
+        for item in data.get("items") or []:
+            if isinstance(item, dict) and item.get("slot") in wanted:
+                items[item["slot"]] = item
+    return items
 
 
 def next_start(db, now):
@@ -168,7 +163,7 @@ def plan_ahead(app, now, days=7):
     start = next_start(db, now)
     slots = build_slots(cfg, start, days)
     requests, swipes = db.fan_requests(), db.swipes()
-    items = request_plan(app.claude, cfg, db, slots, [r["text"] for r in requests], [s["text"] for s in swipes])
+    items = request_plan(app, slots, [r["text"] for r in requests], [s["text"] for s in swipes])
     db.mark_requests_used([r["id"] for r in requests])
     db.mark_swipes_used([s["id"] for s in swipes])
 

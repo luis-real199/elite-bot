@@ -250,7 +250,9 @@ def default_items(n):
 def cfg(tmp_path):
     env = {"TELEGRAM_OWNER_ID": str(OWNER), "BUFFER_CHANNEL_INSTAGRAM": "ch_ig", "BUFFER_CHANNEL_TIKTOK": "ch_tt",
            "BUFFER_CHANNEL_YOUTUBE": "ch_yt", "BUFFER_CHANNEL_X": "ch_x", "OFM_DATA_DIR": str(tmp_path / "data")}
-    return load_config(ROOT / "persona.example.yaml", env=env)
+    cfg = load_config(ROOT / "persona.example.yaml", env=env)
+    cfg.models["llm"] = {"provider": "claude"}  # most tests drive the fake Claude client
+    return cfg
 
 
 @pytest.fixture
