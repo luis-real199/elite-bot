@@ -25,6 +25,7 @@ DEFAULT_MODELS = {
     "edit": "fal-ai/flux-pro/kontext",
     "video": "fal-ai/kling-video/v3/standard/image-to-video",
     "trainer": "fal-ai/flux-lora-fast-training",
+    "voice": "fal-ai/kling-video/create-voice",
 }
 SOFTER = [  # Google's moderation on Nano Banana reads the words: when it refuses, the same shape in plainer ones
     ("very large, round, full breasts (visibly enhanced, pushed up)", "a very large full bust"),
@@ -43,6 +44,15 @@ def soften(text):
         text = text.replace(strong, mild)
     return text
 
+
+# Real photos are full of small accidents. Written as observed detail, not as a request, in every image prompt.
+REALISM = (
+    "Real unedited iPhone photo. Visible skin pores and slight T-zone shine, a few flyaway baby hairs at the hairline, "
+    "faint natural under-eye shadow, mildly uneven skin tone with warmer cheeks, visible fabric weave with small wrinkles "
+    "and a strap mark on the skin, ordinary clutter at the frame edges, one slightly blown highlight and uneven fill light, "
+    "fine sensor grain with a touch of motion blur, real cuticles on the nails, jewelry hanging with real weight. "
+    "No beauty filter, no smoothing, no HDR glow, no studio look."
+)
 
 CONSISTENCY_LINE = (
     "Remain the same model from the reference images, preserving her facial features, "
@@ -183,6 +193,8 @@ def load_config(path=None, env=None):
     persona.setdefault("disclosure_tag", "#aigenerated")
     persona.setdefault("hashtags", True)
     persona.setdefault("never_say", [])
+    persona.setdefault("marks", "")      # moles, freckles, a slight asymmetry: pinned to places, identical in every shot
+    persona.setdefault("skin_hex", "")   # a value cannot be reinterpreted between generations; a description can
     persona.setdefault("chat_style", "short, playful texts, asks questions back")
 
     schedule = raw.get("schedule") or {}
@@ -206,6 +218,7 @@ def load_config(path=None, env=None):
         "idea_approval": True,
         "carousel_size": 3,
         "auto_retry": False,  # a failed image is shown to the owner; nothing is remade without a tap
+        "voice_lock": True,  # her voice is cloned from the first approved spoken reel and reused in every later one
         **(raw.get("generation") or {}),
     }
     # The social checker is not optional: mainstream platforms ban explicit content.
@@ -228,7 +241,7 @@ def load_config(path=None, env=None):
 
     return Config(
         persona=persona,
-        style=raw.get("style") or {},
+        style={"realism": REALISM, **(raw.get("style") or {})},
         slots=slots,
         fanvue_per_week=int(schedule.get("fanvue_per_week", 0)),
         tz=ZoneInfo(schedule.get("timezone", "Europe/Athens")),
@@ -237,7 +250,7 @@ def load_config(path=None, env=None):
         fanvue_pack_at=_moment(schedule.get("fanvue_pack") or {"day": "mon", "time": "09:00"}, "schedule.fanvue_pack"),
         publish_ahead_hours=int(schedule.get("publish_ahead_hours", 36)),
         weekly_budget=float(budget.get("weekly_usd", 15)),
-        estimates={"image": 0.07, "ref_image": 0.15, "face": 0.15, "edit": 0.04, "video": 0.68, "video_voice": 1.9,
+        estimates={"image": 0.07, "ref_image": 0.15, "face": 0.15, "edit": 0.04, "video": 0.68, "video_voice": 1.9, "voice": 0.01,
                    "qc": 0.02, "training": 3.0,
                    **(budget.get("estimates_usd") or {})},
         generation=generation,

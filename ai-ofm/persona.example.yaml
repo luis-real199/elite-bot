@@ -7,6 +7,8 @@ persona:
   subject: "woman"
   trigger_word: "m1alaur"        # η λέξη-κλειδί του LoRA, κάτι που δεν είναι πραγματική λέξη
   appearance: "long wavy honey-blonde hair, blue eyes, sun-kissed skin, athletic build"
+  marks: ""                        # προαιρετικό: σημάδια (ελιά, φακίδες) σε συγκεκριμένα σημεία και μια μικρή ασυμμετρία, για ίδιο πρόσωπο παντού
+  skin_hex: ""                     # προαιρετικό: κωδικός χρώματος δέρματος, π.χ. "#E9B894"
   vibe: "American girl-next-door, Miami lifestyle: beach, brunch, gym, nights out"
   niche: "fitness, beach lifestyle and everyday vlogs, US audience"
   personality: "playful, confident, warm, a little teasing, casual American slang, never vulgar"
@@ -93,6 +95,7 @@ generation:
   idea_approval: true            # πρώτα σου στέλνει τις ιδέες (κείμενο, δωρεάν)· φτιάχνει μόνο όσες πατήσεις ✅
   carousel_size: 3               # τα feed posts γίνονται carousel: τόσες φωτογραφίες στο ίδιο μέρος, άλλη πόζα, όλες 4:5
   auto_retry: false              # false = όταν μια εικόνα κοπεί από τον έλεγχο ή αποτύχει, σου τη δείχνει και αποφασίζεις εσύ (🔁 κοστίζει)
+  voice_lock: true               # κλωνοποιεί τη φωνή της από το πρώτο skit που εγκρίνεις και τη χρησιμοποιεί σε όλα τα επόμενα (+22% στο κόστος του skit)
 
 models:
   llm:

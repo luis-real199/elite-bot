@@ -27,14 +27,30 @@ class SetupNeeded(Exception):
 
 # ---------- generation ----------
 
+def identity(cfg):
+    """The character lock: the same fixed person in every prompt, marks and asymmetry included."""
+    p = cfg.persona
+    text = f"She is a fixed synthetic adult {p['age']}-year-old {p['subject']}: {p['appearance']}."
+    if p["skin_hex"]:
+        text += f" Skin tone {p['skin_hex']}."
+    if p["marks"]:
+        text += f" Distinguishing marks: {p['marks']}. Preserve her natural asymmetry and these marks exactly."
+    return text
+
+
+def realism(cfg):
+    return " ".join(x for x in (cfg.style.get("photo", ""), cfg.style.get("realism", "")) if x)
+
+
 def full_prompt(cfg, post):
     p = cfg.persona
     parts = [
         p["trigger_word"],
         f"photo of an adult {p['age']}-year-old {p['subject']}",
         p["appearance"],
+        p["marks"],
         post["image_prompt"],
-        cfg.style.get("photo", ""),
+        realism(cfg),
     ]
     return ", ".join(x.strip().rstrip(",") for x in parts if x and x.strip())
 
@@ -50,10 +66,9 @@ def aspect(post):
 
 def ref_prompt(cfg, post):
     """Prompt for the reference-image model: the locked references carry the identity."""
-    p = cfg.persona
     return (
-        f"{cfg.generation['consistency_line']} She is an adult {p['age']}-year-old {p['subject']}: {p['appearance']}. "
-        f"{post['image_prompt']}. {cfg.style.get('photo', '')}. Vertical {aspect(post)} photo."
+        f"{cfg.generation['consistency_line']} {identity(cfg)} "
+        f"{post['image_prompt']}. {realism(cfg)} Vertical {aspect(post)} photo."
     )
 
 
@@ -198,11 +213,13 @@ def generate_post(app, post):
             motion = post["motion_prompt"] or "she shifts her weight, fixes her hair and laughs at someone off camera"
             motion += (". Handheld phone footage with small natural shakes, natural light, real skin texture, "
                        "hair and fabric move naturally, normal speed, no slow motion, no smooth cinematic camera.")
+            voice_id = db.kv_get("voice_id") if post["voice"] and cfg.generation["voice_lock"] else None
             if post["speech"]:
-                motion += (f' She talks to the camera in a casual American voice, lips in sync, and says: "{post["speech"]}"'
+                who = "<<<voice_1>>>" if voice_id else "in a casual American voice"
+                motion += (f' She talks to the camera {who}, lips in sync, and says: "{post["speech"]}"'
                            " No background music, only her voice and the room.")
             video_url = app.media.video(image_url, motion, refs, seconds=post["video_seconds"],
-                                        audio=bool(post["voice"]) or None)
+                                        audio=bool(post["voice"]) or None, voice_id=voice_id)
             path = download(video_url, app.media_dir / f"{post['id']}.mp4")
             if post["hook"] and post.social_targets and cfg.generation["hook_overlay"]:
                 try:
@@ -324,6 +341,39 @@ def send_reviews(app):
     return sent
 
 
+def extract_audio(src, dest, run=None):
+    """Her voice track from a reel, mono 16 kHz WAV, for voice cloning."""
+    import shutil
+    import subprocess
+
+    if not shutil.which("ffmpeg"):
+        raise OSError("Λείπει το ffmpeg")
+    (run or subprocess.run)(["ffmpeg", "-y", "-loglevel", "error", "-i", str(src), "-vn", "-ac", "1", "-ar", "16000",
+                             str(dest)], capture_output=True, timeout=120, check=True)
+    return dest
+
+
+def lock_voice(app, post):
+    """The first approved spoken reel fixes her voice: every later skit asks Kling for the same voice id."""
+    cfg, db = app.cfg, app.db
+    if not cfg.generation["voice_lock"] or db.kv_get("voice_id"):
+        return None
+    try:
+        source = app.media_dir / f"{post['id']}.mp4"  # the clip before the hook overlay
+        if not source.exists():
+            source = download(post["video_url"], source)
+        wav = extract_audio(source, app.media_dir / "voice.wav")
+        voice_id = app.media.create_voice(wav)
+    except (GenerationError, OSError, Exception) as e:  # never blocks the approval
+        log.warning("voice lock #%s: %s", post["id"], e)
+        app.notify(f"⚠️ Δεν κλείδωσα τη φωνή της από το #{post['id']}: {e}. Θα ξαναδοκιμάσω στο επόμενο skit.", silent=True)
+        return None
+    db.kv_set("voice_id", voice_id)
+    app.notify(f"🔒 Κλείδωσα τη φωνή της {cfg.persona['name']} από το #{post['id']}: από εδώ και πέρα όλα τα skits έχουν την ίδια φωνή.",
+               silent=True)
+    return voice_id
+
+
 def review_action(app, action, post_id):
     """Apply a review button. Returns (reply text, new button label or None)."""
     db = app.db
@@ -345,6 +395,8 @@ def review_action(app, action, post_id):
         return f"Ήδη: {STATUS_LABELS.get(post['status'], post['status'])}", None
     if action == "a":
         db.update_post(post_id, status="approved")
+        if post["voice"] and post["video_url"]:
+            lock_voice(app, post)
         return "✅ Εγκρίθηκε", "✅ Εγκρίθηκε"
     if action == "r":
         db.update_post(post_id, status="rejected")

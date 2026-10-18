@@ -112,7 +112,7 @@ class Media:
             raise GenerationError(f"Καμία εικόνα στην απάντηση: {result}")
         return images[0]["url"]
 
-    def video(self, image_url, motion_prompt, reference_urls=(), seconds=None, audio=None):
+    def video(self, image_url, motion_prompt, reference_urls=(), seconds=None, audio=None, voice_id=None):
         gen = self.cfg.generation
         seconds = int(seconds or gen["video_duration"])
         audio = bool(gen["video_audio"]) if audio is None else bool(audio)
@@ -121,19 +121,31 @@ class Media:
             # Kling 3.0: start frame plus an "element" built from the persona's references keeps the face
             arguments["start_image_url"] = image_url
             arguments["generate_audio"] = audio
+            if audio and voice_id:
+                arguments["voice_ids"] = [voice_id]  # the prompt refers to it as <<<voice_1>>>
             refs = list(reference_urls)
             if refs:
                 arguments["elements"] = [{"frontal_image_url": refs[0], "reference_image_urls": refs[1:4] or refs[:1]}]
         else:
             arguments["image_url"] = image_url
         result = self._call("video", arguments, VIDEO_TIMEOUT)
-        # the estimate is for 8 s without audio; Kling bills per second, audio about 1.5x
-        usd = self.cfg.estimates["video"] * seconds / 8 * (1.5 if audio else 1)
+        # the estimate is for 8 s without audio; Kling bills per second: audio 1.5x, audio with a fixed voice 1.83x
+        usd = self.cfg.estimates["video"] * seconds / 8 * (1.83 if audio and voice_id else 1.5 if audio else 1)
         self.db.add_cost("video", usd, motion_prompt[:80])
         url = (result.get("video") or {}).get("url")
         if not url:
             raise GenerationError(f"Κανένα βίντεο στην απάντηση: {result}")
         return url
+
+    def create_voice(self, wav_path):
+        """Clone a voice from a short recording (Kling create-voice). Returns the voice id."""
+        url = self.upload(wav_path, keep=True)
+        result = self._call("voice", {"voice_url": url}, IMAGE_TIMEOUT)
+        self._charge("voice", "voice clone")
+        voice_id = result.get("voice_id") or (result.get("voice") or {}).get("voice_id") or result.get("id")
+        if not voice_id:
+            raise GenerationError(f"Δεν ήρθε voice id: {result}")
+        return voice_id
 
     def upload(self, path, keep=False, expires_in=None):
         """keep=True asks fal to never expire the file (references, LoRA backup); or pass expires_in ("30d")."""

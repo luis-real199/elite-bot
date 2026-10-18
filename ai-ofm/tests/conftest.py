@@ -111,15 +111,19 @@ class FakeMedia:
         self.calls.append(("edit", prompt, image_url))
         return f"https://fal.media/edit{len(self.calls)}.jpg"
 
-    def video(self, image_url, motion_prompt, reference_urls=(), seconds=None, audio=None):
+    def video(self, image_url, motion_prompt, reference_urls=(), seconds=None, audio=None, voice_id=None):
         self.calls.append(("video", motion_prompt, image_url, list(reference_urls)))
-        self.videos.append({"seconds": seconds, "audio": audio})
+        self.videos.append({"seconds": seconds, "audio": audio, "voice_id": voice_id})
         self.db.add_cost("video", self.cfg.estimates["video"] * (seconds or 8) / 8 * (1.5 if audio else 1))
         return f"https://fal.media/vid{len(self.calls)}.mp4"
 
     def upload(self, path, keep=False, expires_in=None):
         self.calls.append(("upload", str(path), keep))
         return f"https://fal.media/{Path(path).name}"
+
+    def create_voice(self, wav_path):
+        self.calls.append(("voice", str(wav_path)))
+        return "voice-abc"
 
     def train_lora(self, zip_url, trigger_word):
         self.calls.append(("train", zip_url, trigger_word))

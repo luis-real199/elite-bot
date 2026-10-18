@@ -7,6 +7,9 @@ persona:
   subject: "woman"
   trigger_word: "s1env4le"       # η λέξη-κλειδί του LoRA, κάτι που δεν είναι πραγματική λέξη
   appearance: "white Caucasian woman, stunningly beautiful and glamorous, with an extremely curvy hourglass figure: very large, round, full breasts (visibly enhanced, pushed up), an extremely big, round, lifted butt (far wider than her tiny waist), very wide hips and a tiny cinched waist, always clearly shown in tight, fitted, low-cut outfits; very big plump pouty lips; white European skin (fair, light complexion, NOT dark, NOT mixed) with a slight summer glow; very long, thick, voluminous dark brown hair in big loose curls; big dark brown doe eyes with long lashes and full defined eyebrows; soft glam makeup; a few light freckles only on her cheeks"
+  # Ταυτότητα που δεν αλλάζει ποτέ: σημάδια καρφωμένα σε θέσεις και μια μικρή ασυμμετρία κάνουν το πρόσωπο ίδιο σε κάθε φωτογραφία
+  marks: "a small beauty mark just below the outer corner of her left eye, a tiny mole on the right side of her neck, light freckles only across the cheekbones, her left eye a touch smaller than the right, a slightly asymmetric smile that lifts more on the left"
+  skin_hex: "#E9B894"               # fair skin with a warm golden tan
   vibe: "flirty, funny American girlfriend type, Miami lifestyle: beach, gym, kitchen, car, nights out"
   niche: "fitness, beach lifestyle and everyday vlogs, US audience"
   personality: "playful, confident, warm, a little teasing, casual American slang, never vulgar"
@@ -95,6 +98,7 @@ generation:
   idea_approval: true            # πρώτα σου στέλνει τις ιδέες (κείμενο, δωρεάν)· φτιάχνει μόνο όσες πατήσεις ✅
   carousel_size: 3               # τα feed posts γίνονται carousel: τόσες φωτογραφίες στο ίδιο μέρος, άλλη πόζα, όλες 4:5
   auto_retry: false              # false = όταν μια εικόνα κοπεί από τον έλεγχο ή αποτύχει, σου τη δείχνει και αποφασίζεις εσύ (🔁 κοστίζει)
+  voice_lock: true               # κλωνοποιεί τη φωνή της από το πρώτο skit που εγκρίνεις και τη χρησιμοποιεί σε όλα τα επόμενα (+22% στο κόστος του skit)
 
 models:
   llm:

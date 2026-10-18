@@ -457,7 +457,7 @@ def test_feed_posts_are_carousels_of_the_same_moment(app):
 def test_camera_and_motion_rules_in_the_plan(app):
     plan(app)
     system = app.claude.requests[0]["system"]
-    assert "at most one in four is a mirror selfie" in system and "her hands are free" in system
+    assert "at most one in four is (c)" in system and "her hands are free" in system
     assert "Never slow robotic turns" in system
 
 
@@ -500,7 +500,7 @@ def test_a_voice_slot_becomes_a_spoken_skit(app, tmp_path):
     app.db.kv_set("reference_urls", ["https://fal.media/ref1.jpg"])
     before = app.db.spent_last_week()
     jobs.generate_post(app, reel)
-    assert app.media.videos == [{"seconds": 15, "audio": True}]
+    assert app.media.videos == [{"seconds": 15, "audio": True, "voice_id": None}]
     motion = next(c[1] for c in app.media.calls if c[0] == "video")
     assert 'says: "babe I said' in motion and "lips in sync" in motion
     assert app.db.spent_last_week() - before == pytest.approx(0.15 + 0.68 * 15 / 8 * 1.5 + 0.02, abs=0.01)
@@ -529,3 +529,50 @@ def test_replan_keeps_what_is_made_and_redoes_the_rest_from_tomorrow(app):
     assert len([p for p in fresh if p["targets"] == ["fanvue"]]) == app.cfg.fanvue_per_week
     assert app.db.kv_get("planned_until") == "2026-10-27"
     assert any(m.startswith("♻️ Πέταξα") for m in app.tg.messages)
+
+
+def test_the_first_approved_skit_locks_her_voice_for_the_rest(app, monkeypatch, tmp_path):
+    app.cfg.slots[1].video = {"seconds": 15, "voice": True}
+
+    def items(n):
+        out = __import__("conftest").default_items(n)
+        for item in out:
+            item["speech"] = "no I did not eat your fries"
+        return out
+
+    app._claude = FakeClaude(items)
+    app.db.kv_set("reference_urls", ["https://fal.media/ref1.jpg"])
+    plan(app)
+    reels = [p for p in app.db.posts("planned") if p["voice"]][:2]
+    jobs.generate_post(app, reels[0])
+    assert app.media.videos[-1]["voice_id"] is None
+    assert "in a casual American voice" in next(c[1] for c in app.media.calls if c[0] == "video")
+
+    monkeypatch.setattr(jobs, "extract_audio", lambda src, dest, run=None: (Path(dest).write_bytes(b"wav"), dest)[1])
+    jobs.send_reviews(app)
+    assert jobs.review_action(app, "a", reels[0]["id"])[0] == "✅ Εγκρίθηκε"
+    assert app.db.kv_get("voice_id") == "voice-abc" and any(m.startswith("🔒") for m in app.tg.messages)
+
+    jobs.generate_post(app, reels[1])
+    assert app.media.videos[-1]["voice_id"] == "voice-abc"
+    assert "<<<voice_1>>>" in [c[1] for c in app.media.calls if c[0] == "video"][-1]
+    spent_voice = [c for c in app.media.calls if c[0] == "voice"]
+    assert len(spent_voice) == 1  # cloned once, reused after
+
+
+def test_identity_and_realism_go_into_every_image_prompt(app):
+    app.cfg.persona["marks"] = "a beauty mark under the left eye, a slightly asymmetric smile"
+    app.cfg.persona["skin_hex"] = "#E9B894"
+    app.db.kv_set("reference_urls", ["https://fal.media/ref1.jpg"])
+    plan(app)
+    story = next(p for p in app.db.posts("planned") if "instagram_story" in p["targets"])
+    fanvue = next(p for p in app.db.posts("planned") if p["targets"] == ["fanvue"])
+    jobs.generate_post(app, story)
+    jobs.generate_post(app, fanvue)
+    ref = next(c[1] for c in app.media.calls if c[0] == "ref_image")
+    lora = next(c[1] for c in app.media.calls if c[0] == "image")
+    for prompt in (ref, lora):
+        assert "beauty mark under the left eye" in prompt and "Visible skin pores" in prompt
+    assert "Skin tone #E9B894" in ref and "Preserve her natural asymmetry" in ref
+    system = app.claude.requests[0]["system"]
+    assert "'someone filmed me' rear camera" in system and "phone propped on a table" in system

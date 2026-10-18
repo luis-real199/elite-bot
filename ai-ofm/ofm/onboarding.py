@@ -58,7 +58,8 @@ MAX_REFERENCES = 10
 
 def _subject(cfg):
     p = cfg.persona
-    return f"photo of an adult {p['age']}-year-old {p['subject']}, {p['appearance']}"
+    marks = f", {p['marks']}" if p["marks"] else ""
+    return f"photo of an adult {p['age']}-year-old {p['subject']}, {p['appearance']}{marks}"
 
 
 def faces(app, n=6):
@@ -71,7 +72,7 @@ def faces(app, n=6):
         variant = FACE_VARIANTS[(start + i) % len(FACE_VARIANTS)]
         prompt = (f"Casual selfie of {_subject(cfg)[len('photo of '):]}, clearly a grown woman, {variant}. "
                   "Taken with an iPhone front camera at arm's length at home by a window, waist-up selfie in a tight low-cut top, "
-                  f"looking at the camera, everyday makeup. {cfg.style.get('photo', '')}")
+                  f"looking at the camera, everyday makeup. {cfg.style.get('photo', '')} {cfg.style.get('realism', '')}")
         try:
             url, flagged = app.media.face(prompt)
         except GenerationError as e:
@@ -128,9 +129,10 @@ def dataset(app, n=len(DATASET_SHOTS)):
     for i, shot in enumerate(DATASET_SHOTS[:n]):
         if (out / f"{i:02d}.jpg").exists():
             continue
-        prompt = (f"Keep exactly the same face, eyes, lips, skin tone and hair as the woman in the reference image. "
+        marks = f" Distinguishing marks, identical: {cfg.persona['marks']}." if cfg.persona["marks"] else ""
+        prompt = (f"Keep exactly the same face, eyes, lips, skin tone and hair as the woman in the reference image.{marks} "
                   f"Her body and look must be exactly this: {cfg.persona['appearance']}. She is an adult "
-                  f"{cfg.persona['age']}-year-old woman. {shot}. {style}")
+                  f"{cfg.persona['age']}-year-old woman. {shot}. {style} {cfg.style.get('realism', '')}")
         try:
             url = app.media.ref_image(prompt, [ref["url"]], setup=True)
         except GenerationError:
