@@ -37,17 +37,17 @@ DATASET_SHOTS = [
 
 # Image models drift to one "default pretty face" when the prompt is the same, so every candidate
 # gets its own facial structure; the persona's hair, eyes and skin still come from persona.yaml.
-FACE_VARIANTS = [
-    "oval face, high cheekbones, thin straight nose, full lips, light freckles across the nose",
-    "heart-shaped face, soft round cheeks, small upturned nose, thick straight eyebrows, dimples",
-    "square jawline, strong brows, wide smile, slightly crooked nose",
-    "round face, wide-set almond eyes, plump lips, a small beauty mark above the lip",
-    "long narrow face, defined chin, arched eyebrows, thin lips, slightly hooded eyes",
-    "diamond-shaped face, sharp cheekbones, Roman nose, natural thick brows, small gap between front teeth",
-    "soft features, freckles all over the face, small chin, big round eyes",
-    "angular features, cat-eye shape, straight dark brows, defined jaw, narrow nose",
-    "wide face, full cheeks, button nose, heavy-lidded eyes, broad smile",
-    "delicate features, pointed chin, thin arched brows, small mouth, close-set eyes",
+FACE_VARIANTS = [  # face structure only: eyes, lips and hair stay as persona.yaml describes them
+    "oval face, high cheekbones, thin straight nose",
+    "heart-shaped face, soft round cheeks, small upturned nose, dimples",
+    "square jawline, strong brows, slightly wide nose",
+    "round face, a small beauty mark on the cheek",
+    "long face, defined chin, high arched eyebrows",
+    "diamond-shaped face, sharp cheekbones, Roman nose, natural thick brows",
+    "soft features, light freckles across the nose, small chin",
+    "angular features, almond-shaped eyes, straight brows, defined jaw",
+    "wide face, full cheeks, button nose",
+    "delicate features, pointed chin, thin arched brows",
 ]
 
 DATASET_NAME = re.compile(r"^\d{2}\.jpg$")
@@ -68,8 +68,8 @@ def faces(app, n=6):
     candidates = []
     for i in range(n):
         variant = FACE_VARIANTS[(start + i) % len(FACE_VARIANTS)]
-        prompt = (f"{_subject(cfg)}, {variant}, natural skin texture, distinctive real face, head and shoulders "
-                  f"portrait, looking at the camera, plain light background, {cfg.style.get('photo', '')}")
+        prompt = (f"{_subject(cfg)}, clearly a grown woman, {variant}, natural skin texture, distinctive real face, "
+                  f"head and shoulders portrait, looking at the camera, plain light background, {cfg.style.get('photo', '')}")
         url, flagged = app.media.image(prompt, safety=True, setup=True)
         if flagged:
             continue
