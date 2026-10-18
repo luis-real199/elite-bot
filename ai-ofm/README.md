@@ -51,16 +51,13 @@ ssh root@IP-του-server
 curl -fsSL https://get.docker.com | sh
 git clone https://github.com/luis-real199/elite-bot.git
 cd elite-bot && git checkout claude/funny-bell-565xkp && cd ai-ofm
-cp .env.example .env
-nano .env                              # κοινά κλειδιά από το βήμα 1
 python3 scripts/new_persona.py sienna  # φτιάχνει το personas/sienna/.env
-nano personas/sienna/.env              # το token του bot της
+python3 scripts/keys.py sienna         # ζητάει τα κλειδιά ένα-ένα και βρίσκει μόνο του το Telegram ID σου
 ```
 Αν το repo είναι private, το `git clone` θα ζητήσει GitHub token. Εναλλακτικά, ανέβασε τον φάκελο `ai-ofm` στον server με όποιον τρόπο θες.
 
-Στείλε «hi» στο bot σου στο Telegram και μετά:
+Μετά:
 ```bash
-docker compose run --rm sienna python -m ofm telegram-id        # βάλε το TELEGRAM_OWNER_ID στο .env
 docker compose run --rm sienna python -m ofm buffer-channels    # βάλε τα BUFFER_CHANNEL_* στο personas/sienna/.env
 docker compose run --rm sienna python -m ofm check              # όλα ✅;
 docker compose up -d --build                                 # ξεκινά και μένει ανοιχτό

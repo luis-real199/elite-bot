@@ -39,6 +39,36 @@ def test_new_persona_creates_files_and_compose(tmp_path):
     assert compose["mia"]["environment"]["OFM_PERSONA"] == "mia"
 
 
+def test_keys_script_puts_each_key_in_its_file(tmp_path):
+    load_script(tmp_path).main(["sienna"])
+    token = "8949344731:" + "A" * 35
+    example = (ROOT / ".env.example").read_text(encoding="utf-8")
+    (tmp_path / ".env").write_text(example.replace("TELEGRAM_OWNER_ID=", f"TELEGRAM_OWNER_ID={token}"), encoding="utf-8")
+    spec = importlib.util.spec_from_file_location("keys", ROOT / "scripts" / "keys.py")
+    keys = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(keys)
+    keys.ROOT, keys.PERSONAS = tmp_path, tmp_path / "personas"
+
+    groq, fal = "gsk_" + "g" * 40, "fal_sk_abc:" + "f" * 32
+    answers = iter(["", "oops", groq, fal, token, "", "", ""])
+    said, fetched = [], []
+
+    def fetch(t):
+        fetched.append(t)
+        return {} if len(fetched) == 1 else {4242: "kyrillos"}
+
+    keys.main(["sienna"], ask=lambda prompt: next(answers), say=said.append, fetch=fetch)
+    shared = keys.read_env(tmp_path / ".env")
+    assert shared["GROQ_API_KEY"] == groq and shared["FAL_KEY"] == fal and shared["TELEGRAM_OWNER_ID"] == "4242"
+    assert shared["BUFFER_API_KEY"] == ""
+    assert keys.read_env(tmp_path / "personas/sienna/.env")["TELEGRAM_BOT_TOKEN"] == token
+    assert fetched == [token, token]
+    assert "# Groq (δωρεάν, προεπιλογή): https://console.groq.com/keys" in (tmp_path / ".env").read_text(encoding="utf-8")
+    assert (tmp_path / ".env").stat().st_mode & 0o777 == 0o600
+    assert any("Χρειάζεται" in s for s in said) and any("❌" in s for s in said)
+    assert not any(groq in s or fal in s or token in s for s in said)
+
+
 def test_bad_names_are_refused(tmp_path):
     script = load_script(tmp_path)
     for bad in (["Ava"], ["../x"], []):
