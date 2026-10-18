@@ -13,7 +13,7 @@ from .telegram import Telegram
 
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="python -m ofm", description="AI OFM: πλάνο, generation, έγκριση, αποστολή")
-    parser.add_argument("--persona", help="φάκελος στο personas/ (π.χ. mia), για χρήση εκτός Docker")
+    parser.add_argument("--persona", help="φάκελος στο personas/ (π.χ. sienna), για χρήση εκτός Docker")
     parser.add_argument("--config", help="διαδρομή προς persona.yaml (αντί για --persona)")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("run", help="τρέχει συνέχεια: Telegram bot + όλες οι προγραμματισμένες δουλειές")

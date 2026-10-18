@@ -2,10 +2,10 @@
 # Τα prompts για τις εικόνες είναι καλύτερα στα αγγλικά.
 
 persona:
-  name: "Mia Carter"             # φανταστικό όνομα, όχι πραγματικό πρόσωπο
+  name: "Sienna Vale"            # φανταστικό όνομα, όχι πραγματικό πρόσωπο · Instagram: @siennavale
   age: 24                        # τουλάχιστον 21, αλλιώς το σύστημα δεν ξεκινά
   subject: "woman"
-  trigger_word: "m1alaur"        # η λέξη-κλειδί του LoRA, κάτι που δεν είναι πραγματική λέξη
+  trigger_word: "s1env4le"       # η λέξη-κλειδί του LoRA, κάτι που δεν είναι πραγματική λέξη
   appearance: "long wavy honey-blonde hair, blue eyes, sun-kissed skin, athletic build"
   vibe: "American girl-next-door, Miami lifestyle: beach, brunch, gym, nights out"
   niche: "fitness, beach lifestyle and everyday vlogs, US audience"

@@ -55,22 +55,22 @@ git clone https://github.com/luis-real199/elite-bot.git
 cd elite-bot && git checkout claude/funny-bell-565xkp && cd ai-ofm
 cp .env.example .env
 nano .env                              # κοινά κλειδιά από το βήμα 1
-python3 scripts/new_persona.py mia     # φτιάχνει το personas/mia/.env
-nano personas/mia/.env                 # το token του bot της
+python3 scripts/new_persona.py sienna  # φτιάχνει το personas/sienna/.env
+nano personas/sienna/.env              # το token του bot της
 ```
 Αν το repo είναι private, το `git clone` θα ζητήσει GitHub token. Εναλλακτικά, ανέβασε τον φάκελο `ai-ofm` στον server με όποιον τρόπο θες.
 
 Στείλε «hi» στο bot σου στο Telegram και μετά:
 ```bash
-docker compose run --rm mia python -m ofm telegram-id        # βάλε το TELEGRAM_OWNER_ID στο .env
-docker compose run --rm mia python -m ofm buffer-channels    # βάλε τα BUFFER_CHANNEL_* στο personas/mia/.env
-docker compose run --rm mia python -m ofm check              # όλα ✅;
+docker compose run --rm sienna python -m ofm telegram-id        # βάλε το TELEGRAM_OWNER_ID στο .env
+docker compose run --rm sienna python -m ofm buffer-channels    # βάλε τα BUFFER_CHANNEL_* στο personas/sienna/.env
+docker compose run --rm sienna python -m ofm check              # όλα ✅;
 docker compose up -d --build                                 # ξεκινά και μένει ανοιχτό
 ```
 Στείλε `/help` στο bot. Αν απαντήσει, το σύστημα τρέχει.
 
 ### 3. Περσόνα (από το Telegram)
-1. Άλλαξε το `personas/mia/persona.yaml` (όνομα, εμφάνιση, θέματα) και κάνε `docker compose restart mia`.
+1. Άλλαξε το `personas/sienna/persona.yaml` (όνομα, εμφάνιση, θέματα) και κάνε `docker compose restart sienna`.
 2. `/faces`: 6 υποψήφια πρόσωπα. Πάτα ⭐ σε αυτό που θες.
 3. `/dataset`: 24 φωτογραφίες με το ίδιο πρόσωπο. Πάτα 🗑 σε όσες δεν μοιάζουν. Πρέπει να μείνουν τουλάχιστον 12.
 4. `/train`: εκπαίδευση LoRA (~$3, 5–20 λεπτά). Κλειδώνει και τις 10 references (το πρόσωπο + τις καλύτερες του dataset) και κρατάει αντίγραφο του LoRA. Στο τέλος σου στέλνει μια δοκιμαστική φωτογραφία.
@@ -88,7 +88,7 @@ docker compose up -d --build                                 # ξεκινά κα
 ### 5. Πρώτο τεστ του Buffer
 Πριν τα πρώτα posts:
 ```bash
-docker compose run --rm mia python -m ofm publish --dry-run
+docker compose run --rm sienna python -m ofm publish --dry-run
 ```
 Σου δείχνει τι θα σταλεί, χωρίς να στείλει τίποτα. Μετά τα πρώτα κανονικά posts, κοίτα στο Buffer ότι μπήκαν σωστά (Reel, Story, Feed). Αν έρθει μήνυμα σφάλματος στο Telegram, στείλε μου το κείμενο και το διορθώνω.
 
@@ -96,7 +96,7 @@ docker compose run --rm mia python -m ofm publish --dry-run
 Ξεκίνα με μία. Όταν η πρώτη φτάσει ~50 συνδρομητές:
 ```bash
 python3 scripts/new_persona.py ava     # personas/ava/persona.yaml, personas/ava/.env, και ενημερώνει το docker-compose.yml
-nano personas/ava/persona.yaml         # όνομα, εμφάνιση, niche (διαφορετικά από τη Mia)
+nano personas/ava/persona.yaml         # όνομα, εμφάνιση, niche (διαφορετικά από τη Sienna)
 nano personas/ava/.env                 # token του δικού της bot, τα κανάλια της στο Buffer
 docker compose up -d --build           # τρέχουν και οι δύο
 ```

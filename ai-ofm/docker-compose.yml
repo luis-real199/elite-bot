@@ -1,15 +1,15 @@
 # Φτιάχνεται από το scripts/new_persona.py: μία υπηρεσία ανά φάκελο στο personas/
 services:
-  mia:
+  sienna:
     build: .
     image: ai-ofm
     restart: unless-stopped
     env_file:
       - .env
-      - personas/mia/.env
+      - personas/sienna/.env
     environment:
-      OFM_PERSONA: mia
+      OFM_PERSONA: sienna
       OFM_CONFIG: /app/persona/persona.yaml
       OFM_DATA_DIR: /app/persona/data
     volumes:
-      - ./personas/mia:/app/persona
+      - ./personas/sienna:/app/persona
