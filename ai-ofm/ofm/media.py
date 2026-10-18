@@ -51,12 +51,12 @@ class Media:
     def _charge(self, kind, detail, setup=False):
         self.db.add_cost(("setup:" if setup else "") + kind, self.cfg.estimates[kind], detail)
 
-    def image(self, prompt, lora_url=None, safety=True, setup=False):
+    def image(self, prompt, lora_url=None, safety=True, setup=False, image_size=None):
         """Return (url, flagged). flagged means the safety checker caught NSFW content."""
         gen = self.cfg.generation
         arguments = {
             "prompt": prompt,
-            "image_size": gen["image_size"],
+            "image_size": image_size or gen["image_size"],
             "num_images": 1,
             "enable_safety_checker": bool(safety),
             "output_format": "jpeg",
@@ -81,13 +81,13 @@ class Media:
             raise GenerationError(f"Καμία εικόνα στην απάντηση: {result}")
         return images[0]["url"], False
 
-    def ref_image(self, prompt, reference_urls, setup=False):
+    def ref_image(self, prompt, reference_urls, setup=False, aspect_ratio="9:16"):
         """Reference-image generation (Nano Banana): the locked references carry the identity, no LoRA."""
         arguments = {
             "prompt": prompt,
             "image_urls": list(reference_urls),
             "num_images": 1,
-            "aspect_ratio": "9:16",
+            "aspect_ratio": aspect_ratio,
             "output_format": "jpeg",
         }
         result = self._call("ref_image", arguments, IMAGE_TIMEOUT)

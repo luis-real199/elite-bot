@@ -38,12 +38,21 @@ def full_prompt(cfg, post):
     return ", ".join(x.strip().rstrip(",") for x in parts if x and x.strip())
 
 
+# Feed posts, Fanvue and X-only photos fill the most screen at 4:5; stories and reels are full-screen 9:16.
+SIZES = {"4:5": {"width": 1024, "height": 1280}, "9:16": {"width": 896, "height": 1600}}
+
+
+def aspect(post):
+    full_screen = post["kind"] == "video" or "instagram_story" in post["targets"]
+    return "9:16" if full_screen else "4:5"
+
+
 def ref_prompt(cfg, post):
     """Prompt for the reference-image model: the locked references carry the identity."""
     p = cfg.persona
     return (
         f"{cfg.generation['consistency_line']} She is an adult {p['age']}-year-old {p['subject']}: {p['appearance']}. "
-        f"{post['image_prompt']}. {cfg.style.get('photo', '')}. Vertical 9:16 photo."
+        f"{post['image_prompt']}. {cfg.style.get('photo', '')}. Vertical {aspect(post)} photo."
     )
 
 
@@ -61,18 +70,18 @@ def _first_image(app, post, refs, lora):
     Returns the image URL; raises GenerationError, or returns None after scheduling a retry."""
     cfg = app.cfg
     if post.social_targets and refs:
-        prompt = ref_prompt(cfg, post)
+        prompt, frame = ref_prompt(cfg, post), aspect(post)
         try:
-            return app.media.ref_image(prompt, refs)
+            return app.media.ref_image(prompt, refs, aspect_ratio=frame)
         except GenerationError:
             try:  # Google's filter reads the words: same picture, plainer wording
-                return app.media.ref_image(soften(prompt), refs)
+                return app.media.ref_image(soften(prompt), refs, aspect_ratio=frame)
             except GenerationError as e:
                 log.info("reference model refused #%s, falling back to LoRA: %s", post["id"], e)
     if not lora:
         raise GenerationError("Δεν υπάρχει LoRA για αυτό το post. Κάνε /train.")
     safety = True if post.social_targets else cfg.generation["fanvue_safety_checker"]
-    image_url, flagged = app.media.image(full_prompt(cfg, post), lora, safety)
+    image_url, flagged = app.media.image(full_prompt(cfg, post), lora, safety, image_size=SIZES[aspect(post)])
     if flagged:
         _retry_or_fail(app, post, "safety checker: NSFW")
         return None

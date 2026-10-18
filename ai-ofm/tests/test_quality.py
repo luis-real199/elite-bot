@@ -208,3 +208,18 @@ def test_health_check_restores_dead_links(app):
     assert len(problems) == 2 and "🩺" in app.tg.messages[-1]
     assert app.lora_url() == "https://fal.media/lora.safetensors"
     assert app.reference_urls() == ["https://fal.media/00.jpg"]
+
+
+def test_feed_photos_are_4_5_stories_and_reels_9_16(app):
+    app.db.kv_set("reference_urls", REFS)
+    posts = planned(app)
+    story = next(p for p in posts if "instagram_story" in p["targets"])
+    feed = next(p for p in posts if p["targets"] == ["instagram_feed"])
+    reel = next(p for p in posts if p["kind"] == "video")
+    fanvue = next(p for p in posts if p["targets"] == ["fanvue"])
+    for post in (story, feed, reel):
+        jobs.generate_post(app, post)
+    assert app.media.aspects == ["9:16", "4:5", "9:16"]
+    assert "Vertical 4:5 photo." in [c for c in app.media.calls if c[0] == "ref_image"][1][1]
+    jobs.generate_post(app, fanvue)
+    assert app.media.sizes[-1] == {"width": 1024, "height": 1280}

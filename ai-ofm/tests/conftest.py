@@ -55,6 +55,7 @@ class FakeMedia:
     def __init__(self, cfg, db):
         self.cfg, self.db = cfg, db
         self.calls = []
+        self.sizes, self.aspects = [], []
         self.flag_next = 0
         self.fail_next = 0
         self.ref_fail_next = 0
@@ -66,10 +67,11 @@ class FakeMedia:
         if spent + sum(self.cfg.estimates[k] for k in kinds) > self.cfg.weekly_budget:
             raise BudgetExceeded("over")
 
-    def image(self, prompt, lora_url=None, safety=True, setup=False):
+    def image(self, prompt, lora_url=None, safety=True, setup=False, image_size=None):
         from ofm.media import GenerationError
 
         self.calls.append(("image", prompt, lora_url, safety))
+        self.sizes.append(image_size)
         if self.fail_next:
             self.fail_next -= 1
             raise GenerationError("boom")
@@ -83,10 +85,11 @@ class FakeMedia:
         self.db.add_cost("setup:face", self.cfg.estimates["face"])
         return f"https://fal.media/face{len(self.calls)}.jpg", False
 
-    def ref_image(self, prompt, reference_urls, setup=False):
+    def ref_image(self, prompt, reference_urls, setup=False, aspect_ratio="9:16"):
         from ofm.media import GenerationError
 
         self.calls.append(("ref_image", prompt, list(reference_urls)))
+        self.aspects.append(aspect_ratio)
         if self.ref_fail_next:
             self.ref_fail_next -= 1
             raise GenerationError("IMAGE_SAFETY")
