@@ -49,8 +49,21 @@ class Telegram:
     def send(self, text, markup=None, silent=False):
         return self.call(
             "sendMessage", chat_id=self.owner_id, text=clip(text, 4096),
-            reply_markup=markup, disable_notification=silent,
+            reply_markup=markup, disable_notification=silent, disable_web_page_preview=True,
         )
+
+    def send_album(self, paths, caption="", silent=False):
+        """Several photos in one message (a carousel preview). Albums take no buttons: send those after."""
+        paths = [Path(p) for p in paths][:10]
+        media = [{"type": "photo", "media": f"attach://f{i}", **({"caption": clip(caption)} if i == 0 and caption else {})}
+                 for i in range(len(paths))]
+        handles = [open(p, "rb") for p in paths]
+        try:
+            return self.call("sendMediaGroup", files={f"f{i}": (p.name, h) for i, (p, h) in enumerate(zip(paths, handles))},
+                             http_timeout=300, chat_id=self.owner_id, media=media, disable_notification=silent)
+        finally:
+            for h in handles:
+                h.close()
 
     def send_media(self, path, caption="", markup=None, silent=False, as_document=False):
         path = Path(path)

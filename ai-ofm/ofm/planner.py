@@ -97,8 +97,8 @@ Hard rules:
 
 For each slot write:
 - idea: one short sentence in {p['owner_language']} so the owner can approve it at a glance.
-- image_prompt: English, 40-80 words: scene, outfit, pose, framing, lighting, camera angle. Write it as a real, unposed photo someone took on a phone (mirror selfie, friend holding the phone, arm's-length selfie, candid mid-action): everyday places with real clutter, natural or ambient light, imperfect framing. Never use words like 8k, render, hyperrealistic, cinematic, studio, flawless, perfect, glowing or airbrushed. Do not describe her face, hair or body and do not use her name.
-- motion_prompt: for video slots, English, {cfg.generation['video_duration']} seconds of natural motion (camera move plus what she does) whose last frame matches the first so the reel loops. For image slots, an empty string.
+- image_prompt: English, 40-80 words: scene, outfit, pose, framing, lighting, camera angle. Write it as a real, unposed photo someone took on a phone: everyday places with real clutter, natural or ambient light, imperfect framing. Vary who holds the camera across the week: mostly a friend or her boyfriend taking the photo, the phone propped on a table or tripod, or a candid mid-action shot; at most one in four is a mirror selfie, and only then is a phone in the picture. Otherwise her hands are free and busy (coffee, bag, hair, steering wheel, railing). Never use words like 8k, render, hyperrealistic, cinematic, studio, flawless, perfect, glowing or airbrushed. Do not describe her face, hair or body and do not use her name.
+- motion_prompt: for video slots, English, {cfg.generation['video_duration']} seconds of how a real person moves: she does one clear thing (walks in, turns to talk, laughs, fixes her hair, picks something up), with natural weight shifts and hair movement, handheld phone camera with small shakes. Never slow robotic turns, never a slow cinematic push-in, never posing still. The last frame should match the first so the reel loops. For image slots, an empty string.
 - caption: in {p['caption_language']}, in her voice, 1-3 short sentences that fit the platform. For Fanvue items, a short teaser for subscribers.
 - hashtags: {"3-8 relevant hashtags. Do not add any AI tag yourself." if p["hashtags"] else "always an empty list: she never uses hashtags, not in captions either."}
 
@@ -207,7 +207,7 @@ def remake_next_reel(app, now, swipe_id, lead=timedelta(hours=6)):
     swipe = db.swipe(swipe_id)
     if not swipe:
         raise ValueError("Δεν βρέθηκε αυτό το βίντεο")
-    reels = [p for p in db.posts("planned") if p["kind"] == "video" and p.social_targets and p["slot_at"] >= now + lead]
+    reels = [p for p in db.posts(("proposed", "planned")) if p["kind"] == "video" and p.social_targets and p["slot_at"] >= now + lead]
     if not reels:
         return None
     post = min(reels, key=lambda p: p["slot_at"])
@@ -216,6 +216,8 @@ def remake_next_reel(app, now, swipe_id, lead=timedelta(hours=6)):
     if not item:
         raise PlanError("Το μοντέλο δεν έδωσε σχέδιο για το reel")
     fields = post_fields(slot, item, app.cfg.persona["disclosure_tag"], app.cfg.persona["hashtags"])
+    if fields["status"] == "planned":
+        fields["status"] = post["status"]  # a proposed idea stays proposed until the owner taps ✅
     fields["hashtags"] = json.dumps(fields["hashtags"], ensure_ascii=False)
     db.update_post(post["id"], **fields)
     db.mark_swipes_used([swipe_id])
@@ -238,6 +240,8 @@ def plan_ahead(app, now, days=7):
             summary["missing"] += 1
             continue
         fields = post_fields(slot, item, cfg.persona["disclosure_tag"], cfg.persona["hashtags"])
+        if fields["status"] == "planned" and cfg.generation["idea_approval"]:
+            fields["status"] = "proposed"  # nothing is generated until the owner taps ✅ on the idea
         db.insert_post(batch=start.isoformat(), slot_at=slot["slot_at"], kind=slot["kind"], targets=slot["targets"], **fields)
         bad = fields["status"] == "blocked"
         summary["blocked" if bad else "created"] += 1

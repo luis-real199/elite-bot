@@ -362,3 +362,100 @@ def test_no_hashtags_persona_posts_clean_captions(app):
     post = app.db.posts("planned")[0]
     assert post["hashtags"] == [] and post["caption"] == "leg day 🍑 1-10?"
     assert "she never uses hashtags" in app.claude.requests[0]["system"]
+
+
+def test_ideas_wait_for_the_owner_before_anything_is_made(app):
+    app.cfg.generation["idea_approval"] = True
+    jobs.plan_now(app, at(app.cfg, *SUNDAY_EVENING))
+    assert app.db.posts("proposed") and not app.db.posts("planned")
+    assert any("φτιάχνω μόνο όσες πατήσεις ✅" in m for m in app.tg.messages)
+    days = [m for m in app.tg.messages if m.startswith("📅")]
+    assert len(days) == 7 and any(m.startswith("💎 Fanvue") for m in app.tg.messages)
+    assert "1. 📸 08:00 IG Story, X" in days[0] and "🪝 Rate my fit 1-10" in days[0]
+    markup = app.tg.markups[-1 - len(days)] if False else next(m for m in app.tg.markups if m and m["inline_keyboard"][0][0]["callback_data"].startswith("p:"))
+    first = markup["inline_keyboard"][0]
+    assert first[0]["text"] == "✅ 1" and first[1]["text"] == "❌ 1"
+
+    # nothing costs anything until a tap
+    assert jobs.generate_pending(app, at(app.cfg, 2026, 10, 18, 19, 0), limit=100) == 0
+    assert app.media.calls == []
+
+    post_id = int(first[0]["callback_data"].split(":")[1])
+    message_id = next(mid for mid in range(101, 200) if app.db.kv_get(f"proposal:{mid}") and post_id in app.db.kv_get(f"proposal:{mid}"))
+    tap = {"update_id": 30, "callback_query": {"id": "c1", "from": {"id": OWNER}, "data": f"p:{post_id}:a",
+                                                "message": {"message_id": message_id}}}
+    bot.handle_update(app, tap, at(app.cfg, *SUNDAY_EVENING))
+    assert app.db.get_post(post_id)["status"] == "planned" and app.tg.answers[-1] == "✅ Θα φτιαχτεί"
+    refreshed = app.tg.buttons[-1][1]["inline_keyboard"]
+    assert refreshed[0][0]["text"] == "1 ☑️ θα φτιαχτεί" and len(refreshed[0]) == 1 and refreshed[1][0]["text"] == "✅ 2"
+
+    second = int(markup["inline_keyboard"][1][0]["callback_data"].split(":")[1])
+    bot.handle_update(app, {"update_id": 31, "callback_query": {"id": "c2", "from": {"id": OWNER}, "data": f"p:{second}:r",
+                                                                "message": {"message_id": message_id}}}, None)
+    assert app.db.get_post(second)["status"] == "rejected"
+
+    assert jobs.generate_pending(app, at(app.cfg, 2026, 10, 18, 19, 0), limit=100) == 1
+    assert app.db.get_post(post_id)["status"] == "ready"
+
+    bot.handle_update(app, {"update_id": 32, "message": {"from": {"id": OWNER}, "text": "/approve_all"}}, None)
+    assert not app.db.posts("proposed") and len(app.db.posts("planned")) == 35
+    assert any("35 ιδέες" in m for m in app.tg.messages)
+
+
+def test_unapproved_ideas_expire_without_cost(app):
+    app.cfg.generation["idea_approval"] = True
+    plan(app)
+    jobs.generate_pending(app, at(app.cfg, 2026, 10, 21, 0, 0), limit=100)
+    missed = app.db.posts("missed")
+    assert missed and all("χωρίς ✅" in p["error"] for p in missed) and app.media.calls == []
+    assert all(p["targets"] == ["fanvue"] or p["slot_at"] >= at(app.cfg, 2026, 10, 21) for p in app.db.posts("proposed"))
+
+
+def test_empty_fal_balance_pauses_once_instead_of_failing_every_post(app):
+    plan(app)
+    app.db.kv_set("reference_urls", ["https://fal.media/ref1.jpg"])
+    app.media.locked = True
+    jobs.generate_pending(app, at(app.cfg, 2026, 10, 18, 19, 0), limit=100)
+    assert app.db.kv_get("paused") is True
+    paused = [m for m in app.tg.messages if m.startswith("⏸")]
+    assert len(paused) == 1 and "credits" in paused[0] and "/resume" in paused[0]
+    assert not app.db.posts("failed") and not app.db.posts("generating")
+    assert all(p["attempts"] == 0 for p in app.db.posts("planned"))
+    # paused: the next tick makes nothing and says nothing more
+    assert jobs.generate_pending(app, at(app.cfg, 2026, 10, 18, 19, 5), limit=100) == 0
+    assert len([m for m in app.tg.messages if m.startswith("⏸")]) == 1
+
+
+def test_feed_posts_are_carousels_of_the_same_moment(app):
+    app.cfg.generation["carousel_size"] = 3
+    app.db.kv_set("reference_urls", ["https://fal.media/ref1.jpg", "https://fal.media/ref2.jpg"])
+    plan(app)
+    feed = next(p for p in app.db.posts("planned") if p["targets"] == ["instagram_feed"])
+    story = next(p for p in app.db.posts("planned") if "instagram_story" in p["targets"])
+    jobs.generate_post(app, feed)
+    jobs.generate_post(app, story)
+    feed = app.db.get_post(feed["id"])
+    assert len(feed["extra_media"]) == 2 and all(Path(m["path"]).exists() for m in feed["extra_media"])
+    shots = [c for c in app.media.calls if c[0] == "ref_image"]
+    assert app.media.aspects == ["4:5", "4:5", "4:5", "9:16"]
+    assert "photo 2 of the same set" in shots[1][1] and shots[1][2][0] == feed["image_url"]
+    assert app.db.get_post(story["id"])["extra_media"] == []  # stories stay single and full-screen
+
+    jobs.send_reviews(app)
+    assert app.tg.albums == [[feed["media_path"], *(m["path"] for m in feed["extra_media"])]]
+    assert any(m.startswith("🖼 Carousel 3 φωτογραφίες") for m in app.tg.messages)
+    jobs.review_action(app, "a", feed["id"])
+    jobs.publish_due(app, feed["slot_at"] - timedelta(hours=5))
+    created = next(c for c in app.buffer.created if c["channelId"] == "ch_ig")
+    assert [list(a) for a in created["assets"]] == [["image"], ["image"], ["image"]]
+    assert len({a["image"]["url"] for a in created["assets"]}) == 3
+    assert len(app.storage.uploads) == 3
+    jobs.cleanup_storage(app, feed["slot_at"] + timedelta(days=4))
+    assert len(app.storage.deleted) == 3
+
+
+def test_camera_and_motion_rules_in_the_plan(app):
+    plan(app)
+    system = app.claude.requests[0]["system"]
+    assert "at most one in four is a mirror selfie" in system and "her hands are free" in system
+    assert "Never slow robotic turns" in system

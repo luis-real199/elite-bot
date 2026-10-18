@@ -28,7 +28,7 @@ persona:
     - "relationship and dating humor with one other adult in the scene (boyfriend, best friend, her mom, a waiter, a delivery guy)"
     - "everyday moments in tight casual outfits: kitchen, car, apartment hallway, front porch, fast food, bedroom getting ready"
     - "gym and beach: glute and leg days filmed from the side or behind, bikini days, golden hour"
-  fanvue_style: "glamour and boudoir-style photos, lingerie and swimwear, tasteful and suggestive"
+  fanvue_style: "glamour and boudoir photos: lingerie, swimwear, thin or sheer tops with no bra underneath, oversized shirts with nothing under, bedroom and bathroom mirror shots; suggestive, never explicit"
   avoid:
     - "any real person, celebrity or lookalike"
     - "anything that looks underage, school-related or childlike"
@@ -91,6 +91,8 @@ generation:
   consistency_line: "Remain the same model from the reference images, preserving her facial features, body proportions, and identity exactly."
   quality_check: true            # το Claude κοιτάει κάθε εικόνα: ίδιο πρόσωπο, χέρια, ενήλικη εμφάνιση
   review_sample: 1.0             # 1.0 = βλέπεις όλα · 0.2 = βλέπεις όσα κόπηκαν + 20% δείγμα, τα άλλα εγκρίνονται μόνα τους
+  idea_approval: true            # πρώτα σου στέλνει τις ιδέες (κείμενο, δωρεάν)· φτιάχνει μόνο όσες πατήσεις ✅
+  carousel_size: 3               # τα feed posts γίνονται carousel: τόσες φωτογραφίες στο ίδιο μέρος, άλλη πόζα, όλες 4:5
 
 models:
   llm:

@@ -18,6 +18,10 @@ class GenerationError(Exception):
     pass
 
 
+class BalanceExhausted(GenerationError):
+    """fal refuses every call until the account is topped up: nothing to retry."""
+
+
 def _fal():
     import fal_client
 
@@ -41,7 +45,10 @@ class Media:
         try:
             return self.fal.subscribe(model, arguments=arguments, client_timeout=timeout)
         except Exception as e:
-            raise GenerationError(f"{model}: {e}") from e
+            text = str(e)
+            if "Exhausted balance" in text or "User is locked" in text:
+                raise BalanceExhausted("Τελείωσαν τα credits στο fal (fal.ai/dashboard/billing)") from e
+            raise GenerationError(f"{model}: {text}") from e
 
     def check_budget(self, *kinds):
         spent = self.db.spent_last_week()

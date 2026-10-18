@@ -96,6 +96,7 @@ POST_COLUMNS_ADDED = [
     ("qc", "TEXT"),
     ("auto_approved", "INTEGER NOT NULL DEFAULT 0"),
     ("alt_caption", "TEXT"),
+    ("extra_media", "TEXT"),  # carousel: JSON list of {"path", "url", "public_url"} beyond the first image
 ]
 
 
@@ -132,6 +133,7 @@ class DB:
         post = Post(dict(row))
         post["targets"] = json.loads(post["targets"])
         post["hashtags"] = json.loads(post["hashtags"] or "[]")
+        post["extra_media"] = json.loads(post["extra_media"] or "[]")
         post["slot_at"] = datetime.fromisoformat(post["slot_at"])
         return post
 
@@ -149,6 +151,8 @@ class DB:
 
     def update_post(self, post_id, **fields):
         fields["updated_at"] = utcnow().isoformat()
+        if isinstance(fields.get("extra_media"), list):
+            fields["extra_media"] = json.dumps(fields["extra_media"])
         sets = ", ".join(f"{k} = ?" for k in fields)
         with self.conn:
             self.conn.execute(f"UPDATE posts SET {sets} WHERE id = ?", [*fields.values(), post_id])

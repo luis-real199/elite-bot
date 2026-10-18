@@ -13,7 +13,8 @@ log = logging.getLogger("ofm")
 
 HELP = """🤖 Εντολές
 /status — τι γίνεται τώρα
-/plan — φτιάξε πλάνο για τις επόμενες 7 μέρες
+/plan — φτιάξε πλάνο για τις επόμενες 7 μέρες (σου έρχονται οι ιδέες, φτιάχνονται μόνο όσες πατήσεις ✅)
+/approve_all — ✅ σε όλες τις ιδέες που περιμένουν
 /fanvue — στείλε τώρα τα εγκεκριμένα για Fanvue
 /report — αναφορά 7 ημερών
 /pause, /resume — σταμάτα/ξεκίνα generation και αποστολές
@@ -39,6 +40,13 @@ def handle_callback(app, cq, now=None):
     message_id = (cq.get("message") or {}).get("message_id")
     reply, label = "", None
     try:
+        if action == "p":
+            post_id, _, choice = arg.partition(":")
+            reply, markup = jobs.proposal_action(app, int(post_id), choice, message_id)
+            app.tg.answer(cq["id"], reply)
+            if markup and message_id:
+                app.tg.set_buttons(message_id, markup)
+            return
         if action in ("a", "r", "g"):
             reply, label = jobs.review_action(app, action, int(arg))
         elif action == "f":
@@ -80,6 +88,9 @@ def handle_command(app, text, now):
     elif command == "/fanvue":
         if not jobs.send_fanvue_pack(app):
             app.notify("Δεν υπάρχουν νέα εγκεκριμένα για Fanvue.")
+    elif command == "/approve_all":
+        n = jobs.approve_all_ideas(app)
+        app.notify(f"✅ {n} ιδέες μπήκαν για generation." if n else "Δεν υπάρχουν ιδέες σε αναμονή.")
     elif command == "/pause":
         db.kv_set("paused", True)
         app.notify("⏸ Σε παύση. /resume για συνέχεια.")

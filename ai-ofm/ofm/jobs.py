@@ -9,7 +9,7 @@ from .buffer import CHANNEL_ENV, BufferError, create_post_mutation, post_input
 from .config import TARGET_LABELS, soften
 from .db import utcnow
 from .fanvue import FanvueError
-from .media import GenerationError, download
+from .media import BalanceExhausted, GenerationError, download
 from .storage import StorageError
 from .telegram import TelegramError, keyboard
 
@@ -93,9 +93,13 @@ def _first_image(app, post, refs, lora):
         prompt, frame = ref_prompt(cfg, post), aspect(post)
         try:
             return app.media.ref_image(prompt, refs, aspect_ratio=frame)
+        except BalanceExhausted:
+            raise
         except GenerationError:
             try:  # Google's filter reads the words: same picture, plainer wording
                 return app.media.ref_image(soften(prompt), refs, aspect_ratio=frame)
+            except BalanceExhausted:
+                raise
             except GenerationError as e:
                 log.info("reference model refused #%s, falling back to LoRA: %s", post["id"], e)
     if not lora:
@@ -106,6 +110,44 @@ def _first_image(app, post, refs, lora):
         _retry_or_fail(app, post, "safety checker: NSFW")
         return None
     return image_url
+
+
+CAROUSEL_POSES = [
+    "looking away from the camera and laughing",
+    "seen from behind, glancing back over her shoulder",
+    "closer, from the waist up, fixing her hair",
+    "sitting down, one hand on her knee",
+    "walking towards the camera mid-step",
+]
+
+
+def _carousel(app, post, refs, first_url, reference):
+    """For feed posts: more photos of the same moment (same place, outfit and light), another pose each,
+    so the post is a 4:5 carousel instead of one picture. Returns [{"path", "url"}]."""
+    cfg = app.cfg
+    wanted = int(cfg.generation["carousel_size"]) - 1
+    if wanted < 1 or "instagram_feed" not in post["targets"] or not refs:
+        return []
+    extra = []
+    for n, pose in enumerate(CAROUSEL_POSES[:wanted], 2):
+        prompt = (f"{ref_prompt(cfg, post)} This is photo {n} of the same set: exactly the same place, outfit, "
+                  f"light and time of day as the first photo, a few seconds later, but now {pose}.")
+        try:
+            url = app.media.ref_image(prompt, [first_url, *refs[:3]], aspect_ratio=aspect(post))
+        except BalanceExhausted:
+            raise
+        except GenerationError:
+            try:
+                url = app.media.ref_image(soften(prompt), [first_url, *refs[:3]], aspect_ratio=aspect(post))
+            except BalanceExhausted:
+                raise
+            except GenerationError as e:
+                log.info("carousel #%s photo %s refused: %s", post["id"], n, e)
+                continue
+        if cfg.generation["quality_check"] and reference and qc.check_image(app, url, reference)[0] is False:
+            continue
+        extra.append({"path": str(download(url, app.media_dir / f"{post['id']}-{n}.jpg")), "url": url})
+    return extra
 
 
 def generate_post(app, post):
@@ -133,9 +175,12 @@ def generate_post(app, post):
             if passed:
                 db.update_post(post["id"], qc="pass")
         path = download(image_url, app.media_dir / f"{post['id']}.jpg")
+        extra = _carousel(app, post, refs, image_url, reference) if post["kind"] == "image" else []
         video_url = None
         if post["kind"] == "video":
-            motion = post["motion_prompt"] or "subtle natural movement, slow camera push-in"
+            motion = post["motion_prompt"] or "she shifts her weight, fixes her hair and laughs at someone off camera"
+            motion += (". Handheld phone footage with small natural shakes, natural light, real skin texture, "
+                       "hair and fabric move naturally, normal speed, no slow motion, no smooth cinematic camera.")
             video_url = app.media.video(image_url, motion, refs)
             path = download(video_url, app.media_dir / f"{post['id']}.mp4")
             if post["hook"] and post.social_targets and cfg.generation["hook_overlay"]:
@@ -143,15 +188,21 @@ def generate_post(app, post):
                     path = overlay.burn_hook(path, app.media_dir / f"{post['id']}-hook.mp4", post["hook"]) or path
                 except overlay.OverlayError as e:
                     log.warning("hook overlay #%s: %s", post["id"], e)
+    except BalanceExhausted:
+        raise
     except (GenerationError, OSError) as e:
         return _retry_or_fail(app, post, str(e))
-    db.update_post(post["id"], status="ready", image_url=image_url, video_url=video_url, media_path=str(path), error=None)
+    db.update_post(post["id"], status="ready", image_url=image_url, video_url=video_url, media_path=str(path),
+                   extra_media=extra, error=None)
 
 
 def generate_pending(app, now, limit=2):
     """Generate up to `limit` planned posts. Returns how many were attempted."""
     if app.db.kv_get("paused"):
         return 0
+    for post in app.db.posts("proposed"):
+        if post.social_targets and post["slot_at"] < now:
+            app.db.update_post(post["id"], status="missed", error="η ώρα του πέρασε χωρίς ✅ στην ιδέα")
     pending = []
     for post in app.db.posts("planned"):
         if post.social_targets and post["slot_at"] < now:
@@ -159,7 +210,13 @@ def generate_pending(app, now, limit=2):
         else:
             pending.append(post)
     for post in pending[:limit]:
-        generate_post(app, post)
+        try:
+            generate_post(app, post)
+        except BalanceExhausted as e:
+            app.db.update_post(post["id"], status="planned", error=str(e))
+            app.db.kv_set("paused", True)
+            app.notify(f"⏸ {e}. Σταμάτησα για να μη χαθεί τίποτα. Βάλε credits και στείλε /resume.")
+            break
     return len(pending[:limit])
 
 
@@ -209,7 +266,12 @@ def send_reviews(app):
             app.db.update_post(post["id"], status="approved", auto_approved=1)
             continue
         try:
-            msg = app.tg.send_media(post["media_path"], review_caption(post), review_buttons(post["id"]), silent=True)
+            if post["extra_media"]:
+                app.tg.send_album([post["media_path"], *(m["path"] for m in post["extra_media"])], silent=True)
+                msg = app.tg.send(f"🖼 Carousel {1 + len(post['extra_media'])} φωτογραφίες\n" + review_caption(post),
+                                  review_buttons(post["id"]), silent=True)
+            else:
+                msg = app.tg.send_media(post["media_path"], review_caption(post), review_buttons(post["id"]), silent=True)
         except (TelegramError, OSError) as e:
             _report_error(app, "review", f"#{post['id']}: {e}")
             continue
@@ -276,15 +338,23 @@ def publish_due(app, now, dry_run=False):
                 except (StorageError, OSError) as e:
                     app.notify(f"⚠️ Upload για το #{post['id']} απέτυχε: {e}")
                     continue
-                db.update_post(post["id"], public_url=url)
-                post["public_url"] = url
+                extra = list(post["extra_media"])
+                for n, m in enumerate(extra, 2):
+                    if not m.get("public_url"):
+                        try:
+                            m["public_url"] = app.storage.upload(m["path"], f"{post['id']}-{n}", source_url=m.get("url"))
+                        except (StorageError, OSError) as e:
+                            log.warning("carousel upload #%s-%s: %s", post["id"], n, e)
+                db.update_post(post["id"], public_url=url, extra_media=extra)
+                post["public_url"], post["extra_media"] = url, extra
             for target in targets:
                 if _publication_done(db.publication(post["id"], target)):
                     continue
                 delay = timedelta(minutes=cfg.backup_delay_minutes if target == "instagram_backup" else 0)
                 due = max(post["slot_at"] + delay, now + timedelta(minutes=10))
                 channel = cfg.secret(CHANNEL_ENV[target])
-                data = post_input(post, target, channel or "CHANNEL_ID", post["public_url"] or "MEDIA_URL", due)
+                data = post_input(post, target, channel or "CHANNEL_ID", post["public_url"] or "MEDIA_URL", due,
+                                  [m.get("public_url") for m in post["extra_media"]])
                 if dry_run:
                     previews.append(create_post_mutation(data))
                     continue
@@ -309,7 +379,11 @@ def cleanup_storage(app, now, keep_days=3):
     for post in app.db.posts(("scheduled", "missed")):
         if post["public_url"] and post["slot_at"] < now - timedelta(days=keep_days):
             app.storage.delete(post["public_url"])
-            app.db.update_post(post["id"], public_url=None)
+            for m in post["extra_media"]:
+                if m.get("public_url"):
+                    app.storage.delete(m["public_url"])
+                    m["public_url"] = None
+            app.db.update_post(post["id"], public_url=None, extra_media=post["extra_media"])
             removed += 1
     return removed
 
@@ -375,7 +449,7 @@ def send_fanvue_pack(app):
 # ---------- status and report ----------
 
 STATUS_LABELS = {
-    "planned": "σε αναμονή για generation", "generating": "φτιάχνονται", "ready": "έτοιμα για αποστολή",
+    "proposed": "ιδέες που περιμένουν το ✅ σου", "planned": "σε αναμονή για generation", "generating": "φτιάχνονται", "ready": "έτοιμα για αποστολή",
     "in_review": "περιμένουν έγκριση", "approved": "εγκρίθηκαν", "scheduled": "στο Buffer",
     "delivered": "στάλθηκαν για Fanvue", "rejected": "απορρίφθηκαν", "blocked": "μπλοκαρίστηκαν από τους κανόνες",
     "failed": "απέτυχαν", "missed": "έχασαν την ώρα τους",
@@ -444,14 +518,94 @@ def _report_error(app, job, error):
         app.db.kv_set(key, {"text": text, "ts": now.isoformat()})
 
 
+PROPOSAL_MARK = {"proposed": ("✅", "❌"), "planned": ("☑️ θα φτιαχτεί", None), "rejected": ("✖️ όχι", None)}
+
+
+def _proposal_keyboard(posts):
+    rows = []
+    for n, post in enumerate(posts, 1):
+        yes, no = PROPOSAL_MARK.get(post["status"], ("⏳ φτιάχνεται", None))
+        row = [(f"{yes} {n}" if post["status"] == "proposed" else f"{n} {yes}", f"p:{post['id']}:a")]
+        if no:
+            row.append((f"{no} {n}", f"p:{post['id']}:r"))
+        rows.append(row)
+    return keyboard(rows)
+
+
+def _proposal_text(title, posts):
+    lines = [title]
+    for n, post in enumerate(posts, 1):
+        when = "vault" if post["targets"] == ["fanvue"] else f"{post['slot_at']:%H:%M}"
+        targets = ", ".join(TARGET_LABELS[t] for t in post["targets"])
+        hook = f" · 🪝 {post['hook']}" if post["hook"] else ""
+        lines.append(f"{n}. {ICON[post['kind']]} {when} {targets}\n    {post['idea']}{hook}")
+    return "\n".join(lines)
+
+
+def send_proposals(app, batch):
+    """The new plan as text, one message per day plus one for Fanvue: free to read, nothing made yet."""
+    if not app.tg:
+        return 0
+    posts = [p for p in app.db.posts("proposed") if p["batch"] == batch]
+    groups = {}
+    for post in sorted(posts, key=lambda p: (p["targets"] == ["fanvue"], p["slot_at"])):
+        key = "fanvue" if post["targets"] == ["fanvue"] else post["slot_at"].date()
+        groups.setdefault(key, []).append(post)
+    sent = 0
+    for key, group in groups.items():
+        title = "💎 Fanvue (vault + feed)" if key == "fanvue" else f"📅 {WEEKDAYS[key.weekday()]} {key:%d/%m}"
+        try:
+            msg = app.tg.send(_proposal_text(title, group), _proposal_keyboard(group), silent=True)
+        except TelegramError as e:
+            _report_error(app, "proposals", e)
+            continue
+        app.db.kv_set(f"proposal:{msg['message_id']}", [p["id"] for p in group])
+        sent += 1
+    return sent
+
+
+def proposal_action(app, post_id, action, message_id=None):
+    """✅ makes the idea (status planned), ❌ drops it. Returns (reply, refreshed keyboard or None)."""
+    db = app.db
+    post = db.get_post(post_id)
+    if not post:
+        return "Δεν βρέθηκε", None
+    if post["status"] == "proposed":
+        db.update_post(post_id, status="planned" if action == "a" else "rejected",
+                       error=None if action == "a" else "η ιδέα απορρίφθηκε")
+        reply = "✅ Θα φτιαχτεί" if action == "a" else "❌ Δεν θα γίνει"
+    elif post["status"] == "rejected" and action == "a":
+        db.update_post(post_id, status="planned", error=None)
+        reply = "✅ Θα φτιαχτεί"
+    elif post["status"] == "planned" and action == "r":
+        db.update_post(post_id, status="rejected", error="η ιδέα απορρίφθηκε")
+        reply = "❌ Δεν θα γίνει"
+    else:
+        reply = f"Ήδη: {STATUS_LABELS.get(post['status'], post['status'])}"
+    ids = db.kv_get(f"proposal:{message_id}") if message_id else None
+    markup = _proposal_keyboard([db.get_post(i) for i in ids]) if ids else None
+    return reply, markup
+
+
+def approve_all_ideas(app):
+    posts = app.db.posts("proposed")
+    for post in posts:
+        app.db.update_post(post["id"], status="planned", error=None)
+    return len(posts)
+
+
 def plan_now(app, now):
     summary = planner.plan_ahead(app, now)
+    approval = app.cfg.generation["idea_approval"]
     app.notify(
         f"🗓 Νέο πλάνο {summary['start']:%d/%m}–{summary['end']:%d/%m}: {summary['created']} posts"
         + (f", {summary['blocked']} μπλοκαρίστηκαν από τους κανόνες" if summary["blocked"] else "")
         + (f", {summary['missing']} slots χωρίς ιδέα" if summary["missing"] else "")
-        + ". Ξεκινάει το generation."
+        + (". Σου στέλνω τις ιδέες: φτιάχνω μόνο όσες πατήσεις ✅ (ή /approve_all)." if approval
+           else ". Ξεκινάει το generation.")
     )
+    if approval:
+        send_proposals(app, summary["start"].isoformat())
     return summary
 
 

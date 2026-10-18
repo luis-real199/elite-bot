@@ -194,6 +194,8 @@ def load_config(path=None, env=None):
         "consistency_line": CONSISTENCY_LINE,
         "quality_check": True,
         "review_sample": 1.0,
+        "idea_approval": True,
+        "carousel_size": 3,
         **(raw.get("generation") or {}),
     }
     # The social checker is not optional: mainstream platforms ban explicit content.

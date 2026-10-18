@@ -34,15 +34,18 @@ def post_text(post, target):
     return text
 
 
-def post_input(post, target, channel_id, media_url, due_at):
+def post_input(post, target, channel_id, media_url, due_at, extra_urls=()):
     is_video = post["kind"] == "video"
+    assets = [{"video": {"url": media_url}} if is_video else {"image": {"url": media_url}}]
+    if not is_video and target != "instagram_story":  # a carousel: the other photos of the same set
+        assets += [{"image": {"url": u}} for u in extra_urls if u][:9]
     data = {
         "text": post_text(post, target),
         "channelId": channel_id,
         "schedulingType": "automatic",
         "mode": "customScheduled",
         "dueAt": due_at.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z"),
-        "assets": [{"video": {"url": media_url}} if is_video else {"image": {"url": media_url}}],
+        "assets": assets,
     }
     if target in INSTAGRAM_TYPE or target == "instagram_backup":
         kind = INSTAGRAM_TYPE.get(target) or ("reel" if is_video else "post")

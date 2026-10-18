@@ -22,6 +22,7 @@ class FakeTelegram:
         self.buttons = []
         self.answers = []
         self.markups = []
+        self.albums = []
         self._next_id = 100
 
     def _id(self):
@@ -36,6 +37,10 @@ class FakeTelegram:
     def send_media(self, path, caption="", markup=None, silent=False, as_document=False):
         self.media.append({"path": str(path), "caption": caption, "markup": markup, "document": as_document})
         return {"message_id": self._id()}
+
+    def send_album(self, paths, caption="", silent=False):
+        self.albums.append([str(p) for p in paths])
+        return [{"message_id": self._id()} for _ in paths]
 
     def set_buttons(self, message_id, markup):
         self.buttons.append((message_id, markup))
@@ -56,6 +61,7 @@ class FakeMedia:
         self.cfg, self.db = cfg, db
         self.calls = []
         self.sizes, self.aspects = [], []
+        self.locked = False  # fal refuses everything: balance exhausted
         self.flag_next = 0
         self.fail_next = 0
         self.ref_fail_next = 0
@@ -68,8 +74,10 @@ class FakeMedia:
             raise BudgetExceeded("over")
 
     def image(self, prompt, lora_url=None, safety=True, setup=False, image_size=None):
-        from ofm.media import GenerationError
+        from ofm.media import BalanceExhausted, GenerationError
 
+        if self.locked:
+            raise BalanceExhausted("Τελείωσαν τα credits στο fal")
         self.calls.append(("image", prompt, lora_url, safety))
         self.sizes.append(image_size)
         if self.fail_next:
@@ -86,8 +94,10 @@ class FakeMedia:
         return f"https://fal.media/face{len(self.calls)}.jpg", False
 
     def ref_image(self, prompt, reference_urls, setup=False, aspect_ratio="9:16"):
-        from ofm.media import GenerationError
+        from ofm.media import BalanceExhausted, GenerationError
 
+        if self.locked:
+            raise BalanceExhausted("Τελείωσαν τα credits στο fal")
         self.calls.append(("ref_image", prompt, list(reference_urls)))
         self.aspects.append(aspect_ratio)
         if self.ref_fail_next:
@@ -274,6 +284,8 @@ def cfg(tmp_path):
            "BUFFER_CHANNEL_YOUTUBE": "ch_yt", "BUFFER_CHANNEL_X": "ch_x", "OFM_DATA_DIR": str(tmp_path / "data")}
     cfg = load_config(ROOT / "persona.example.yaml", env=env)
     cfg.models["llm"] = {"provider": "claude"}  # most tests drive the fake Claude client
+    cfg.generation["idea_approval"] = False  # the flow tests generate straight away; the approval tests turn it on
+    cfg.generation["carousel_size"] = 1
     return cfg
 
 
