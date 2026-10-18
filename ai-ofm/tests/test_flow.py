@@ -139,7 +139,7 @@ def test_regenerate_limit(app):
         assert jobs.review_action(app, "g", post_id)[0] == "🔁 Θα ξαναφτιαχτεί"
     app.db.update_post(post_id, status="in_review")
     assert jobs.review_action(app, "g", post_id)[1] == "❌ Όριο επαναλήψεων"
-    assert jobs.review_action(app, "a", post_id)[0] == "Ήδη: rejected"
+    assert jobs.review_action(app, "a", post_id)[0] == "Ήδη: απορρίφθηκαν"
 
 
 def test_budget_stops_generation(app):

@@ -289,6 +289,7 @@ def cfg(tmp_path):
     cfg.models["llm"] = {"provider": "claude"}  # most tests drive the fake Claude client
     cfg.generation["idea_approval"] = False  # the flow tests generate straight away; the approval tests turn it on
     cfg.generation["carousel_size"] = 1
+    cfg.generation["auto_retry"] = True
     return cfg
 
 

@@ -78,11 +78,23 @@ def apply_tag_settings(app):
 
 def _retry_or_fail(app, post, error):
     attempts = (post["attempts"] or 0) + 1
-    if attempts > app.cfg.generation["max_regenerations"]:
+    if not app.cfg.generation["auto_retry"]:
+        # the owner decides whether another try is worth its cost
+        app.db.update_post(post["id"], status="failed", attempts=attempts, error=error)
+        app.notify(f"⚠️ #{post['id']} ({when_label(post)}) απέτυχε: {error}",
+                   keyboard([[("🔁 Ξανά", f"g:{post['id']}"), ("❌ Όχι", f"r:{post['id']}")]]))
+    elif attempts > app.cfg.generation["max_regenerations"]:
         app.db.update_post(post["id"], status="failed", attempts=attempts, error=error)
         app.notify(f"⚠️ Το post #{post['id']} απέτυχε {attempts} φορές: {error}")
     else:
         app.db.update_post(post["id"], status="planned", attempts=attempts, error=error)
+
+
+def _qc_failed(app, post, image_url, reason):
+    """Manual mode: the image the check rejected goes to the owner with the reason; they continue, remake or drop."""
+    path = download(image_url, app.media_dir / f"{post['id']}.jpg")
+    app.db.update_post(post["id"], status="qc_failed", image_url=image_url, media_path=str(path), qc="fail",
+                       error=f"QC: {reason}")
 
 
 def _first_image(app, post, refs, lora):
@@ -164,16 +176,21 @@ def generate_post(app, post):
 
     db.update_post(post["id"], status="generating")
     try:
-        image_url = _first_image(app, post, refs, lora)
-        if image_url is None:
-            return
         reference = refs[0] if refs else (db.kv_get("reference_face") or {}).get("url")
-        if cfg.generation["quality_check"] and reference:
-            passed, reason = qc.check_image(app, image_url, reference)
-            if passed is False:
-                return _retry_or_fail(app, post, f"QC: {reason}")
-            if passed:
-                db.update_post(post["id"], qc="pass")
+        if post["qc"] == "override" and post["image_url"]:
+            image_url = post["image_url"]  # the owner saw the rejected image and said go on
+        else:
+            image_url = _first_image(app, post, refs, lora)
+            if image_url is None:
+                return
+            if cfg.generation["quality_check"] and reference:
+                passed, reason = qc.check_image(app, image_url, reference)
+                if passed is False:
+                    if not cfg.generation["auto_retry"]:
+                        return _qc_failed(app, post, image_url, reason)
+                    return _retry_or_fail(app, post, f"QC: {reason}")
+                if passed:
+                    db.update_post(post["id"], qc="pass")
         path = download(image_url, app.media_dir / f"{post['id']}.jpg")
         extra = _carousel(app, post, refs, image_url, reference) if post["kind"] == "image" else []
         video_url = None
@@ -242,7 +259,7 @@ def review_caption(post):
         extra += f"\n📌 {post['pinned_comment']}"
     if post["speech"]:
         extra += f"\n🗣 «{post['speech']}»"
-    qc_line = " · ✅ QC" if post["qc"] == "pass" else ""
+    qc_line = " · ✅ QC" if post["qc"] == "pass" else (f"\n⚠️ Ο έλεγχος την έκοψε: {post['error']}" if post["qc"] == "fail" else "")
     return (
         f"#{post['id']} · {when_label(post)} · {ICON[post['kind']]}{qc_line}\n"
         f"→ {targets}\n"
@@ -263,10 +280,25 @@ def review_buttons(post_id):
     return keyboard([[("✅ Έγκριση", f"a:{post_id}"), ("🔁 Ξανά", f"g:{post_id}"), ("❌ Όχι", f"r:{post_id}")]])
 
 
+def qc_buttons(post_id):
+    return keyboard([[("▶️ Συνέχισε έτσι", f"c:{post_id}"), ("🔁 Ξανά", f"g:{post_id}"), ("❌ Όχι", f"r:{post_id}")]])
+
+
 def send_reviews(app):
     if not app.tg:
         return 0
     sent = 0
+    for post in app.db.posts("qc_failed"):
+        if post["review_message_id"]:
+            continue
+        what = "η φωτογραφία αρχής του reel" if post["kind"] == "video" else "η φωτογραφία"
+        try:
+            msg = app.tg.send_media(post["media_path"], f"🛑 Δεν συνεχίζω, {what} κόπηκε από τον έλεγχο.\n"
+                                    + review_caption(post), qc_buttons(post["id"]))
+        except (TelegramError, OSError) as e:
+            _report_error(app, "review", f"#{post['id']}: {e}")
+            continue
+        app.db.update_post(post["id"], review_message_id=msg["message_id"])
     for post in app.db.posts("ready"):
         if not sampled_for_review(app, post):
             app.db.update_post(post["id"], status="approved", auto_approved=1)
@@ -298,8 +330,19 @@ def review_action(app, action, post_id):
     post = db.get_post(post_id)
     if not post:
         return "Δεν βρέθηκε", None
+    if post["status"] in ("failed", "qc_failed"):
+        if action == "g":
+            db.update_post(post_id, status="planned", attempts=(post["attempts"] or 0) + 1, qc=None, image_url=None,
+                           review_message_id=None, error=None)
+            return "🔁 Θα ξαναφτιαχτεί", "🔁 Ξαναφτιάχνεται"
+        if action == "r":
+            db.update_post(post_id, status="rejected")
+            return "❌ Απορρίφθηκε", "❌ Απορρίφθηκε"
+        if action == "c" and post["status"] == "qc_failed":
+            db.update_post(post_id, status="planned", qc="override", review_message_id=None, error=None)
+            return "▶️ Συνεχίζω με αυτή", "▶️ Συνεχίζεται"
     if post["status"] != "in_review":
-        return f"Ήδη: {post['status']}", None
+        return f"Ήδη: {STATUS_LABELS.get(post['status'], post['status'])}", None
     if action == "a":
         db.update_post(post_id, status="approved")
         return "✅ Εγκρίθηκε", "✅ Εγκρίθηκε"
@@ -458,7 +501,8 @@ STATUS_LABELS = {
     "proposed": "ιδέες που περιμένουν το ✅ σου", "planned": "σε αναμονή για generation", "generating": "φτιάχνονται", "ready": "έτοιμα για αποστολή",
     "in_review": "περιμένουν έγκριση", "approved": "εγκρίθηκαν", "scheduled": "στο Buffer",
     "delivered": "στάλθηκαν για Fanvue", "rejected": "απορρίφθηκαν", "blocked": "μπλοκαρίστηκαν από τους κανόνες",
-    "failed": "απέτυχαν", "missed": "έχασαν την ώρα τους",
+    "failed": "απέτυχαν (🔁 ή ❌ στο μήνυμα)", "qc_failed": "κομμένα από τον έλεγχο, περιμένουν απόφαση",
+    "missed": "έχασαν την ώρα τους",
 }
 
 

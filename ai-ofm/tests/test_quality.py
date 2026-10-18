@@ -1,6 +1,7 @@
 import shutil
 import subprocess
-from datetime import datetime
+from datetime import datetime, timedelta
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -223,3 +224,42 @@ def test_feed_photos_are_4_5_stories_and_reels_9_16(app):
     assert "Vertical 4:5 photo." in [c for c in app.media.calls if c[0] == "ref_image"][1][1]
     jobs.generate_post(app, fanvue)
     assert app.media.sizes[-1] == {"width": 1024, "height": 1280}
+
+
+def test_without_auto_retry_a_rejected_image_waits_for_the_owner(app):
+    app.cfg.generation["auto_retry"] = False
+    app.db.kv_set("reference_urls", REFS)
+    reel = next(p for p in planned(app) if p["kind"] == "video" and p.social_targets)
+    app.claude.qc_replies = [{"verdict": "fail", "reason": "waxy skin"}]
+    jobs.generate_post(app, reel)
+    after = app.db.get_post(reel["id"])
+    assert after["status"] == "qc_failed" and after["error"] == "QC: waxy skin" and Path(after["media_path"]).exists()
+    assert not any(c[0] == "video" for c in app.media.calls)  # the expensive part did not run
+    jobs.send_reviews(app)
+    shown = app.tg.media[-1]
+    assert shown["caption"].startswith("🛑") and "waxy skin" in shown["caption"]
+    assert [b["callback_data"][:2] for b in shown["markup"]["inline_keyboard"][0]] == ["c:", "g:", "r:"]
+    assert jobs.send_reviews(app) == 0 and len(app.tg.media) == 1  # shown once
+
+    # ▶️ go on with that very image: no new image, no new check, the video is made
+    assert jobs.review_action(app, "c", reel["id"])[0] == "▶️ Συνεχίζω με αυτή"
+    before = len(app.claude.qc_requests)
+    jobs.generate_post(app, app.db.get_post(reel["id"]))
+    done = app.db.get_post(reel["id"])
+    assert done["status"] == "ready" and done["image_url"] == after["image_url"]
+    assert len(app.claude.qc_requests) == before and [c[0] for c in app.media.calls][-1] == "video"
+
+
+def test_without_auto_retry_an_error_asks_before_spending_again(app):
+    app.cfg.generation["auto_retry"] = False
+    app.db.kv_set("reference_urls", REFS)
+    post = next(p for p in planned(app) if p.social_targets and p["kind"] == "image")
+    app.media.ref_fail_next = 2
+    app.media.fail_next = 1
+    jobs.generate_post(app, post)
+    assert app.db.get_post(post["id"])["status"] == "failed"
+    assert app.tg.markups[-1]["inline_keyboard"][0][0]["callback_data"] == f"g:{post['id']}"
+    assert jobs.generate_pending(app, post["slot_at"] - timedelta(hours=2), limit=100) == 0 or \
+        app.db.get_post(post["id"])["status"] == "failed"  # nothing retried on its own
+    assert jobs.review_action(app, "g", post["id"])[0] == "🔁 Θα ξαναφτιαχτεί"
+    assert app.db.get_post(post["id"])["status"] == "planned"

@@ -48,7 +48,7 @@ def handle_callback(app, cq, now=None):
             if markup and message_id:
                 app.tg.set_buttons(message_id, markup)
             return
-        if action in ("a", "r", "g"):
+        if action in ("a", "r", "g", "c"):
             reply, label = jobs.review_action(app, action, int(arg))
         elif action == "f":
             face = onboarding.pick_face(app, int(arg))

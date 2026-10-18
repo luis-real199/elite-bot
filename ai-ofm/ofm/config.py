@@ -205,6 +205,7 @@ def load_config(path=None, env=None):
         "review_sample": 1.0,
         "idea_approval": True,
         "carousel_size": 3,
+        "auto_retry": False,  # a failed image is shown to the owner; nothing is remade without a tap
         **(raw.get("generation") or {}),
     }
     # The social checker is not optional: mainstream platforms ban explicit content.
