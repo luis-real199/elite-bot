@@ -28,6 +28,7 @@ DEFAULT_MODELS = {
 }
 SOFTER = [  # Google's moderation on Nano Banana reads the words: when it refuses, the same shape in plainer ones
     ("very large, round, full breasts (visibly enhanced, pushed up)", "a very large full bust"),
+    ("an extremely big, round, lifted butt (far wider than her tiny waist)", "very big round hips and backside"),
     ("a very big round lifted butt", "very big round hips and backside"),
     ("tight, fitted, low-cut outfits", "fitted outfits"),
     ("surgically enhanced", "full"),
