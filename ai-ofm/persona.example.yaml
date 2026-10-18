@@ -20,6 +20,7 @@ persona:
   caption_language: "English"    # γλώσσα για τα captions
   owner_language: "Greek"        # γλώσσα για τις περιγραφές που βλέπεις εσύ στο Telegram
   disclosure: "AI-generated character"
+  disclosure_tag: "#aigenerated"   # μπαίνει στο τέλος των hashtags· "" = καμία, η δήλωση γίνεται μόνο στο profile
   content_pillars:
     - "gym and workout moments"
     - "South Beach days and boat trips"

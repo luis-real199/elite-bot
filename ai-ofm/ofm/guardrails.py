@@ -38,16 +38,18 @@ def violations(*texts):
     return found
 
 
-def with_disclosure(hashtags):
-    """Normalise hashtags and make sure one AI disclosure tag is present, quietly at the end.
+def with_disclosure(hashtags, tag="#aigenerated"):
+    """Normalise hashtags and put the persona's AI disclosure tag quietly at the end.
 
-    Captions themselves do not talk about being AI (the bio and Instagram's AI-generated profile
-    label do), but EU AI Act art. 50 and TikTok still want each realistic post marked."""
+    Captions themselves do not talk about being AI (the bio and the platforms' AI labels do). With an
+    empty `tag` the owner discloses on the profile only, and AI tags the model added are dropped too."""
     tags = []
-    for tag in hashtags or []:
-        tag = "#" + tag.strip().lstrip("#").replace(" ", "")
-        if len(tag) > 1 and tag.lower() not in {t.lower() for t in tags}:
-            tags.append(tag)
+    for t in hashtags or []:
+        t = "#" + t.strip().lstrip("#").replace(" ", "")
+        if len(t) > 1 and t.lower() not in {x.lower() for x in tags}:
+            tags.append(t)
+    if not tag:
+        return [t for t in tags if t.lower() not in DISCLOSURE_TAGS]
     if not any(t.lower() in DISCLOSURE_TAGS for t in tags):
-        tags.append("#aigenerated")
+        tags.append(tag)
     return tags

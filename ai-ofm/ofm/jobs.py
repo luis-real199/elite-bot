@@ -1,9 +1,10 @@
 """The weekly loop: generate → review on Telegram → schedule on Buffer → Fanvue pack → report."""
 
+import json
 import logging
 from datetime import date, datetime, timedelta
 
-from . import chat, health, overlay, planner, qc
+from . import chat, guardrails, health, overlay, planner, qc
 from .buffer import CHANNEL_ENV, BufferError, create_post_mutation, post_input
 from .config import TARGET_LABELS, soften
 from .db import utcnow
@@ -54,6 +55,18 @@ def ref_prompt(cfg, post):
         f"{cfg.generation['consistency_line']} She is an adult {p['age']}-year-old {p['subject']}: {p['appearance']}. "
         f"{post['image_prompt']}. {cfg.style.get('photo', '')}. Vertical {aspect(post)} photo."
     )
+
+
+def apply_disclosure_tag(app):
+    """Posts not yet sent anywhere follow the current persona.disclosure_tag (it may change between plans)."""
+    changed = 0
+    for status in ("planned", "ready", "in_review", "approved"):
+        for post in app.db.posts(status):
+            tags = guardrails.with_disclosure(post["hashtags"], app.cfg.persona["disclosure_tag"])
+            if tags != post["hashtags"]:
+                app.db.update_post(post["id"], hashtags=json.dumps(tags, ensure_ascii=False))
+                changed += 1
+    return changed
 
 
 def _retry_or_fail(app, post, error):

@@ -331,3 +331,19 @@ def test_a_remake_without_a_free_reel_waits_for_the_next_plan(app):
     swipe_id = app.db.add_swipe("mirror outfit check")
     assert planner.remake_next_reel(app, at(app.cfg, *SUNDAY_EVENING), swipe_id) is None
     assert app.db.swipe(swipe_id)["used"] == 0
+
+
+def test_profile_only_disclosure_leaves_hashtags_clean(app):
+    app.cfg.persona["disclosure_tag"] = ""
+    plan(app)
+    assert not any("#aigenerated" in p["hashtags"] for p in app.db.posts("planned"))
+    assert "Do not add any AI tag yourself." in app.claude.requests[0]["system"]
+
+
+def test_turning_the_tag_off_cleans_posts_not_yet_sent(app):
+    plan(app)
+    assert all(p["hashtags"][-1] == "#aigenerated" for p in app.db.posts("planned"))
+    app.cfg.persona["disclosure_tag"] = ""
+    assert jobs.apply_disclosure_tag(app) == 37
+    assert not any("#aigenerated" in p["hashtags"] for p in app.db.posts("planned"))
+    assert jobs.apply_disclosure_tag(app) == 0

@@ -164,6 +164,7 @@ def run(app, clock, poll_seconds=20):
     """Main loop: answer Telegram, then run whatever jobs are due."""
     for post in app.db.posts("generating"):
         app.db.update_post(post["id"], status="planned")  # interrupted by a restart
+    jobs.apply_disclosure_tag(app)
     offset = app.db.kv_get("tg_offset")
     app.notify("🤖 Ξεκίνησα. /help για τις εντολές.", silent=True)
     while True:

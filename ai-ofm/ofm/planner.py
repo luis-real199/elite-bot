@@ -100,7 +100,7 @@ For each slot write:
 - image_prompt: English, 40-80 words: scene, outfit, pose, framing, lighting, camera angle. Write it as a real, unposed photo someone took on a phone (mirror selfie, friend holding the phone, arm's-length selfie, candid mid-action): everyday places with real clutter, natural or ambient light, imperfect framing. Never use words like 8k, render, hyperrealistic, cinematic, studio, flawless, perfect, glowing or airbrushed. Do not describe her face, hair or body and do not use her name.
 - motion_prompt: for video slots, English, {cfg.generation['video_duration']} seconds of natural motion (camera move plus what she does) whose last frame matches the first so the reel loops. For image slots, an empty string.
 - caption: in {p['caption_language']}, in her voice, 1-3 short sentences that fit the platform. For Fanvue items, a short teaser for subscribers.
-- hashtags: 3-8 relevant hashtags. Do not add an AI tag yourself; one is appended automatically.
+- hashtags: 3-8 relevant hashtags. Do not add any AI tag yourself.
 
 Hooks, captions and pinned comments do not mention that she is AI: her bio and the platform's AI label
 handle disclosure. They also never claim or imply that she is a real human.
@@ -174,9 +174,9 @@ def next_start(db, now):
     return start
 
 
-def post_fields(slot, item):
+def post_fields(slot, item, tag="#aigenerated"):
     """The post columns for one planned item, checked by the guardrails."""
-    hashtags = guardrails.with_disclosure(item["hashtags"])
+    hashtags = guardrails.with_disclosure(item["hashtags"], tag)
     motion = item["motion_prompt"] if slot["kind"] == "video" else ""
     social = slot["targets"] != ["fanvue"]
     hook = item.get("hook", "") if social else ""
@@ -212,7 +212,7 @@ def remake_next_reel(app, now, swipe_id, lead=timedelta(hours=6)):
     item = request_plan(app, [slot], remake=swipe["text"]).get(0)
     if not item:
         raise PlanError("Το μοντέλο δεν έδωσε σχέδιο για το reel")
-    fields = post_fields(slot, item)
+    fields = post_fields(slot, item, app.cfg.persona["disclosure_tag"])
     fields["hashtags"] = json.dumps(fields["hashtags"], ensure_ascii=False)
     db.update_post(post["id"], **fields)
     db.mark_swipes_used([swipe_id])
@@ -234,7 +234,7 @@ def plan_ahead(app, now, days=7):
         if not item:
             summary["missing"] += 1
             continue
-        fields = post_fields(slot, item)
+        fields = post_fields(slot, item, cfg.persona["disclosure_tag"])
         db.insert_post(batch=start.isoformat(), slot_at=slot["slot_at"], kind=slot["kind"], targets=slot["targets"], **fields)
         bad = fields["status"] == "blocked"
         summary["blocked" if bad else "created"] += 1
