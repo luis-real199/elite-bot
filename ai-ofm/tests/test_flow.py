@@ -245,14 +245,17 @@ def test_onboarding_flow(app):
                                                                "message": {"message_id": 1}}}, None)
     assert app.db.kv_get("reference_face")["url"].endswith("face5.jpg")
 
+    app.media.ref_fail_next = 1  # the first shot is refused once: it goes again in milder words
     assert onboarding.dataset(app) == len(onboarding.DATASET_SHOTS)
     shots = [c for c in app.media.calls if c[0] == "ref_image"]
+    assert len(shots) == len(onboarding.DATASET_SHOTS) + 1
     assert shots and all(c[2] == [app.db.kv_get("reference_face")["url"]] for c in shots)
     assert shots[0][1].startswith("Keep exactly the same face") and "Her body and look must be exactly this" in shots[0][1]
     assert app.db.spent_last_week() == 0  # setup costs don't eat the weekly content budget
     bot.handle_update(app, {"update_id": 5, "callback_query": {"id": "c", "from": {"id": OWNER}, "data": "d:00.jpg",
                                                                "message": {"message_id": 2}}}, None)
     assert not (app.setup_dir / "dataset" / "00.jpg").exists()
+    assert onboarding.dataset(app) == 1  # running it again only remakes the one that was thrown away
     with pytest.raises(ValueError):
         onboarding.drop_dataset_image(app, "../../ofm.sqlite3")
 
