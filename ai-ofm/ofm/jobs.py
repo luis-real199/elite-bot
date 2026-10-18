@@ -157,7 +157,7 @@ def generate_post(app, post):
         raise SetupNeeded("Δεν υπάρχει ούτε LoRA ούτε references. Κάνε πρώτα /faces, /dataset και /train.")
     kinds = ["ref_image" if post.social_targets and refs else "image"]
     if post["kind"] == "video":
-        kinds.append("video")
+        kinds.append("video_voice" if post["voice"] else "video")
     if cfg.generation["quality_check"]:
         kinds.append("qc")
     app.media.check_budget(*kinds)
@@ -181,7 +181,11 @@ def generate_post(app, post):
             motion = post["motion_prompt"] or "she shifts her weight, fixes her hair and laughs at someone off camera"
             motion += (". Handheld phone footage with small natural shakes, natural light, real skin texture, "
                        "hair and fabric move naturally, normal speed, no slow motion, no smooth cinematic camera.")
-            video_url = app.media.video(image_url, motion, refs)
+            if post["speech"]:
+                motion += (f' She talks to the camera in a casual American voice, lips in sync, and says: "{post["speech"]}"'
+                           " No background music, only her voice and the room.")
+            video_url = app.media.video(image_url, motion, refs, seconds=post["video_seconds"],
+                                        audio=bool(post["voice"]) or None)
             path = download(video_url, app.media_dir / f"{post['id']}.mp4")
             if post["hook"] and post.social_targets and cfg.generation["hook_overlay"]:
                 try:
@@ -236,6 +240,8 @@ def review_caption(post):
         extra += f"\n🪝 {post['hook']}"
     if post["pinned_comment"]:
         extra += f"\n📌 {post['pinned_comment']}"
+    if post["speech"]:
+        extra += f"\n🗣 «{post['speech']}»"
     qc_line = " · ✅ QC" if post["qc"] == "pass" else ""
     return (
         f"#{post['id']} · {when_label(post)} · {ICON[post['kind']]}{qc_line}\n"
@@ -538,7 +544,8 @@ def _proposal_text(title, posts):
         when = "vault" if post["targets"] == ["fanvue"] else f"{post['slot_at']:%H:%M}"
         targets = ", ".join(TARGET_LABELS[t] for t in post["targets"])
         hook = f" · 🪝 {post['hook']}" if post["hook"] else ""
-        lines.append(f"{n}. {ICON[post['kind']]} {when} {targets}\n    {post['idea']}{hook}")
+        voice = f" · 🗣 {post['video_seconds']}″" if post["voice"] else ""
+        lines.append(f"{n}. {ICON[post['kind']]} {when} {targets}{voice}\n    {post['idea']}{hook}")
     return "\n".join(lines)
 
 

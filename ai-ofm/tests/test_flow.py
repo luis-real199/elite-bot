@@ -459,3 +459,50 @@ def test_camera_and_motion_rules_in_the_plan(app):
     system = app.claude.requests[0]["system"]
     assert "at most one in four is a mirror selfie" in system and "her hands are free" in system
     assert "Never slow robotic turns" in system
+
+
+def test_a_voice_slot_becomes_a_spoken_skit(app, tmp_path):
+    import yaml
+
+    from ofm.config import ConfigError, load_config
+
+    from conftest import OWNER as owner_id
+
+    raw = yaml.safe_load((app.cfg.path if hasattr(app.cfg, "path") else __import__("conftest").ROOT / "persona.example.yaml").read_text(encoding="utf-8"))
+    raw["schedule"]["slots"][1]["video"] = {"seconds": 15, "voice": True}
+    path = tmp_path / "persona.yaml"
+    path.write_text(yaml.safe_dump(raw, allow_unicode=True), encoding="utf-8")
+    cfg = load_config(path, env={"TELEGRAM_OWNER_ID": str(owner_id), "OFM_DATA_DIR": str(tmp_path / "data")})
+    assert cfg.slots[1].video == {"seconds": 15, "voice": True} and cfg.slots[0].video is None
+    raw["schedule"]["slots"][0]["video"] = {"seconds": 15}
+    path.write_text(yaml.safe_dump(raw, allow_unicode=True), encoding="utf-8")
+    with pytest.raises(ConfigError, match="kind: video"):
+        load_config(path, env={})
+
+    app.cfg.slots[1].video = {"seconds": 15, "voice": True}
+
+    def items(n):
+        out = __import__("conftest").default_items(n)
+        for item in out:
+            item["speech"] = "babe I said I'm not hungry, why are you eating my fries"
+        return out
+
+    app._claude = FakeClaude(items)
+    plan(app)
+    sent = app.claude.requests[0]["messages"][0]["content"]
+    assert '"video": {"seconds": 15, "voice": true}' in sent
+    assert "speech: only for slots with" in app.claude.requests[0]["system"]
+    reel = next(p for p in app.db.posts("planned") if p["kind"] == "video")
+    story = next(p for p in app.db.posts("planned") if p["kind"] == "image" and p.social_targets)
+    assert reel["voice"] == 1 and reel["video_seconds"] == 15 and reel["speech"].startswith("babe I said")
+    assert story["voice"] == 0 and story["speech"] == ""  # speech is kept only where she speaks
+
+    app.db.kv_set("reference_urls", ["https://fal.media/ref1.jpg"])
+    before = app.db.spent_last_week()
+    jobs.generate_post(app, reel)
+    assert app.media.videos == [{"seconds": 15, "audio": True}]
+    motion = next(c[1] for c in app.media.calls if c[0] == "video")
+    assert 'says: "babe I said' in motion and "lips in sync" in motion
+    assert app.db.spent_last_week() - before == pytest.approx(0.15 + 0.68 * 15 / 8 * 1.5 + 0.02, abs=0.01)
+    jobs.send_reviews(app)
+    assert any("🗣 «babe I said" in m["caption"] for m in app.tg.media)

@@ -62,6 +62,7 @@ class FakeMedia:
         self.calls = []
         self.sizes, self.aspects = [], []
         self.locked = False  # fal refuses everything: balance exhausted
+        self.videos = []
         self.flag_next = 0
         self.fail_next = 0
         self.ref_fail_next = 0
@@ -110,9 +111,10 @@ class FakeMedia:
         self.calls.append(("edit", prompt, image_url))
         return f"https://fal.media/edit{len(self.calls)}.jpg"
 
-    def video(self, image_url, motion_prompt, reference_urls=()):
+    def video(self, image_url, motion_prompt, reference_urls=(), seconds=None, audio=None):
         self.calls.append(("video", motion_prompt, image_url, list(reference_urls)))
-        self.db.add_cost("video", self.cfg.estimates["video"])
+        self.videos.append({"seconds": seconds, "audio": audio})
+        self.db.add_cost("video", self.cfg.estimates["video"] * (seconds or 8) / 8 * (1.5 if audio else 1))
         return f"https://fal.media/vid{len(self.calls)}.mp4"
 
     def upload(self, path, keep=False, expires_in=None):
@@ -273,6 +275,7 @@ def default_items(n):
             "hook": "Rate my fit 1-10",
             "pinned_comment": "lowest score picks next week's outfit",
             "mechanic": "rating",
+            "speech": "",
         }
         for i in range(n)
     ]

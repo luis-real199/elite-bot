@@ -97,6 +97,9 @@ POST_COLUMNS_ADDED = [
     ("auto_approved", "INTEGER NOT NULL DEFAULT 0"),
     ("alt_caption", "TEXT"),
     ("extra_media", "TEXT"),  # carousel: JSON list of {"path", "url", "public_url"} beyond the first image
+    ("video_seconds", "INTEGER"),
+    ("voice", "INTEGER"),
+    ("speech", "TEXT"),  # what she says in a voice reel
 ]
 
 

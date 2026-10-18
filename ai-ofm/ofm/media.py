@@ -112,20 +112,24 @@ class Media:
             raise GenerationError(f"Καμία εικόνα στην απάντηση: {result}")
         return images[0]["url"]
 
-    def video(self, image_url, motion_prompt, reference_urls=()):
+    def video(self, image_url, motion_prompt, reference_urls=(), seconds=None, audio=None):
         gen = self.cfg.generation
-        arguments = {"prompt": motion_prompt, "duration": str(gen["video_duration"])}
+        seconds = int(seconds or gen["video_duration"])
+        audio = bool(gen["video_audio"]) if audio is None else bool(audio)
+        arguments = {"prompt": motion_prompt, "duration": str(seconds)}
         if "/v3/" in self.cfg.models["video"] or "/o3/" in self.cfg.models["video"]:
             # Kling 3.0: start frame plus an "element" built from the persona's references keeps the face
             arguments["start_image_url"] = image_url
-            arguments["generate_audio"] = bool(gen["video_audio"])
+            arguments["generate_audio"] = audio
             refs = list(reference_urls)
             if refs:
                 arguments["elements"] = [{"frontal_image_url": refs[0], "reference_image_urls": refs[1:4] or refs[:1]}]
         else:
             arguments["image_url"] = image_url
         result = self._call("video", arguments, VIDEO_TIMEOUT)
-        self._charge("video", motion_prompt[:80])
+        # the estimate is for 8 s without audio; Kling bills per second, audio about 1.5x
+        usd = self.cfg.estimates["video"] * seconds / 8 * (1.5 if audio else 1)
+        self.db.add_cost("video", usd, motion_prompt[:80])
         url = (result.get("video") or {}).get("url")
         if not url:
             raise GenerationError(f"Κανένα βίντεο στην απάντηση: {result}")

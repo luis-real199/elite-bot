@@ -40,9 +40,10 @@ ITEM_SCHEMA = {
                     "alt_caption": {"type": "string"},
                     "pinned_comment": {"type": "string"},
                     "mechanic": {"type": "string", "enum": MECHANICS},
+                    "speech": {"type": "string"},
                 },
                 "required": ["slot", "idea", "image_prompt", "motion_prompt", "caption", "hashtags",
-                             "hook", "pinned_comment", "mechanic", "alt_caption"],
+                             "hook", "pinned_comment", "mechanic", "alt_caption", "speech"],
                 "additionalProperties": False,
             },
         }
@@ -62,7 +63,8 @@ def build_slots(cfg, start, days=7):
         day = start + timedelta(days=offset)
         for s in cfg.slots:
             if day.weekday() in s.days:
-                slots.append({"slot_at": datetime.combine(day, s.time, cfg.tz), "kind": s.kind, "targets": s.targets})
+                slots.append({"slot_at": datetime.combine(day, s.time, cfg.tz), "kind": s.kind, "targets": s.targets,
+                              "video": s.video})
     slots.sort(key=lambda s: s["slot_at"])
     vault_at = datetime.combine(start, time(9, 0), cfg.tz)
     slots += [{"slot_at": vault_at, "kind": "image", "targets": ["fanvue"]} for _ in range(cfg.fanvue_per_week)]
@@ -98,7 +100,8 @@ Hard rules:
 For each slot write:
 - idea: one short sentence in {p['owner_language']} so the owner can approve it at a glance.
 - image_prompt: English, 40-80 words: scene, outfit, pose, framing, lighting, camera angle. Write it as a real, unposed photo someone took on a phone: everyday places with real clutter, natural or ambient light, imperfect framing. Vary who holds the camera across the week: mostly a friend or her boyfriend taking the photo, the phone propped on a table or tripod, or a candid mid-action shot; at most one in four is a mirror selfie, and only then is a phone in the picture. Otherwise her hands are free and busy (coffee, bag, hair, steering wheel, railing). Never use words like 8k, render, hyperrealistic, cinematic, studio, flawless, perfect, glowing or airbrushed. Do not describe her face, hair or body and do not use her name.
-- motion_prompt: for video slots, English, {cfg.generation['video_duration']} seconds of how a real person moves: she does one clear thing (walks in, turns to talk, laughs, fixes her hair, picks something up), with natural weight shifts and hair movement, handheld phone camera with small shakes. Never slow robotic turns, never a slow cinematic push-in, never posing still. The last frame should match the first so the reel loops. For image slots, an empty string.
+- motion_prompt: for video slots, English, {cfg.generation['video_duration']} seconds of how a real person moves: she does one clear thing (walks in, turns to talk, laughs, fixes her hair, picks something up), with natural weight shifts and hair movement, handheld phone camera with small shakes. Never slow robotic turns, never a slow cinematic push-in, never posing still. The last frame should match the first so the reel loops. For image slots, an empty string. A slot marked "video": {{"voice": true}} is a spoken skit of that many seconds: the motion_prompt describes her acting the scene (where she is, who she talks to, one gesture), and the hook is the meme caption on screen.
+- speech: only for slots with "voice": true: the exact line she says to camera, English, 10-25 words, casual spoken American, the punchline of the skit, no stage directions. For every other slot, an empty string.
 - caption: in {p['caption_language']}, in her voice, 1-3 short sentences that fit the platform. For Fanvue items, a short teaser for subscribers.
 - hashtags: {"3-8 relevant hashtags. Do not add any AI tag yourself." if p["hashtags"] else "always an empty list: she never uses hashtags, not in captions either."}
 
@@ -114,7 +117,10 @@ def user_prompt(indexed_slots, recent_ideas, fan_requests=(), swipes=(), remake=
     lines = []
     for i, s in indexed_slots:
         when = "vault" if s["targets"] == ["fanvue"] else s["slot_at"].strftime("%a %d %b %H:%M")
-        lines.append({"slot": i, "when": when, "kind": s["kind"], "targets": s["targets"]})
+        line = {"slot": i, "when": when, "kind": s["kind"], "targets": s["targets"]}
+        if s.get("video"):
+            line["video"] = {"seconds": s["video"]["seconds"], "voice": s["video"]["voice"]}
+        lines.append(line)
     return (
         f"Plan these {len(lines)} slots:\n{json.dumps(lines)}\n\n"
         f"Recent ideas, don't repeat them:\n{_bullets(recent_ideas)}\n\n"
@@ -184,8 +190,13 @@ def post_fields(slot, item, tag="#aigenerated", use_hashtags=True):
     social = slot["targets"] != ["fanvue"]
     hook = item.get("hook", "") if social else ""
     pinned = item.get("pinned_comment", "") if social else ""
-    bad = guardrails.violations(item["idea"], item["image_prompt"], motion, item["caption"], " ".join(hashtags), hook, pinned)
+    video = slot.get("video") or {}
+    speech = (item.get("speech") or "") if video.get("voice") else ""
+    bad = guardrails.violations(item["idea"], item["image_prompt"], motion, item["caption"], " ".join(hashtags), hook, pinned, speech)
     return {
+        "video_seconds": video.get("seconds"),
+        "voice": 1 if video.get("voice") else 0,
+        "speech": speech,
         "idea": item["idea"],
         "image_prompt": item["image_prompt"],
         "motion_prompt": motion,
@@ -211,7 +222,8 @@ def remake_next_reel(app, now, swipe_id, lead=timedelta(hours=6)):
     if not reels:
         return None
     post = min(reels, key=lambda p: p["slot_at"])
-    slot = {"slot_at": post["slot_at"], "kind": "video", "targets": post["targets"]}
+    slot = {"slot_at": post["slot_at"], "kind": "video", "targets": post["targets"],
+            "video": {"seconds": post["video_seconds"], "voice": bool(post["voice"])} if post["video_seconds"] else None}
     item = request_plan(app, [slot], remake=swipe["text"]).get(0)
     if not item:
         raise PlanError("Το μοντέλο δεν έδωσε σχέδιο για το reel")

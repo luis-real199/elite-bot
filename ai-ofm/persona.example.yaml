@@ -44,6 +44,7 @@ schedule:
   slots:
     - {time: "08:00", kind: image, targets: [instagram_story, x]}
     - {time: "19:00", kind: video, targets: [instagram_reel, instagram_backup, tiktok, youtube_short]}
+    # Για reel που μιλάει (skit 15″, ~$2 αντί ~$0,8): πρόσθεσε  video: {seconds: 15, voice: true}
     - {time: "12:30", kind: image, targets: [instagram_feed], days: [tue, thu, sat]}
   fanvue_per_week: 20            # εικόνες για το vault/PPV του Fanvue (τις ανεβάζεις εσύ)
   plan: {day: sun, time: "18:00"}         # πότε φτιάχνεται το πλάνο της επόμενης εβδομάδας
@@ -72,6 +73,7 @@ budget:
     face: 0.15                   # Nano Banana Pro, /faces
     edit: 0.04
     video: 0.68                  # Kling 3.0, 8 δευτερόλεπτα χωρίς ήχο (με ήχο ~1.01)
+    video_voice: 1.9             # Kling 3.0, 15 δευτερόλεπτα με φωνή (skit)
     qc: 0.02                     # έλεγχος εικόνας από το Claude
     training: 3.00
 

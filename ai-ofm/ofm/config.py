@@ -71,6 +71,7 @@ class Slot:
     kind: str
     targets: list
     days: list
+    video: dict = None  # {"seconds": 15, "voice": True}; None = generation defaults
 
 
 @dataclass
@@ -150,7 +151,15 @@ def _slots(raw):
         if kind == "image" and set(targets) & VIDEO_TARGETS:
             raise ConfigError(f"{where}: τα {sorted(set(targets) & VIDEO_TARGETS)} θέλουν kind: video")
         days = [_day(d, where) for d in item.get("days") or DAYS]
-        slots.append(Slot(_time(item.get("time"), where), kind, list(targets), days))
+        video = item.get("video")
+        if video is not None:
+            if kind != "video" or not isinstance(video, dict):
+                raise ConfigError(f"{where}: το video: {{seconds, voice}} πάει μόνο σε slots με kind: video")
+            seconds = int(video.get("seconds", 8))
+            if not 3 <= seconds <= 15:
+                raise ConfigError(f"{where}: video.seconds από 3 έως 15")
+            video = {"seconds": seconds, "voice": bool(video.get("voice", False))}
+        slots.append(Slot(_time(item.get("time"), where), kind, list(targets), days, video))
     return slots
 
 
@@ -227,7 +236,8 @@ def load_config(path=None, env=None):
         fanvue_pack_at=_moment(schedule.get("fanvue_pack") or {"day": "mon", "time": "09:00"}, "schedule.fanvue_pack"),
         publish_ahead_hours=int(schedule.get("publish_ahead_hours", 36)),
         weekly_budget=float(budget.get("weekly_usd", 15)),
-        estimates={"image": 0.07, "ref_image": 0.15, "face": 0.15, "edit": 0.04, "video": 0.68, "qc": 0.02, "training": 3.0,
+        estimates={"image": 0.07, "ref_image": 0.15, "face": 0.15, "edit": 0.04, "video": 0.68, "video_voice": 1.9,
+                   "qc": 0.02, "training": 3.0,
                    **(budget.get("estimates_usd") or {})},
         generation=generation,
         models={**DEFAULT_MODELS, **(raw.get("models") or {})},
