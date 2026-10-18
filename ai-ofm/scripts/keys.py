@@ -1,10 +1,11 @@
 """Put the API keys into the right .env files, without an editor (standard library only).
 
-    python3 scripts/keys.py sienna
+    python3 scripts/keys.py sienna          # asks only for what is missing or looks wrong
+    python3 scripts/keys.py sienna --all    # asks for every key again (to replace them)
 
-Asks for each key (hidden while you paste; Enter keeps the current one), writes the shared keys
-to .env and the bot token to personas/sienna/.env, then finds your Telegram ID by itself
-once you have sent "hi" to the bot.
+Asks for each key (hidden while you paste), writes the shared keys to .env and the bot token
+to personas/sienna/.env, then finds your Telegram ID by itself once you have sent "hi" to the bot.
+A bot token pasted into TELEGRAM_OWNER_ID by mistake is moved to where it belongs.
 """
 
 import getpass
@@ -69,10 +70,12 @@ def telegram_ids(token):
     return seen
 
 
-def ask_keys(current, ask, say):
+def ask_keys(current, ask, say, everything=False):
     updates = {"shared": {}, "persona": {}}
     for key, where, label, pattern, optional in KEYS:
         have = current[where].get(key, "")
+        if not everything and (re.fullmatch(pattern, have) or (optional and not have)):
+            continue
         state = "✅ υπάρχει, Enter για να μείνει" if have else "κενό"
         while True:
             value = ask(f"{label} [{state}]: ").strip()
@@ -115,16 +118,24 @@ def find_owner(token, ask, say, fetch):
 
 
 def main(argv, ask=getpass.getpass, say=print, fetch=telegram_ids):
-    if len(argv) != 1 or not (PERSONAS / argv[0] / "persona.yaml").exists():
+    everything = "--all" in argv
+    names = [a for a in argv if a != "--all"]
+    if len(names) != 1 or not (PERSONAS / names[0] / "persona.yaml").exists():
         sys.exit("Χρήση: python3 scripts/keys.py sienna  (πρώτα: python3 scripts/new_persona.py sienna)")
-    slug = argv[0]
+    slug = names[0]
     files = {"shared": ROOT / ".env", "persona": PERSONAS / slug / ".env"}
     if not files["shared"].exists():
         shutil.copy(ROOT / ".env.example", files["shared"])
     current = {where: read_env(path) for where, path in files.items()}
+    moved = {}
+    misplaced = current["shared"].get("TELEGRAM_OWNER_ID", "")
+    if re.fullmatch(KEYS[2][3], misplaced) and not current["persona"].get("TELEGRAM_BOT_TOKEN"):
+        current["persona"]["TELEGRAM_BOT_TOKEN"] = moved["TELEGRAM_BOT_TOKEN"] = misplaced
+        say("✅ Το token του bot ήταν στο TELEGRAM_OWNER_ID. Το έβαλα στη σωστή θέση.")
 
     say("Επικόλλησε κάθε κλειδί με Cmd+V και πάτα Enter. Δεν φαίνεται όσο το επικολλάς, είναι κανονικό.\n")
-    updates = ask_keys(current, ask, say)
+    updates = ask_keys(current, ask, say, everything)
+    updates["persona"] = {**moved, **updates["persona"]}
 
     owner = current["shared"].get("TELEGRAM_OWNER_ID", "")
     if not owner.isdigit():  # empty, or something else pasted there by mistake
