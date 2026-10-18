@@ -42,7 +42,7 @@ def ref_prompt(cfg, post):
     """Prompt for the reference-image model: the locked references carry the identity."""
     p = cfg.persona
     return (
-        f"{cfg.generation['consistency_line']} She is an adult {p['age']}-year-old {p['subject']}. "
+        f"{cfg.generation['consistency_line']} She is an adult {p['age']}-year-old {p['subject']}: {p['appearance']}. "
         f"{post['image_prompt']}. {cfg.style.get('photo', '')}. Vertical 9:16 photo."
     )
 

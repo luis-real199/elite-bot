@@ -69,7 +69,7 @@ def faces(app, n=6):
     for i in range(n):
         variant = FACE_VARIANTS[(start + i) % len(FACE_VARIANTS)]
         prompt = (f"Casual selfie of {_subject(cfg)[len('photo of '):]}, clearly a grown woman, {variant}. "
-                  "Taken with an iPhone front camera at arm's length at home by a window, head and shoulders, "
+                  "Taken with an iPhone front camera at arm's length at home by a window, chest-up selfie in a fitted top, "
                   f"looking at the camera, everyday makeup. {cfg.style.get('photo', '')}")
         try:
             url, flagged = app.media.face(prompt)
@@ -107,8 +107,8 @@ def dataset(app, n=len(DATASET_SHOTS)):
     style = cfg.style.get("photo", "")
     made = 0
     for i, shot in enumerate(DATASET_SHOTS[:n]):
-        prompt = (f"{cfg.generation['consistency_line']} She is an adult {cfg.persona['age']}-year-old woman. "
-                  f"{shot}. {style}")
+        prompt = (f"{cfg.generation['consistency_line']} She is an adult {cfg.persona['age']}-year-old woman: "
+                  f"{cfg.persona['appearance']}. {shot}. {style}")
         try:
             url = app.media.ref_image(prompt, [ref["url"]], setup=True)
         except GenerationError as e:
