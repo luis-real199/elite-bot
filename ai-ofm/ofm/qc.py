@@ -22,6 +22,7 @@ Fail the new photo if any of these is true:
 - it is not clearly the same person as the reference (face shape, eyes, hair colour)
 - she does not look clearly adult (21+), or anything in the scene suggests youth or school
 - visible defects: extra or merged fingers, warped hands, distorted face or eyes, broken limbs, melted objects
+- it looks AI-generated instead of a real phone photo: plastic or waxy skin with no pores, airbrushed or glowing look, over-perfect symmetry, painterly background, impossible lighting
 - readable text, watermarks, brand logos, or other people's faces in focus
 
 Small lighting or style differences are fine. Keep reason to one short sentence."""

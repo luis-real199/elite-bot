@@ -97,7 +97,7 @@ Hard rules:
 
 For each slot write:
 - idea: one short sentence in {p['owner_language']} so the owner can approve it at a glance.
-- image_prompt: English, 40-80 words: scene, outfit, pose, framing, lighting, camera angle. Do not describe her face, hair or body and do not use her name.
+- image_prompt: English, 40-80 words: scene, outfit, pose, framing, lighting, camera angle. Write it as a real, unposed photo someone took on a phone (mirror selfie, friend holding the phone, arm's-length selfie, candid mid-action): everyday places with real clutter, natural or ambient light, imperfect framing. Never use words like 8k, render, hyperrealistic, cinematic, studio, flawless, perfect, glowing or airbrushed. Do not describe her face, hair or body and do not use her name.
 - motion_prompt: for video slots, English, {cfg.generation['video_duration']} seconds of natural motion (camera move plus what she does) whose last frame matches the first so the reel loops. For image slots, an empty string.
 - caption: in {p['caption_language']}, in her voice, 1-3 short sentences that fit the platform. For Fanvue items, a short teaser for subscribers.
 - hashtags: 3-8 relevant hashtags. Do not add an AI tag yourself; one is appended automatically.
