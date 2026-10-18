@@ -36,6 +36,10 @@ class LLMRefusal(LLMError):
     """The model declined; callers decide what that means (escalate, fail QC, stop the plan)."""
 
 
+class LLMBadOutput(LLMError):
+    """The model answered, but not with usable JSON (invalid or cut off). Asking for less usually works."""
+
+
 def settings(cfg):
     """The resolved provider settings for this persona."""
     raw = cfg.models.get("llm") or {}
@@ -49,7 +53,7 @@ def settings(cfg):
         "key_env": preset.get("key_env"),
         "model": raw.get("model") or preset.get("model") or cfg.models["claude"],
         "vision_model": raw.get("vision_model") or preset.get("vision_model") or raw.get("model") or preset.get("model"),
-        "plan_chunk": int(raw.get("plan_chunk") or 6),
+        "plan_chunk": int(raw.get("plan_chunk") or 5),
         "usd_per_mtok": raw.get("usd_per_mtok") or {"input": 0.0, "output": 0.0},
     }
 
@@ -96,12 +100,12 @@ def _ask_claude(app, system, content, schema, kind, effort, max_tokens, cached_s
     if response.stop_reason == "refusal":
         raise LLMRefusal("Το Claude αρνήθηκε")
     if response.stop_reason == "max_tokens":
-        raise LLMError("Η απάντηση κόπηκε (max_tokens)")
+        raise LLMBadOutput("Η απάντηση κόπηκε (max_tokens)")
     text = next((b.text for b in response.content if b.type == "text"), "")
     try:
         return json.loads(text)
     except ValueError as e:
-        raise LLMError(f"Μη έγκυρο JSON από το Claude: {e}")
+        raise LLMBadOutput(f"Μη έγκυρο JSON από το Claude: {e}")
 
 
 # ---------- Groq / Gemini (OpenAI-compatible) ----------
@@ -130,6 +134,15 @@ def _parse_json(text):
     return json.loads(text[start:end + 1])
 
 
+def _error(r):
+    """(code, message) from an OpenAI-style error body, without echoing the whole response."""
+    try:
+        err = r.json().get("error") or {}
+        return err.get("code") or "", (err.get("message") or "")[:200]
+    except (ValueError, AttributeError, TypeError):
+        return "", (getattr(r, "text", "") or "")[:200]
+
+
 def _post(app, url, key, body, attempts=3):
     for attempt in range(attempts):
         try:
@@ -144,7 +157,10 @@ def _post(app, url, key, body, attempts=3):
             app.sleep(min(wait, 60))
             continue
         if r.status_code >= 300:
-            raise LLMError(f"HTTP {r.status_code}: {r.text[:300]}")
+            code, message = _error(r)
+            if code == "json_validate_failed":  # Groq checked the output and it was not valid JSON
+                raise LLMBadOutput("το μοντέλο έβγαλε άκυρο JSON")
+            raise LLMError(f"HTTP {r.status_code} {code}: {message}".replace("  ", " "))
         return r.json()
     raise LLMError("Όριο αιτημάτων του δωρεάν API (429). Ξαναδοκιμάζει αργότερα.")
 
@@ -172,7 +188,13 @@ def _ask_openai_compatible(app, s, system, content, schema, kind, cached_system)
         body["reasoning_effort"] = "low"
     url = s["base_url"].rstrip("/") + "/chat/completions"
     for attempt in range(2):
-        result = _post(app, url, key, body)
+        try:
+            result = _post(app, url, key, body)
+        except LLMBadOutput:
+            if attempt:
+                raise
+            body["temperature"] = min(body["temperature"], 0.5)  # a calmer second try usually validates
+            continue
         usage = result.get("usage") or {}
         price = s["usd_per_mtok"]
         app.db.add_cost(kind, (usage.get("prompt_tokens", 0) * price["input"]
@@ -180,6 +202,8 @@ def _ask_openai_compatible(app, s, system, content, schema, kind, cached_system)
         choice = (result.get("choices") or [{}])[0]
         if choice.get("finish_reason") == "content_filter":
             raise LLMRefusal("Το μοντέλο αρνήθηκε (content filter)")
+        if choice.get("finish_reason") == "length":
+            raise LLMBadOutput("Η απάντηση κόπηκε (max_completion_tokens)")
         try:
             data = _parse_json((choice.get("message") or {}).get("content"))
         except ValueError:
@@ -187,4 +211,4 @@ def _ask_openai_compatible(app, s, system, content, schema, kind, cached_system)
         if isinstance(data, dict) and all(k in data for k in schema.get("required", [])):
             return data
         body["messages"] = messages + [{"role": "user", "content": "That was not valid JSON for the schema. Reply with the JSON object only."}]
-    raise LLMError("Το μοντέλο δεν έδωσε έγκυρο JSON")
+    raise LLMBadOutput("Το μοντέλο δεν έδωσε έγκυρο JSON")

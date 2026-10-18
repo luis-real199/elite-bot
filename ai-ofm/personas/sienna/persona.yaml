@@ -90,7 +90,7 @@ models:
     provider: groq               # groq (δωρεάν) · gemini (δωρεάν, αλλά η Google κρατάει τα δεδομένα) · claude (πληρωμένο, καλύτερο)
     model: ""                    # κενό = η προεπιλογή του provider
     vision_model: ""             # για τον έλεγχο εικόνων· κενό = προεπιλογή
-    plan_chunk: 10               # τα δωρεάν APIs παίρνουν το πλάνο σε κομμάτια για να χωράει στα όριά τους
+    plan_chunk: 5                # τα δωρεάν APIs παίρνουν το πλάνο σε κομμάτια για να χωράει στα όριά τους
   claude: "claude-opus-5-5"
   claude_usd_per_mtok: {input: 4.0, output: 20.0}
   image: "fal-ai/flux-lora"                        # LoRA: Fanvue και ό,τι μπλοκάρει το Nano Banana

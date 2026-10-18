@@ -125,14 +125,16 @@ def user_prompt(indexed_slots, recent_ideas, fan_requests=(), swipes=()):
 
 
 def request_plan(app, slots, fan_requests=(), swipes=()):
-    """Claude plans the whole week in one call; free APIs get it in chunks that fit their per-minute limits."""
+    """Claude plans the whole week in one call; free APIs get it in chunks that fit their per-minute limits.
+    A chunk the model cannot answer with valid JSON is split in half; a single slot that still fails is left out."""
     cfg, db = app.cfg, app.db
     s = llm.settings(cfg)
     indexed = list(enumerate(slots))
     size = len(indexed) if s["provider"] == "claude" else s["plan_chunk"]
-    items = {}
-    for start in range(0, len(indexed), size):
-        chunk = indexed[start:start + size]
+    pending = [indexed[i:i + size] for i in range(0, len(indexed), size)]
+    items, last_error = {}, None
+    while pending:
+        chunk = pending.pop(0)
         try:
             data = llm.ask_json(
                 app, system=system_prompt(cfg), schema=ITEM_SCHEMA, kind="claude", effort="medium",
@@ -141,12 +143,20 @@ def request_plan(app, slots, fan_requests=(), swipes=()):
             )
         except llm.LLMRefusal:
             raise PlanError("Το μοντέλο αρνήθηκε το πλάνο. Έλεγξε τα κείμενα στο persona.yaml.")
+        except llm.LLMBadOutput as e:
+            last_error = e
+            if len(chunk) > 1:
+                half = len(chunk) // 2
+                pending[:0] = [chunk[:half], chunk[half:]]
+            continue
         except llm.LLMError as e:
             raise PlanError(f"Το πλάνο απέτυχε: {e}")
         wanted = {i for i, _ in chunk}
         for item in data.get("items") or []:
             if isinstance(item, dict) and item.get("slot") in wanted:
                 items[item["slot"]] = item
+    if not items and last_error:
+        raise PlanError(f"Το πλάνο απέτυχε: {last_error}")
     return items
 
 

@@ -235,9 +235,15 @@ def test_onboarding_flow(app):
     app.db.kv_set("lora_url", None)
     onboarding.faces(app, n=3)
     assert len(app.tg.media) == 3
+    prompts = [c[1] for c in app.media.calls if c[0] == "image"]
+    assert len(set(prompts)) == 3 and all("adult" in p for p in prompts)
+    onboarding.faces(app, n=3)  # asking again shows different faces, not the same three
+    again = [c[1] for c in app.media.calls if c[0] == "image"][3:]
+    assert not set(again) & set(prompts)
+    app.tg.media.clear()
     bot.handle_update(app, {"update_id": 4, "callback_query": {"id": "c", "from": {"id": OWNER}, "data": "f:1",
                                                                "message": {"message_id": 1}}}, None)
-    assert app.db.kv_get("reference_face")["url"].endswith("img2.jpg")
+    assert app.db.kv_get("reference_face")["url"].endswith("img5.jpg")
 
     assert onboarding.dataset(app) == len(onboarding.DATASET_SHOTS)
     bot.handle_update(app, {"update_id": 5, "callback_query": {"id": "c", "from": {"id": OWNER}, "data": "d:00.jpg",

@@ -35,6 +35,21 @@ DATASET_SHOTS = [
     "swimsuit by a hotel pool, sunny day",
 ]
 
+# Image models drift to one "default pretty face" when the prompt is the same, so every candidate
+# gets its own facial structure; the persona's hair, eyes and skin still come from persona.yaml.
+FACE_VARIANTS = [
+    "oval face, high cheekbones, thin straight nose, full lips, light freckles across the nose",
+    "heart-shaped face, soft round cheeks, small upturned nose, thick straight eyebrows, dimples",
+    "square jawline, strong brows, wide smile, slightly crooked nose",
+    "round face, wide-set almond eyes, plump lips, a small beauty mark above the lip",
+    "long narrow face, defined chin, arched eyebrows, thin lips, slightly hooded eyes",
+    "diamond-shaped face, sharp cheekbones, Roman nose, natural thick brows, small gap between front teeth",
+    "soft features, freckles all over the face, small chin, big round eyes",
+    "angular features, cat-eye shape, straight dark brows, defined jaw, narrow nose",
+    "wide face, full cheeks, button nose, heavy-lidded eyes, broad smile",
+    "delicate features, pointed chin, thin arched brows, small mouth, close-set eyes",
+]
+
 DATASET_NAME = re.compile(r"^\d{2}\.jpg$")
 MIN_DATASET = 12
 MAX_REFERENCES = 10
@@ -48,9 +63,13 @@ def _subject(cfg):
 def faces(app, n=6):
     """Generate candidate faces (no LoRA yet) and offer them on Telegram."""
     cfg = app.cfg
-    prompt = f"{_subject(cfg)}, head and shoulders portrait, looking at the camera, plain light background, {cfg.style.get('photo', '')}"
+    start = app.db.kv_get("face_round") or 0  # each /faces continues through the list, so a retry shows new faces
+    app.db.kv_set("face_round", start + n)
     candidates = []
-    for _ in range(n):
+    for i in range(n):
+        variant = FACE_VARIANTS[(start + i) % len(FACE_VARIANTS)]
+        prompt = (f"{_subject(cfg)}, {variant}, natural skin texture, distinctive real face, head and shoulders "
+                  f"portrait, looking at the camera, plain light background, {cfg.style.get('photo', '')}")
         url, flagged = app.media.image(prompt, safety=True, setup=True)
         if flagged:
             continue

@@ -61,7 +61,7 @@ def test_plan_is_sent_in_chunks_to_the_free_api(free):
     summary = planner.plan_ahead(free, datetime(2026, 10, 18, 18, 5, tzinfo=free.cfg.tz))
     assert summary["created"] == 37 and summary["missing"] == 0
     reqs = free.llm_http.requests
-    assert len(reqs) == 7  # 37 slots in chunks of 6, to stay under the free 8K tokens/minute
+    assert len(reqs) == 8  # 37 slots in chunks of 5, to stay under the free 8K tokens/minute
     first = reqs[0]
     assert first["url"] == "https://api.groq.com/openai/v1/chat/completions"
     assert first["headers"] == {"Authorization": "Bearer gsk_test"}
@@ -133,3 +133,41 @@ def test_health_check_warns_when_a_free_model_is_retired(free):
     free.llm_http = Models()
     problems = health.health_check(free)
     assert problems == ["groq: το μοντέλο qwen/qwen3.8-27b δεν υπάρχει πια. Άλλαξέ το στο persona.yaml (models.llm)."]
+
+
+def json_validate_failed():
+    err = {"error": {"message": "Failed to generate JSON. Please adjust your prompt.", "type": "invalid_request_error",
+                     "code": "json_validate_failed", "failed_generation": '{"items": [{"slot": 0'}}
+    return SimpleNamespace(status_code=400, headers={}, text=json.dumps(err), json=lambda: err)
+
+
+def test_groq_json_failure_is_retried_calmer(free):
+    free.llm_http.replies = [json_validate_failed()]
+    passed, _ = qc.check_image(free, "https://fal.media/new.jpg", "https://fal.media/ref.jpg")
+    assert passed is True
+    first, second = (r["body"] for r in free.llm_http.requests)
+    assert first is second and second["temperature"] <= 0.5
+
+
+def test_a_chunk_that_keeps_failing_is_split_instead_of_losing_the_week(free):
+    free.llm_http.replies = [json_validate_failed(), json_validate_failed()]
+    summary = planner.plan_ahead(free, datetime(2026, 10, 18, 18, 5, tzinfo=free.cfg.tz))
+    assert summary["created"] == 37 and summary["missing"] == 0
+    sizes = [len(json.loads(r["body"]["messages"][1]["content"].split("\n")[1])) for r in free.llm_http.requests]
+    assert sizes[:4] == [5, 5, 2, 3]  # the failed chunk of 5 went again as 2 + 3
+
+
+def test_cut_off_answer_is_split_and_a_hopeless_slot_is_left_out(free):
+    cut = {"choices": [{"message": {"content": '{"items": [{"slot": 0'}, "finish_reason": "length"}]}
+    free.llm_http.replies = [cut, cut, json_validate_failed(), json_validate_failed()]
+    summary = planner.plan_ahead(free, datetime(2026, 10, 18, 18, 5, tzinfo=free.cfg.tz))
+    # 5 is cut off -> 2 + 3; the 2 is cut off -> 1 + 1; that first 1 fails twice and is left out
+    assert summary["created"] == 36 and summary["missing"] == 1
+
+
+def test_other_errors_stop_the_plan_with_a_short_message(free):
+    err = {"error": {"message": "Invalid API Key", "type": "invalid_request_error", "code": "invalid_api_key"}}
+    free.llm_http.replies = [SimpleNamespace(status_code=401, headers={}, text=json.dumps(err), json=lambda: err)]
+    with pytest.raises(planner.PlanError, match="HTTP 401 invalid_api_key: Invalid API Key"):
+        planner.plan_ahead(free, datetime(2026, 10, 18, 18, 5, tzinfo=free.cfg.tz))
+    assert len(free.llm_http.requests) == 1
