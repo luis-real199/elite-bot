@@ -60,8 +60,8 @@ def telegram_ids(token):
             data = json.load(r)
     except urllib.error.HTTPError as e:
         raise ValueError(f"το Telegram δεν δέχεται το token ({e.code})") from None
-    except urllib.error.URLError as e:
-        raise ValueError(f"δεν απαντάει το Telegram ({e.reason})") from None
+    except OSError as e:  # no network, DNS, timeout
+        raise ValueError(f"δεν απαντάει το Telegram ({getattr(e, 'reason', e)})") from None
     seen = {}
     for update in data.get("result", []):
         sender = (update.get("message") or {}).get("from") or {}
