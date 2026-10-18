@@ -21,6 +21,7 @@ class FakeTelegram:
         self.media = []
         self.buttons = []
         self.answers = []
+        self.markups = []
         self._next_id = 100
 
     def _id(self):
@@ -29,6 +30,7 @@ class FakeTelegram:
 
     def send(self, text, markup=None, silent=False):
         self.messages.append(text)
+        self.markups.append(markup)
         return {"message_id": self._id()}
 
     def send_media(self, path, caption="", markup=None, silent=False, as_document=False):
@@ -150,9 +152,18 @@ class FakeClaude:
         self.chat_requests = []
         self.qc_replies = []
         self.qc_requests = []
+        self.swipe_requests = []
         self.beta = SimpleNamespace(messages=SimpleNamespace(stream=self._stream, create=self._create))
 
     def _create(self, **kwargs):
+        if "moves" in kwargs["output_config"]["format"]["schema"]["properties"]:
+            self.swipe_requests.append(kwargs)
+            analysis = {"format": "outfit check with a snap transition between three looks", "hook": "which one for tonight",
+                        "moves": "spins, snaps, new outfit each time", "camera": "mirror selfie, phone at chest height",
+                        "setting": "bedroom", "outfit": "three night-out looks", "mechanic": "choice",
+                        "why_it_works": "people vote in the comments"}
+            return SimpleNamespace(stop_reason="end_turn", content=[SimpleNamespace(type="text", text=json.dumps(analysis))],
+                                   usage=SimpleNamespace(input_tokens=3000, output_tokens=200))
         if "verdict" in kwargs["output_config"]["format"]["schema"]["properties"]:
             self.qc_requests.append(kwargs)
             verdict = {"same_person": True, "clearly_adult": True, "defects": [], "verdict": "pass", "reason": ""}

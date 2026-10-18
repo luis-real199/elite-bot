@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import pytest
 
@@ -289,3 +290,44 @@ def test_a_new_face_clears_the_old_womans_dataset(app):
     assert len(list((app.setup_dir / "dataset").glob("*.jpg"))) == len(onboarding.DATASET_SHOTS)
     onboarding.pick_face(app, 1)  # another woman: her dataset starts empty
     assert not list((app.setup_dir / "dataset").glob("*.jpg")) and not app.reference_urls()
+
+
+def test_a_video_sent_to_the_bot_is_remade_as_her_next_reel(app, monkeypatch, tmp_path):
+    from ofm import swipes
+
+    def frames(video, out_dir, count=3, run=None):
+        assert Path(video).exists()
+        out = []
+        for i in range(count):
+            f = Path(out_dir) / f"{Path(video).stem}-{i}.jpg"
+            f.write_bytes(b"x")
+            out.append(f)
+        return out
+
+    monkeypatch.setattr(swipes, "extract_frames", frames)
+    monkeypatch.setattr(swipes, "download", lambda url, dest: (Path(dest).parent.mkdir(parents=True, exist_ok=True),
+                                                               Path(dest).write_bytes(b"v"), Path(dest))[2])
+    plan(app)
+    video = {"update_id": 20, "message": {"from": {"id": OWNER}, "video": {"file_id": "vid1"}, "caption": "2M views"}}
+    bot.handle_update(app, video, at(app.cfg, 2026, 10, 18, 18, 10))
+
+    sent = app.claude.swipe_requests[0]["messages"][0]["content"]
+    assert [b["type"] for b in sent] == ["image", "image", "image", "text"] and "2M views" in sent[-1]["text"]
+    assert "Hook idea: which one for tonight" in app.db.swipe(1)["text"]
+    assert app.tg.markups[-1]["inline_keyboard"][0][0]["callback_data"] == "sw:1"
+    assert not list((app.media_dir / "swipes").iterdir())  # the video and frames are not kept
+
+    first_reel = min((p for p in app.db.posts("planned") if p["kind"] == "video"), key=lambda p: p["slot_at"])
+    press = {"update_id": 21, "callback_query": {"id": "c", "from": {"id": OWNER}, "data": "sw:1", "message": {"message_id": 5}}}
+    bot.handle_update(app, press, at(app.cfg, 2026, 10, 18, 18, 10))
+    remake = app.claude.requests[-1]["messages"][0]["content"]
+    assert "Remake this viral format" in remake and "which one for tonight" in remake
+    after = app.db.get_post(first_reel["id"])
+    assert after["status"] == "planned" and after["idea"] == "Ιδέα 0" and after["hashtags"][-1] == "#aigenerated"
+    assert app.db.swipe(1)["used"] == 1 and any("Το reel της" in m for m in app.tg.messages)
+
+
+def test_a_remake_without_a_free_reel_waits_for_the_next_plan(app):
+    swipe_id = app.db.add_swipe("mirror outfit check")
+    assert planner.remake_next_reel(app, at(app.cfg, *SUNDAY_EVENING), swipe_id) is None
+    assert app.db.swipe(swipe_id)["used"] == 0

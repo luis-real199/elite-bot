@@ -110,7 +110,7 @@ handle disclosure. They also never claim or imply that she is a real human.
 Spread the pillars, settings and outfits across the week, match the time of day of each slot, and return exactly one item per slot number."""
 
 
-def user_prompt(indexed_slots, recent_ideas, fan_requests=(), swipes=()):
+def user_prompt(indexed_slots, recent_ideas, fan_requests=(), swipes=(), remake=None):
     lines = []
     for i, s in indexed_slots:
         when = "vault" if s["targets"] == ["fanvue"] else s["slot_at"].strftime("%a %d %b %H:%M")
@@ -119,12 +119,17 @@ def user_prompt(indexed_slots, recent_ideas, fan_requests=(), swipes=()):
         f"Plan these {len(lines)} slots:\n{json.dumps(lines)}\n\n"
         f"Recent ideas, don't repeat them:\n{_bullets(recent_ideas)}\n\n"
         f"What paying fans asked for in chat (make several Fanvue items match these):\n{_bullets(fan_requests)}\n\n"
-        "Formats that went viral for other creators. Use several for her reels, adapting the format and mechanic "
-        f"to her own setting; never copy their words, footage or appearance:\n{_bullets(swipes)}"
+        + (
+            "Remake this viral format for these slots: the same idea, hook, moves, camera and pacing, done by her, in "
+            "her own Miami setting and her own outfit. Never copy their words, footage or appearance:\n"
+            f"{_bullets([remake])}" if remake else
+            "Formats that went viral for other creators. Use several for her reels, adapting the format and mechanic "
+            f"to her own setting; never copy their words, footage or appearance:\n{_bullets(swipes)}"
+        )
     )
 
 
-def request_plan(app, slots, fan_requests=(), swipes=()):
+def request_plan(app, slots, fan_requests=(), swipes=(), remake=None):
     """Claude plans the whole week in one call; free APIs get it in chunks that fit their per-minute limits.
     A chunk the model cannot answer with valid JSON is split in half; a single slot that still fails is left out."""
     cfg, db = app.cfg, app.db
@@ -139,7 +144,8 @@ def request_plan(app, slots, fan_requests=(), swipes=()):
             data = llm.ask_json(
                 app, system=system_prompt(cfg), schema=ITEM_SCHEMA, kind="claude", effort="medium",
                 max_tokens=64000, stream=True, free_max_tokens=min(8192, 1024 + 800 * len(chunk)),
-                content=user_prompt(chunk, db.recent_ideas() + [i["idea"] for i in items.values()], fan_requests, swipes),
+                content=user_prompt(chunk, db.recent_ideas() + [i["idea"] for i in items.values()], fan_requests, swipes,
+                                    remake),
             )
         except llm.LLMRefusal:
             raise PlanError("Το μοντέλο αρνήθηκε το πλάνο. Έλεγξε τα κείμενα στο persona.yaml.")
@@ -168,6 +174,51 @@ def next_start(db, now):
     return start
 
 
+def post_fields(slot, item):
+    """The post columns for one planned item, checked by the guardrails."""
+    hashtags = guardrails.with_disclosure(item["hashtags"])
+    motion = item["motion_prompt"] if slot["kind"] == "video" else ""
+    social = slot["targets"] != ["fanvue"]
+    hook = item.get("hook", "") if social else ""
+    pinned = item.get("pinned_comment", "") if social else ""
+    bad = guardrails.violations(item["idea"], item["image_prompt"], motion, item["caption"], " ".join(hashtags), hook, pinned)
+    return {
+        "idea": item["idea"],
+        "image_prompt": item["image_prompt"],
+        "motion_prompt": motion,
+        "caption": item["caption"],
+        "hashtags": hashtags,
+        "hook": hook,
+        "pinned_comment": pinned,
+        "alt_caption": item.get("alt_caption", "") if "instagram_backup" in slot["targets"] else "",
+        "mechanic": item.get("mechanic", "none") if social else "none",
+        "status": "blocked" if bad else "planned",
+        "error": ("guardrails: " + ", ".join(bad)) if bad else None,
+    }
+
+
+def remake_next_reel(app, now, swipe_id, lead=timedelta(hours=6)):
+    """Turn the next reel that is still only planned (at least `lead` away, so there is time to make and
+    approve it) into a remake of the swipe. Returns the post, or None if no reel is free."""
+    db = app.db
+    swipe = db.swipe(swipe_id)
+    if not swipe:
+        raise ValueError("Δεν βρέθηκε αυτό το βίντεο")
+    reels = [p for p in db.posts("planned") if p["kind"] == "video" and p.social_targets and p["slot_at"] >= now + lead]
+    if not reels:
+        return None
+    post = min(reels, key=lambda p: p["slot_at"])
+    slot = {"slot_at": post["slot_at"], "kind": "video", "targets": post["targets"]}
+    item = request_plan(app, [slot], remake=swipe["text"]).get(0)
+    if not item:
+        raise PlanError("Το μοντέλο δεν έδωσε σχέδιο για το reel")
+    fields = post_fields(slot, item)
+    fields["hashtags"] = json.dumps(fields["hashtags"], ensure_ascii=False)
+    db.update_post(post["id"], **fields)
+    db.mark_swipes_used([swipe_id])
+    return db.get_post(post["id"])
+
+
 def plan_ahead(app, now, days=7):
     cfg, db = app.cfg, app.db
     start = next_start(db, now)
@@ -183,29 +234,9 @@ def plan_ahead(app, now, days=7):
         if not item:
             summary["missing"] += 1
             continue
-        hashtags = guardrails.with_disclosure(item["hashtags"])
-        motion = item["motion_prompt"] if slot["kind"] == "video" else ""
-        social = slot["targets"] != ["fanvue"]
-        hook = item.get("hook", "") if social else ""
-        pinned = item.get("pinned_comment", "") if social else ""
-        bad = guardrails.violations(item["idea"], item["image_prompt"], motion, item["caption"], " ".join(hashtags), hook, pinned)
-        db.insert_post(
-            batch=start.isoformat(),
-            slot_at=slot["slot_at"],
-            kind=slot["kind"],
-            targets=slot["targets"],
-            idea=item["idea"],
-            image_prompt=item["image_prompt"],
-            motion_prompt=motion,
-            caption=item["caption"],
-            hashtags=hashtags,
-            hook=hook,
-            pinned_comment=pinned,
-            alt_caption=item.get("alt_caption", "") if "instagram_backup" in slot["targets"] else "",
-            mechanic=item.get("mechanic", "none") if social else "none",
-            status="blocked" if bad else "planned",
-            error=("guardrails: " + ", ".join(bad)) if bad else None,
-        )
+        fields = post_fields(slot, item)
+        db.insert_post(batch=start.isoformat(), slot_at=slot["slot_at"], kind=slot["kind"], targets=slot["targets"], **fields)
+        bad = fields["status"] == "blocked"
         summary["blocked" if bad else "created"] += 1
     db.kv_set("planned_until", summary["end"].isoformat())
     return summary

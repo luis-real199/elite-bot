@@ -304,7 +304,11 @@ class DB:
 
     def add_swipe(self, text):
         with self.conn:
-            self.conn.execute("INSERT INTO swipes(text, ts) VALUES (?, ?)", (text, utcnow().isoformat()))
+            return self.conn.execute("INSERT INTO swipes(text, ts) VALUES (?, ?)", (text, utcnow().isoformat())).lastrowid
+
+    def swipe(self, swipe_id):
+        row = self.conn.execute("SELECT id, text, used FROM swipes WHERE id = ?", (swipe_id,)).fetchone()
+        return dict(row) if row else None
 
     def swipes(self, limit=10):
         rows = self.conn.execute("SELECT id, text FROM swipes WHERE used = 0 ORDER BY id DESC LIMIT ?", (limit,))

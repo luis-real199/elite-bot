@@ -2,10 +2,11 @@
 
 import logging
 import time
+from datetime import datetime
 
 import requests
 
-from . import chat, jobs, onboarding
+from . import chat, jobs, onboarding, planner, swipes
 from .telegram import TelegramError, keyboard
 
 log = logging.getLogger("ofm")
@@ -17,6 +18,7 @@ HELP = """🤖 Εντολές
 /report — αναφορά 7 ημερών
 /pause, /resume — σταμάτα/ξεκίνα generation και αποστολές
 /swipe <περιγραφή ή link> — ένα viral βίντεο άλλου creator: η φόρμα του μπαίνει στο επόμενο πλάνο
+🎬 Ή στείλε μου κατευθείαν το βίντεο (έως 20 MB): το κάνει η Sienna, σε δικό της μέρος
 
 Fanvue και chat:
 /fanvue_login — σύνδεση με το Fanvue (μία φορά)
@@ -32,7 +34,7 @@ Fanvue και chat:
 /lock — ξανακλείδωμα των references (αν άλλαξες το dataset)"""
 
 
-def handle_callback(app, cq):
+def handle_callback(app, cq, now=None):
     action, _, arg = (cq.get("data") or "").partition(":")
     message_id = (cq.get("message") or {}).get("message_id")
     reply, label = "", None
@@ -48,6 +50,15 @@ def handle_callback(app, cq):
             reply, label = "🗑 Πετάχτηκε", "🗑 Πετάχτηκε"
         elif action in ("cs", "cx"):
             reply, label = chat.draft_action(app, action, int(arg))
+        elif action == "sw":
+            post = planner.remake_next_reel(app, now or datetime.now(app.cfg.tz), int(arg))
+            if post:
+                reply, label = "🎬 Μπήκε", f"🎬 Reel {jobs.when_label(post)}"
+                app.notify(f"🎬 Το reel της {jobs.when_label(post)} θα είναι αυτό, με τη Sienna:\n{post['idea']}\n"
+                           f"🪝 {post['hook']}\nΘα σου έρθει για ✅ μόλις φτιαχτεί.")
+            else:
+                reply, label = "Μπαίνει στο επόμενο πλάνο", "🗂 Στο επόμενο πλάνο"
+                app.notify("Δεν βρήκα reel της εβδομάδας που να μην έχει φτιαχτεί ακόμα. Θα μπει στο πλάνο της Κυριακής.")
     except ValueError as e:
         reply = str(e)
     app.tg.answer(cq["id"], reply)
@@ -120,7 +131,7 @@ def handle_update(app, update, now):
         return
     try:
         if update.get("callback_query"):
-            handle_callback(app, update["callback_query"])
+            handle_callback(app, update["callback_query"], now)
         else:
             message = update.get("message") or {}
             text = (message.get("text") or "").strip()
@@ -129,6 +140,13 @@ def handle_update(app, update, now):
                 handle_command(app, text, now)
             elif replied_to and text and chat.send_custom(app, replied_to, text):
                 pass
+            elif message.get("video") or str((message.get("document") or {}).get("mime_type", "")).startswith("video/"):
+                file_id = (message.get("video") or message.get("document"))["file_id"]
+                app.notify("🎬 Το βλέπω, 1 λεπτό...", silent=True)
+                swipe_id, analysis = swipes.from_video(app, file_id, message.get("caption") or "")
+                app.tg.send(f"{swipes.summary(analysis)}\n\nΚράτησα τη φόρμα, όχι το πρόσωπο ή το βίντεο. "
+                            "Να το κάνει η Sienna στο επόμενο reel;",
+                            keyboard([[("🎬 Ναι, στο επόμενο reel", f"sw:{swipe_id}")]]))
             elif message.get("photo") or str((message.get("document") or {}).get("mime_type", "")).startswith("image/"):
                 photo = message.get("photo")
                 file_id = photo[-1]["file_id"] if photo else message["document"]["file_id"]  # last = largest size
