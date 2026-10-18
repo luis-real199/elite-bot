@@ -82,7 +82,7 @@ generation:
   training_steps: 1000
   max_regenerations: 3
   social_safety_checker: true    # πάντα ενεργό για Instagram/TikTok/YouTube/X
-  fanvue_safety_checker: true
+  fanvue_safety_checker: false   # μόνο για Fanvue (LoRA στο fal): χωρίς φίλτρο NSFW. Ο έλεγχος ηλικίας και τα guardrails μένουν
   consistency_line: "Remain the same model from the reference images, preserving her facial features, body proportions, and identity exactly."
   quality_check: true            # το Claude κοιτάει κάθε εικόνα: ίδιο πρόσωπο, χέρια, ενήλικη εμφάνιση
   review_sample: 1.0             # 1.0 = βλέπεις όλα · 0.2 = βλέπεις όσα κόπηκαν + 20% δείγμα, τα άλλα εγκρίνονται μόνα τους
