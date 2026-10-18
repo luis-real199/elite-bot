@@ -6,7 +6,7 @@ persona:
   age: 24                        # τουλάχιστον 21, αλλιώς το σύστημα δεν ξεκινά
   subject: "woman"
   trigger_word: "s1env4le"       # η λέξη-κλειδί του LoRA, κάτι που δεν είναι πραγματική λέξη
-  appearance: "long straight brown hair with soft caramel ends, big brown eyes, full lips, tanned skin, curvy fit figure"
+  appearance: "long straight dark brown hair, big brown doe eyes with long lashes, very full lips, tanned olive skin, curvy hourglass figure"
   vibe: "American girl-next-door, Miami lifestyle: beach, brunch, gym, nights out"
   niche: "fitness, beach lifestyle and everyday vlogs, US audience"
   personality: "playful, confident, warm, a little teasing, casual American slang, never vulgar"
