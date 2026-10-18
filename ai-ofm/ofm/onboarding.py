@@ -89,21 +89,29 @@ def faces(app, n=6):
     return candidates
 
 
+def _set_face(app, face):
+    """A new face makes the old dataset and references another woman: they go, so nothing mixes the two."""
+    old = app.db.kv_get("reference_face") or {}
+    if old.get("url") != face["url"]:
+        for f in (app.setup_dir / "dataset").glob("*.jpg"):
+            f.unlink()
+        app.db.kv_set("reference_urls", [])
+    app.db.kv_set("reference_face", face)
+    return face
+
+
 def use_face(app, file_id):
     """A photo the owner sent (made elsewhere, e.g. in Gemini) becomes her reference face."""
     path = download(app.tg.file_url(file_id), app.setup_dir / "faces" / "custom.jpg")
     url = app.media.upload(path, keep=True)  # a public copy the image models can read
-    face = {"url": url, "path": str(path)}
-    app.db.kv_set("reference_face", face)
-    return face
+    return _set_face(app, {"url": url, "path": str(path)})
 
 
 def pick_face(app, idx):
     candidates = app.db.kv_get("face_candidates") or []
     if not 0 <= idx < len(candidates):
         raise ValueError(f"Δεν υπάρχει πρόσωπο {idx + 1}")
-    app.db.kv_set("reference_face", candidates[idx])
-    return candidates[idx]
+    return _set_face(app, candidates[idx])
 
 
 def dataset(app, n=len(DATASET_SHOTS)):
@@ -180,8 +188,7 @@ def train(app):
         download(lora, app.lora_backup)  # if fal ever drops the file, health_check re-uploads this copy
     except OSError as e:
         app.notify(f"⚠️ Δεν κράτησα αντίγραφο του LoRA: {e}", silent=True)
-    if not app.reference_urls():
-        lock_references(app)
+    lock_references(app)  # the references follow the dataset the LoRA was trained on
 
     test = {"image_prompt": "casual selfie at a cafe terrace, sunny afternoon"}
     url, _ = app.media.image(full_prompt(app.cfg, test), lora, safety=True, setup=True)

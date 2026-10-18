@@ -275,3 +275,17 @@ def test_a_photo_sent_to_the_bot_becomes_her_face(app):
     assert any("/dataset" in m for m in app.tg.messages)
     assert onboarding.dataset(app) == len(onboarding.DATASET_SHOTS)
     assert all(c[2] == ["https://fal.media/custom.jpg"] for c in app.media.calls if c[0] == "ref_image")
+
+
+def test_a_new_face_clears_the_old_womans_dataset(app):
+    from ofm import onboarding
+
+    onboarding.faces(app, n=2)
+    onboarding.pick_face(app, 0)
+    onboarding.dataset(app)
+    onboarding.lock_references(app)
+    assert len(list((app.setup_dir / "dataset").glob("*.jpg"))) == len(onboarding.DATASET_SHOTS)
+    onboarding.pick_face(app, 0)  # same face again: nothing is lost
+    assert len(list((app.setup_dir / "dataset").glob("*.jpg"))) == len(onboarding.DATASET_SHOTS)
+    onboarding.pick_face(app, 1)  # another woman: her dataset starts empty
+    assert not list((app.setup_dir / "dataset").glob("*.jpg")) and not app.reference_urls()
