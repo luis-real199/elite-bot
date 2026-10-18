@@ -66,7 +66,7 @@ def test_keys_script_asks_only_for_what_is_missing(tmp_path):
         fetched.append(t)
         return {} if len(fetched) == 1 else {4242: "kyrillos"}
 
-    keys.main(["sienna"], ask=ask, say=said.append, fetch=fetch)
+    keys.main(["sienna"], ask=ask, say=said.append, fetch=fetch, whoami=lambda t: "sienna_bot")
     shared = keys.read_env(tmp_path / ".env")
     assert shared["GROQ_API_KEY"] == GROQ and shared["FAL_KEY"] == FAL and shared["TELEGRAM_OWNER_ID"] == "4242"
     assert keys.read_env(tmp_path / "personas/sienna/.env")["TELEGRAM_BOT_TOKEN"] == TOKEN
@@ -74,6 +74,7 @@ def test_keys_script_asks_only_for_what_is_missing(tmp_path):
     assert "# Groq (δωρεάν, προεπιλογή): https://console.groq.com/keys" in (tmp_path / ".env").read_text(encoding="utf-8")
     assert (tmp_path / ".env").stat().st_mode & 0o777 == 0o600
     assert any("Χρειάζεται" in s for s in said) and any("❌" in s for s in said)
+    assert any("https://t.me/sienna_bot" in s for s in said)
     assert not any(GROQ in s or FAL in s or TOKEN in s for s in said)
 
 
@@ -81,8 +82,9 @@ def test_keys_script_moves_a_bot_token_out_of_the_owner_id(tmp_path):
     env = f"GROQ_API_KEY={GROQ}\nFAL_KEY={FAL}\nTELEGRAM_OWNER_ID={TOKEN}\nBUFFER_API_KEY=\n"
     keys = load_keys(tmp_path, env)
     prompts = []
-    keys.main(["sienna"], ask=lambda p: prompts.append(p) or "", say=lambda s: None, fetch=lambda t: {4242: "k"})
-    assert len(prompts) == 1 and "hi" in prompts[0]
+    keys.main(["sienna"], ask=lambda p: prompts.append(p) or "", say=lambda s: None, fetch=lambda t: {4242: "k"},
+              whoami=lambda t: "sienna_bot")
+    assert len(prompts) == 1 and "Enter" in prompts[0]
     assert keys.read_env(tmp_path / ".env") == {"GROQ_API_KEY": GROQ, "FAL_KEY": FAL, "TELEGRAM_OWNER_ID": "4242",
                                                  "BUFFER_API_KEY": ""}
     assert keys.read_env(tmp_path / "personas/sienna/.env")["TELEGRAM_BOT_TOKEN"] == TOKEN

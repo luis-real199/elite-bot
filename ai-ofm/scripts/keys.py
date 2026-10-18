@@ -53,17 +53,25 @@ def write_env(path, updates):
     path.chmod(0o600)
 
 
-def telegram_ids(token):
-    """Who has written to the bot, as {user id: name}. ValueError if Telegram refuses the token."""
+def telegram(token, method):
+    """Call the Bot API. ValueError with a short reason if Telegram refuses the token or cannot be reached."""
     try:
-        with urllib.request.urlopen(f"https://api.telegram.org/bot{token}/getUpdates", timeout=20) as r:
-            data = json.load(r)
+        with urllib.request.urlopen(f"https://api.telegram.org/bot{token}/{method}", timeout=20) as r:
+            return json.load(r).get("result")
     except urllib.error.HTTPError as e:
         raise ValueError(f"το Telegram δεν δέχεται το token ({e.code})") from None
     except OSError as e:  # no network, DNS, timeout
         raise ValueError(f"δεν απαντάει το Telegram ({getattr(e, 'reason', e)})") from None
+
+
+def bot_username(token):
+    return (telegram(token, "getMe") or {}).get("username", "")
+
+
+def telegram_ids(token):
+    """Who has written to the bot, as {user id: name}."""
     seen = {}
-    for update in data.get("result", []):
+    for update in telegram(token, "getUpdates") or []:
         sender = (update.get("message") or {}).get("from") or {}
         if sender.get("id") and not sender.get("is_bot"):
             seen[sender["id"]] = sender.get("username") or sender.get("first_name") or ""
@@ -92,9 +100,16 @@ def ask_keys(current, ask, say, everything=False):
     return updates
 
 
-def find_owner(token, ask, say, fetch):
+def find_owner(token, ask, say, fetch, whoami):
+    try:
+        username = whoami(token)
+    except ValueError as e:
+        say(f"  ❌ {e}. Έλεγξε το token και ξανατρέξε το script.")
+        return ""
+    bot = f"@{username}  (https://t.me/{username})" if username else "στο bot σου"
+    say(f"\n👉 Στο ΚΙΝΗΤΟ ή στο Telegram του Mac: άνοιξε το {bot} και στείλε «hi».")
     for _ in range(3):
-        ask("Στείλε «hi» στο bot σου στο Telegram και μετά πάτα Enter εδώ: ")
+        ask("Μετά πάτα ΜΟΝΟ Enter εδώ: ")
         try:
             seen = fetch(token)
         except ValueError as e:
@@ -112,12 +127,12 @@ def find_owner(token, ask, say, fetch):
             if choice.isdigit() and 1 <= int(choice) <= len(people):
                 return str(people[int(choice) - 1][0])
             continue
-        say("  Δεν βρήκα μήνυμα ακόμα.")
+        say(f"  Δεν βρήκα μήνυμα ακόμα. Στείλε «hi» στο {bot} από το Telegram (όχι εδώ).")
     say("  Δεν βρέθηκε. Ξανατρέξε το script αφού στείλεις «hi» στο bot.")
     return ""
 
 
-def main(argv, ask=getpass.getpass, say=print, fetch=telegram_ids):
+def main(argv, ask=getpass.getpass, say=print, fetch=telegram_ids, whoami=bot_username):
     everything = "--all" in argv
     names = [a for a in argv if a != "--all"]
     if len(names) != 1 or not (PERSONAS / names[0] / "persona.yaml").exists():
@@ -140,7 +155,7 @@ def main(argv, ask=getpass.getpass, say=print, fetch=telegram_ids):
     owner = current["shared"].get("TELEGRAM_OWNER_ID", "")
     if not owner.isdigit():  # empty, or something else pasted there by mistake
         token = updates["persona"].get("TELEGRAM_BOT_TOKEN") or current["persona"].get("TELEGRAM_BOT_TOKEN")
-        updates["shared"]["TELEGRAM_OWNER_ID"] = find_owner(token, ask, say, fetch)
+        updates["shared"]["TELEGRAM_OWNER_ID"] = find_owner(token, ask, say, fetch, whoami)
 
     for where, path in files.items():
         if updates[where]:
