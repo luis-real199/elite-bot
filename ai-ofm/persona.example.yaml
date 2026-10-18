@@ -64,10 +64,10 @@ chat:
 budget:
   weekly_usd: 25                 # μέγιστα έξοδα generation ανά 7 μέρες
   estimates_usd:                 # εκτιμήσεις κόστους ανά κλήση (για το όριο)
-    image: 0.05                  # LoRA (Fanvue)
+    image: 0.07                  # LoRA (Fanvue), 896x1600 χρεώνεται ως 2 MP
     ref_image: 0.15              # Nano Banana Pro με references (social)
     edit: 0.04
-    video: 0.80                  # Kling 3.0, 8 δευτερόλεπτα
+    video: 0.68                  # Kling 3.0, 8 δευτερόλεπτα χωρίς ήχο (με ήχο ~1.01)
     qc: 0.02                     # έλεγχος εικόνας από το Claude
     training: 3.00
 
