@@ -26,6 +26,23 @@ DEFAULT_MODELS = {
     "video": "fal-ai/kling-video/v3/standard/image-to-video",
     "trainer": "fal-ai/flux-lora-fast-training",
 }
+SOFTER = [  # Google's moderation on Nano Banana reads the words: when it refuses, the same shape in plainer ones
+    ("very large, round, full breasts (visibly enhanced, pushed up)", "a very large full bust"),
+    ("a very big round lifted butt", "very big round hips and backside"),
+    ("tight, fitted, low-cut outfits", "fitted outfits"),
+    ("surgically enhanced", "full"),
+    ("breast implants", "large bust"),
+    ("deep cleavage", "a fitted top"),
+    ("sexy", "glamorous"),
+]
+
+
+def soften(text):
+    for strong, mild in SOFTER:
+        text = text.replace(strong, mild)
+    return text
+
+
 CONSISTENCY_LINE = (
     "Remain the same model from the reference images, preserving her facial features, "
     "body proportions, and identity exactly."

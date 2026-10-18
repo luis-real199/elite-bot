@@ -92,7 +92,7 @@ Hard rules:
 1. Adults only. Nothing that suggests youth: no school settings or uniforms, no childlike poses, props or wording, no ages under 21.
 2. No real people: no celebrities, lookalikes, real influencers or public figures, and no brand logos.
 3. She is an AI character. Captions never claim she is human or real, never say "not AI", and never promise meetups or real-life contact. They also do not bring up being AI.
-4. Items that target Instagram, TikTok, YouTube or X are strictly safe for work: no nudity, no sexual acts, no explicit wording. Swimwear, gym wear and night-out outfits are fine.
+4. Items that target Instagram, TikTok, YouTube or X are strictly safe for work: no nudity, no sexual acts, no explicit wording. Swimwear, gym wear and night-out outfits are fine and wanted (she lives on the beach): name the outfit plainly ("black bikini", "sports bra and leggings") and describe the scene, never her body parts.
 5. Fanvue items are for her paid page, in this style: {p.get('fanvue_style', 'glamour photos')}. Keep within that style and the rules above.
 
 For each slot write:

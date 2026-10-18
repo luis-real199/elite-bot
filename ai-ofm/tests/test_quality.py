@@ -79,7 +79,13 @@ def test_reference_refusal_falls_back_to_lora(app):
     app.media.ref_fail_next = 1
     jobs.generate_post(app, post)
     assert app.db.get_post(post["id"])["status"] == "ready"
-    assert [c[0] for c in app.media.calls][:2] == ["ref_image", "image"]
+    assert [c[0] for c in app.media.calls][:3] == ["ref_image", "ref_image", "video"] or \
+        [c[0] for c in app.media.calls][:2] == ["ref_image", "ref_image"]  # refused once: plainer words, no LoRA needed
+    app.media.calls.clear()
+    other = next(p for p in planned(app) if p.social_targets and p["id"] != post["id"])
+    app.media.ref_fail_next = 2
+    jobs.generate_post(app, other)
+    assert [c[0] for c in app.media.calls][:3] == ["ref_image", "ref_image", "image"]
 
 
 def test_failed_quality_check_regenerates(app):

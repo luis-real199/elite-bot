@@ -4,6 +4,7 @@ import re
 import zipfile
 from pathlib import Path
 
+from .config import soften
 from .jobs import full_prompt
 from .media import GenerationError, download
 from .telegram import keyboard
@@ -103,22 +104,6 @@ def pick_face(app, idx):
         raise ValueError(f"Δεν υπάρχει πρόσωπο {idx + 1}")
     app.db.kv_set("reference_face", candidates[idx])
     return candidates[idx]
-
-
-SOFTER = [  # Google's moderation on Nano Banana balks at surgical and sexual wording; the shape survives these swaps
-    ("huge round surgically enhanced breast implants (very large, pushed up, deep cleavage)", "a very large full bust"),
-    ("huge round BBL-style butt", "very big round hips and backside"),
-    ("extremely exaggerated hourglass body", "extremely curvy hourglass body"),
-    ("low-cut, body-hugging outfits", "fitted outfits"),
-    ("overlined pouty lips", "pouty lips"),
-    ("sexy", "glamorous"),
-]
-
-
-def soften(text):
-    for strong, mild in SOFTER:
-        text = text.replace(strong, mild)
-    return text
 
 
 def dataset(app, n=len(DATASET_SHOTS)):
