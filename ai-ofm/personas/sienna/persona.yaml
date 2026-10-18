@@ -6,7 +6,7 @@ persona:
   age: 24                        # τουλάχιστον 21, αλλιώς το σύστημα δεν ξεκινά
   subject: "woman"
   trigger_word: "s1env4le"       # η λέξη-κλειδί του LoRA, κάτι που δεν είναι πραγματική λέξη
-  appearance: "strikingly beautiful; very long, thick, voluminous dark brown curly hair with tight natural curls; tanned golden skin; big dark brown doe eyes with long lashes and full defined eyebrows; very full glossy lips; soft glam makeup, a few faint freckles; very curvy hourglass figure with a slim waist, very wide hips, a large round backside and a large full bust"
+  appearance: "strikingly beautiful; very long, thick, voluminous dark brown curly hair with tight natural curls; tanned golden skin; big dark brown doe eyes with long lashes and full defined eyebrows; very full glossy lips; soft glam makeup; a few light freckles only on her cheeks; very curvy hourglass figure with a slim waist, very wide hips, a large round backside and a large full bust"
   vibe: "American girl-next-door, Miami lifestyle: beach, brunch, gym, nights out"
   niche: "fitness, beach lifestyle and everyday vlogs, US audience"
   personality: "playful, confident, warm, a little teasing, casual American slang, never vulgar"

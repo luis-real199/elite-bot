@@ -99,7 +99,7 @@ def draft_reply(app, fan, messages, me_uuid):
     try:
         return llm.ask_json(
             app, cached_system=system_prompt(cfg), system=catalogue_text(db, fan["uuid"]),
-            content=content, schema=REPLY_SCHEMA, kind="chat", effort="low", max_tokens=8000,
+            content=content, schema=REPLY_SCHEMA, kind="chat", effort="low", max_tokens=8000, free_max_tokens=1536,
         )
     except llm.LLMRefusal:
         reason = "το μοντέλο δεν απάντησε σε αυτό το chat"

@@ -36,7 +36,8 @@ def check_image(app, image_url, reference_url):
         {"type": "text", "text": INSTRUCTIONS},
     ]
     try:
-        result = llm.ask_json(app, system=None, content=content, schema=QC_SCHEMA, kind="qc", effort="low", max_tokens=4000)
+        result = llm.ask_json(app, system=None, content=content, schema=QC_SCHEMA, kind="qc", effort="low", max_tokens=4000,
+                              free_max_tokens=1024)
     except llm.LLMRefusal:
         return False, "ο έλεγχος αρνήθηκε την εικόνα"
     except llm.LLMError as e:

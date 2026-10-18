@@ -59,13 +59,15 @@ def settings(cfg):
 
 
 def ask_json(app, *, system, content, schema, kind, effort="medium", max_tokens=16000,
-             cached_system=None, stream=False):
+             cached_system=None, stream=False, free_max_tokens=None):
     """Ask for one JSON object matching `schema`. `content` is a string or Claude-style content blocks
-    (text and {"type": "image", "source": {"type": "url", ...}}). Records the cost under `kind`."""
+    (text and {"type": "image", "source": {"type": "url", ...}}). Records the cost under `kind`.
+    `free_max_tokens` is the output budget on Groq/Gemini, where reasoning tokens count too and the
+    free tier is about 8K tokens per minute, so it is kept small and sized per call."""
     s = settings(app.cfg)
     if s["provider"] == "claude":
         return _ask_claude(app, system, content, schema, kind, effort, max_tokens, cached_system, stream)
-    return _ask_openai_compatible(app, s, system, content, schema, kind, cached_system)
+    return _ask_openai_compatible(app, s, system, content, schema, kind, cached_system, free_max_tokens or 4096)
 
 
 # ---------- Claude ----------
@@ -135,66 +137,114 @@ def _parse_json(text):
 
 
 def _error(r):
-    """(code, message) from an OpenAI-style error body, without echoing the whole response."""
+    """(code, message, failed_generation) from an OpenAI-style error body."""
     try:
         err = r.json().get("error") or {}
-        return err.get("code") or "", (err.get("message") or "")[:200]
+        return err.get("code") or "", (err.get("message") or "")[:200], err.get("failed_generation")
     except (ValueError, AttributeError, TypeError):
-        return "", (getattr(r, "text", "") or "")[:200]
+        return "", (getattr(r, "text", "") or "")[:200], None
+
+
+SCHEMA_NAMES = {"claude": "weekly_plan", "plan": "weekly_plan", "chat": "chat_reply", "qc": "image_qc"}
 
 
 def _post(app, url, key, body, attempts=3):
+    """One call to the OpenAI-compatible endpoint. Returns the parsed JSON on success.
+    Raises LLMBadOutput when asking for less would help (invalid JSON, too large for the per-minute limit)
+    and LLMError otherwise; a 400 about an unsupported request option is reported with the option's name."""
     for attempt in range(attempts):
         try:
             r = app.llm_http.post(url, json=body, headers={"Authorization": f"Bearer {key}"}, timeout=180)
         except requests.RequestException as e:
             raise LLMError(f"{type(e).__name__}") from None
-        if r.status_code == 429 and attempt < attempts - 1:
-            try:
-                wait = float(r.headers.get("retry-after") or 20)
-            except ValueError:
-                wait = 20
-            app.sleep(min(wait, 60))
-            continue
-        if r.status_code >= 300:
-            code, message = _error(r)
-            if code == "json_validate_failed":  # Groq checked the output and it was not valid JSON
-                raise LLMBadOutput("το μοντέλο έβγαλε άκυρο JSON")
-            raise LLMError(f"HTTP {r.status_code} {code}: {message}".replace("  ", " "))
-        return r.json()
-    raise LLMError("Όριο αιτημάτων του δωρεάν API (429). Ξαναδοκιμάζει αργότερα.")
+        if r.status_code < 300:
+            return r.json()
+        code, message, failed = _error(r)
+        if r.status_code == 429:
+            if "per day" in message.lower() or "TPD" in message or "RPD" in message:
+                raise LLMError("Τελείωσε το ημερήσιο όριο του δωρεάν API. Συνεχίζει αύριο.")
+            if attempt < attempts - 1:
+                try:
+                    wait = float(r.headers.get("retry-after") or 20)
+                except ValueError:
+                    wait = 20
+                app.sleep(min(wait, 60))
+                continue
+            raise LLMError("Όριο αιτημάτων του δωρεάν API (429). Ξαναδοκιμάζει αργότερα.")
+        if code == "json_validate_failed" or failed is not None:
+            # Groq checked the output and it was not valid for the schema; the attempt is often salvageable
+            raise LLMBadOutput("το μοντέλο έβγαλε άκυρο JSON", failed)
+        if r.status_code == 413:  # the single request is bigger than the per-minute token limit
+            raise LLMBadOutput("το αίτημα είναι μεγαλύτερο από το όριο tokens ανά λεπτό")
+        raise LLMError(f"HTTP {r.status_code} {code}: {message}".replace("  ", " "))
 
 
-def _ask_openai_compatible(app, s, system, content, schema, kind, cached_system):
+def _salvage(failed, schema):
+    """The JSON Groq rejected, if it is in fact complete and has every required key."""
+    try:
+        data = failed if isinstance(failed, dict) else _parse_json(failed)
+    except (ValueError, TypeError):
+        return None
+    if isinstance(data, dict) and all(k in data for k in schema.get("required", [])):
+        return data
+    return None
+
+
+def _ask_openai_compatible(app, s, system, content, schema, kind, cached_system, max_tokens):
     key = app.cfg.secret(s["key_env"])
     if not key:
         raise LLMError(f"Λείπει το {s['key_env']} στο .env")
     user, has_image = _to_openai_content(content)
+    model = s["vision_model"] if has_image else s["model"]
+    # Groq's gpt-oss models support strict JSON schema output (constrained decoding) for text-only calls;
+    # with images, and on other providers, JSON mode plus the schema in the prompt is what is documented.
+    strict = s["provider"] == "groq" and not has_image and model.startswith("openai/gpt-oss")
     instructions = "\n\n".join(x for x in (cached_system, system) if x)
-    instructions += (
-        "\n\nReply with one JSON object only, no other text. It must match this JSON schema:\n"
-        + json.dumps(schema)
-    )
+    if strict:
+        instructions += "\n\nReply with one JSON object that follows the response schema."
+        response_format = {"type": "json_schema", "json_schema": {
+            "name": SCHEMA_NAMES.get(kind, re.sub(r"[^A-Za-z0-9_-]", "_", kind)[:64]), "strict": True, "schema": schema}}
+    else:
+        instructions += ("\n\nReply with one JSON object only, no other text. It must match this JSON schema:\n"
+                         + json.dumps(schema))
+        response_format = {"type": "json_object"}
     messages = [{"role": "system", "content": instructions.strip()}, {"role": "user", "content": user}]
     body = {
-        "model": s["vision_model"] if has_image else s["model"],
+        "model": model,
         "messages": messages,
-        "response_format": {"type": "json_object"},
-        "temperature": 0.8 if kind in ("claude", "plan") else 0.4,
-        # gpt-oss and qwen3 reason before answering; those tokens count against the limit and the free quota
-        "max_completion_tokens": 8192,
+        "response_format": response_format,
+        "temperature": {"claude": 0.7, "plan": 0.7, "qc": 0.3}.get(kind, 0.4),
+        # reasoning tokens come out of this budget too, and the free tier counts it per minute
+        "max_completion_tokens": int(max_tokens),
     }
-    if body["model"].startswith("openai/gpt-oss"):
+    if model.startswith("openai/gpt-oss"):
         body["reasoning_effort"] = "low"
+    elif model.startswith("qwen/qwen3"):
+        body["reasoning_effort"] = "none"  # a pass/fail verdict needs no thinking tokens
     url = s["base_url"].rstrip("/") + "/chat/completions"
     for attempt in range(2):
         try:
             result = _post(app, url, key, body)
-        except LLMBadOutput:
+        except LLMBadOutput as e:
+            saved = _salvage(e.args[1], schema) if len(e.args) > 1 else None
+            if saved is not None:
+                return saved
             if attempt:
                 raise
             body["temperature"] = min(body["temperature"], 0.5)  # a calmer second try usually validates
             continue
+        except LLMError as e:
+            text = str(e)
+            if attempt == 0 and strict and ("response_format" in text or "json_schema" in text):
+                strict = False  # the provider changed its mind about strict mode: fall back to JSON mode
+                messages = [{"role": "system", "content": messages[0]["content"]
+                             + "\n\nIt must match this JSON schema:\n" + json.dumps(schema)}, messages[1]]
+                body = {**body, "messages": messages, "response_format": {"type": "json_object"}}
+                continue
+            if attempt == 0 and "reasoning_effort" in text and "reasoning_effort" in body:
+                del body["reasoning_effort"]
+                continue
+            raise
         usage = result.get("usage") or {}
         price = s["usd_per_mtok"]
         app.db.add_cost(kind, (usage.get("prompt_tokens", 0) * price["input"]

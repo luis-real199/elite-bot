@@ -66,8 +66,11 @@ def test_plan_is_sent_in_chunks_to_the_free_api(free):
     assert first["url"] == "https://api.groq.com/openai/v1/chat/completions"
     assert first["headers"] == {"Authorization": "Bearer gsk_test"}
     assert first["body"]["model"] == "openai/gpt-oss-120b" and first["body"]["reasoning_effort"] == "low"
-    assert first["body"]["response_format"] == {"type": "json_object"}
-    assert "JSON schema" in first["body"]["messages"][0]["content"]
+    fmt = first["body"]["response_format"]  # strict schema output: Groq's constrained decoding for gpt-oss
+    assert fmt["type"] == "json_schema" and fmt["json_schema"]["strict"] and fmt["json_schema"]["name"] == "weekly_plan"
+    assert fmt["json_schema"]["schema"] == planner.ITEM_SCHEMA
+    assert "JSON schema" not in first["body"]["messages"][0]["content"]
+    assert first["body"]["max_completion_tokens"] == 1024 + 800 * 5 and first["body"]["temperature"] == 0.7
     assert free.db.spent_last_week() == 0
     assert free.claude.requests == []
 
@@ -76,7 +79,9 @@ def test_quality_check_sends_both_images_to_the_vision_model(free):
     passed, reason = qc.check_image(free, "https://fal.media/new.jpg", "https://fal.media/ref.jpg")
     assert passed is True
     body = free.llm_http.requests[0]["body"]
-    assert body["model"] == "qwen/qwen3.8-27b" and "reasoning_effort" not in body
+    assert body["model"] == "qwen/qwen3.8-27b" and body["reasoning_effort"] == "none"
+    assert body["response_format"] == {"type": "json_object"}  # strict mode with images is not documented
+    assert "JSON schema" in body["messages"][0]["content"] and body["max_completion_tokens"] == 1024
     images = [p["image_url"]["url"] for p in body["messages"][1]["content"] if p["type"] == "image_url"]
     assert images == ["https://fal.media/ref.jpg", "https://fal.media/new.jpg"]
 
@@ -171,3 +176,36 @@ def test_other_errors_stop_the_plan_with_a_short_message(free):
     with pytest.raises(planner.PlanError, match="HTTP 401 invalid_api_key: Invalid API Key"):
         planner.plan_ahead(free, datetime(2026, 10, 18, 18, 5, tzinfo=free.cfg.tz))
     assert len(free.llm_http.requests) == 1
+
+
+def test_rejected_but_complete_json_is_salvaged_from_the_error(free):
+    good = {"same_person": True, "clearly_adult": True, "defects": [], "verdict": "fail", "reason": "waxy skin"}
+    err = {"error": {"code": "json_validate_failed", "message": "Failed to generate JSON.", "failed_generation": json.dumps(good)}}
+    free.llm_http.replies = [SimpleNamespace(status_code=400, headers={}, text=json.dumps(err), json=lambda: err)]
+    assert qc.check_image(free, "https://fal.media/new.jpg", "https://fal.media/ref.jpg") == (False, "waxy skin")
+    assert len(free.llm_http.requests) == 1
+
+
+def test_too_large_request_splits_the_chunk_and_daily_quota_stops(free):
+    big = {"error": {"code": "rate_limit_exceeded", "message": "Request too large for model on tokens per minute (TPM): Limit 8000, Requested 9000"}}
+    free.llm_http.replies = [SimpleNamespace(status_code=413, headers={}, text="", json=lambda: big)] * 2
+    summary = planner.plan_ahead(free, datetime(2026, 10, 18, 18, 5, tzinfo=free.cfg.tz))
+    assert summary["missing"] == 0
+    assert free.llm_http.requests[2]["body"]["max_completion_tokens"] == 1024 + 800 * 2
+
+    daily = {"error": {"code": "rate_limit_exceeded", "message": "Rate limit reached on tokens per day (TPD): Limit 200000"}}
+    free.llm_http.replies = [SimpleNamespace(status_code=429, headers={"retry-after": "3000"}, text="", json=lambda: daily)]
+    waits = []
+    free.sleep = waits.append
+    passed, reason = qc.check_image(free, "https://fal.media/new.jpg", "https://fal.media/ref.jpg")
+    assert passed is None and "ημερήσιο" in reason and waits == []
+
+
+def test_strict_mode_falls_back_to_json_mode_if_the_provider_rejects_it(free):
+    err = {"error": {"code": "invalid_request_error", "message": "response_format json_schema is not supported for this model"}}
+    free.llm_http.replies = [SimpleNamespace(status_code=400, headers={}, text="", json=lambda: err)]
+    draft = chat.draft_reply(free, {"uuid": "f1", "displayName": "Jake"}, [{"text": "hey", "sender": {"uuid": "f1"}}], "me")
+    assert draft["reply"] == "hi there"
+    first, second = (r["body"] for r in free.llm_http.requests)
+    assert first["response_format"]["type"] == "json_schema" and first["max_completion_tokens"] == 1536
+    assert second["response_format"] == {"type": "json_object"} and "JSON schema" in second["messages"][0]["content"]

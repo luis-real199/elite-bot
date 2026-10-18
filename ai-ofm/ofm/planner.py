@@ -138,7 +138,7 @@ def request_plan(app, slots, fan_requests=(), swipes=()):
         try:
             data = llm.ask_json(
                 app, system=system_prompt(cfg), schema=ITEM_SCHEMA, kind="claude", effort="medium",
-                max_tokens=64000, stream=True,
+                max_tokens=64000, stream=True, free_max_tokens=min(8192, 1024 + 800 * len(chunk)),
                 content=user_prompt(chunk, db.recent_ideas() + [i["idea"] for i in items.values()], fan_requests, swipes),
             )
         except llm.LLMRefusal:
