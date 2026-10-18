@@ -180,7 +180,7 @@ class FakeClaude:
             analysis = {"format": "outfit check with a snap transition between three looks", "hook": "which one for tonight",
                         "moves": "spins, snaps, new outfit each time", "camera": "mirror selfie, phone at chest height",
                         "setting": "bedroom", "outfit": "three night-out looks", "mechanic": "choice",
-                        "why_it_works": "people vote in the comments"}
+                        "why_it_works": "people vote in the comments", "spoken": False}
             return SimpleNamespace(stop_reason="end_turn", content=[SimpleNamespace(type="text", text=json.dumps(analysis))],
                                    usage=SimpleNamespace(input_tokens=3000, output_tokens=200))
         if "verdict" in kwargs["output_config"]["format"]["schema"]["properties"]:

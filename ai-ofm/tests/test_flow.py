@@ -576,3 +576,21 @@ def test_identity_and_realism_go_into_every_image_prompt(app):
     assert "Skin tone #E9B894" in ref and "Preserve her natural asymmetry" in ref
     system = app.claude.requests[0]["system"]
     assert "'someone filmed me' rear camera" in system and "phone propped on a table" in system
+
+
+def test_a_spoken_swipe_takes_the_next_voice_slot_and_needs_no_second_tap(app):
+    from datetime import time as _time
+
+    from ofm.config import Slot
+
+    app.cfg.slots[1].video = {"seconds": 15, "voice": True}
+    app.cfg.slots.append(Slot(_time(12, 30), "video", ["instagram_reel", "tiktok", "youtube_short"], list(range(7))))
+    app.cfg.generation["idea_approval"] = True
+    plan(app)
+    swipe_id = app.db.add_swipe("Girlfriend scolds him in the kitchen. Hook idea: when he says he is not hungry. Spoken: yes, she talks to camera")
+    post = planner.remake_next_reel(app, at(app.cfg, *SUNDAY_EVENING), swipe_id)
+    assert post["voice"] == 1 and post["status"] == "planned"  # the 🎬 tap was the approval
+    assert "Remake this viral format" in app.claude.requests[-1]["messages"][0]["content"]
+    quiet = app.db.add_swipe("outfit transition. Spoken: no, music and text only")
+    other = planner.remake_next_reel(app, at(app.cfg, *SUNDAY_EVENING), quiet)
+    assert other["voice"] == 0 and other["id"] != post["id"]

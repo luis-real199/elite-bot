@@ -221,15 +221,16 @@ def remake_next_reel(app, now, swipe_id, lead=timedelta(hours=6)):
     reels = [p for p in db.posts(("proposed", "planned")) if p["kind"] == "video" and p.social_targets and p["slot_at"] >= now + lead]
     if not reels:
         return None
-    post = min(reels, key=lambda p: p["slot_at"])
+    spoken = "Spoken: yes" in swipe["text"]
+    fitting = [p for p in reels if bool(p["voice"]) == spoken] or reels  # a talking skit wants a voice slot
+    post = min(fitting, key=lambda p: p["slot_at"])
     slot = {"slot_at": post["slot_at"], "kind": "video", "targets": post["targets"],
             "video": {"seconds": post["video_seconds"], "voice": bool(post["voice"])} if post["video_seconds"] else None}
     item = request_plan(app, [slot], remake=swipe["text"]).get(0)
     if not item:
         raise PlanError("Το μοντέλο δεν έδωσε σχέδιο για το reel")
     fields = post_fields(slot, item, app.cfg.persona["disclosure_tag"], app.cfg.persona["hashtags"])
-    if fields["status"] == "planned":
-        fields["status"] = post["status"]  # a proposed idea stays proposed until the owner taps ✅
+    # the 🎬 tap is the owner's approval of this idea: it is made without a second ✅
     fields["hashtags"] = json.dumps(fields["hashtags"], ensure_ascii=False)
     db.update_post(post["id"], **fields)
     db.mark_swipes_used([swipe_id])

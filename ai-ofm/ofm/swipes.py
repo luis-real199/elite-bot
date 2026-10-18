@@ -22,8 +22,9 @@ SWIPE_SCHEMA = {
         "outfit": {"type": "string"},
         "mechanic": {"type": "string", "enum": MECHANICS},
         "why_it_works": {"type": "string"},
+        "spoken": {"type": "boolean"},
     },
-    "required": ["format", "hook", "moves", "camera", "setting", "outfit", "mechanic", "why_it_works"],
+    "required": ["format", "hook", "moves", "camera", "setting", "outfit", "mechanic", "why_it_works", "spoken"],
     "additionalProperties": False,
 }
 
@@ -37,7 +38,8 @@ never who: no names, no faces, no bodies, no brand names. Paraphrase any on-scre
 - setting: the kind of place
 - outfit: the kind of outfit
 - mechanic: why viewers comment or share, one of the listed values
-- why_it_works: one short sentence"""
+- why_it_works: one short sentence
+- spoken: true if the person talks to the camera (a skit with a line), false if it is music, text and movement only"""
 
 
 class SwipeError(Exception):
@@ -79,7 +81,8 @@ def describe(app, frame_urls, note=""):
 
 def swipe_text(a):
     return (f"{a['format']} Hook idea: {a['hook']}. Moves: {a['moves']}. Camera: {a['camera']}. "
-            f"Setting type: {a['setting']}. Outfit type: {a['outfit']}. Mechanic: {a['mechanic']} ({a['why_it_works']})")
+            f"Setting type: {a['setting']}. Outfit type: {a['outfit']}. Mechanic: {a['mechanic']} ({a['why_it_works']}). "
+            f"Spoken: {'yes, she talks to camera' if a.get('spoken') else 'no, music and text only'}")
 
 
 def from_video(app, file_id, note=""):
