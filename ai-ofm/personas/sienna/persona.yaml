@@ -6,7 +6,7 @@ persona:
   age: 21                        # τουλάχιστον 21, αλλιώς το σύστημα δεν ξεκινά
   subject: "woman"
   trigger_word: "s1env4le"       # η λέξη-κλειδί του LoRA, κάτι που δεν είναι πραγματική λέξη
-  appearance: "white Caucasian woman, 21 years old, stunningly beautiful and sexy, with an extremely curvy hourglass body: very large full breasts, a very big round butt, very wide hips and a tiny waist (always visible in the pose and the tight outfit); very big plump pouty lips; white European skin (fair, light complexion, NOT dark, NOT mixed) with a slight summer glow; very long, thick, voluminous dark brown hair in big loose curls; big dark brown doe eyes with long lashes and full defined eyebrows; soft glam makeup; a few light freckles only on her cheeks"
+  appearance: "white Caucasian woman, 21 years old, stunningly beautiful and sexy, with an extremely exaggerated hourglass body: huge round surgically enhanced breast implants (very large, pushed up, deep cleavage), a huge round BBL-style butt, very wide hips and a tiny cinched waist, always shown clearly in tight, low-cut, body-hugging outfits; very big plump overlined pouty lips; white European skin (fair, light complexion, NOT dark, NOT mixed) with a slight summer glow; very long, thick, voluminous dark brown hair in big loose curls; big dark brown doe eyes with long lashes and full defined eyebrows; soft glam makeup; a few light freckles only on her cheeks"
   vibe: "American girl-next-door, Miami lifestyle: beach, brunch, gym, nights out"
   niche: "fitness, beach lifestyle and everyday vlogs, US audience"
   personality: "playful, confident, warm, a little teasing, casual American slang, never vulgar"
