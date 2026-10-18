@@ -26,7 +26,7 @@ Fanvue και chat:
 /chat_off — σταματάει το chat
 
 Πρώτο στήσιμο (μία φορά):
-/faces — 6 υποψήφια πρόσωπα, διαλέγεις με ⭐
+/faces — 6 υποψήφια πρόσωπα, διαλέγεις με ⭐ (ή στείλε μου μια φωτογραφία που έφτιαξες αλλού)
 /dataset — 24 φωτογραφίες με το ίδιο πρόσωπο, πετάς όσες δεν μοιάζουν
 /train — εκπαίδευση LoRA (~$3), κλειδώνει και τις references
 /lock — ξανακλείδωμα των references (αν άλλαξες το dataset)"""
@@ -129,6 +129,11 @@ def handle_update(app, update, now):
                 handle_command(app, text, now)
             elif replied_to and text and chat.send_custom(app, replied_to, text):
                 pass
+            elif message.get("photo") or str((message.get("document") or {}).get("mime_type", "")).startswith("image/"):
+                photo = message.get("photo")
+                file_id = photo[-1]["file_id"] if photo else message["document"]["file_id"]  # last = largest size
+                onboarding.use_face(app, file_id)
+                app.notify("✅ Αυτό είναι το πρόσωπό της από εδώ και πέρα. Στείλε /dataset για να φτιάξω τις 24 φωτογραφίες.")
             elif text.startswith("http") and "code=" in text and app.fanvue:
                 me = app.fanvue.finish_login(text)
                 app.notify(f"✅ Συνδέθηκε το Fanvue: @{me.get('handle')}. Από τώρα τα εγκεκριμένα ανεβαίνουν μόνα τους.")

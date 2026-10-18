@@ -41,6 +41,9 @@ class FakeTelegram:
     def answer(self, callback_id, text=""):
         self.answers.append(text)
 
+    def file_url(self, file_id):
+        return f"https://api.telegram.org/file/botSECRET/photos/{file_id}.jpg"
+
     def is_owner(self, update):
         sender = (update.get("callback_query") or update.get("message") or {}).get("from") or {}
         return sender.get("id") == OWNER

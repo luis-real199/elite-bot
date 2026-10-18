@@ -88,6 +88,15 @@ def faces(app, n=6):
     return candidates
 
 
+def use_face(app, file_id):
+    """A photo the owner sent (made elsewhere, e.g. in Gemini) becomes her reference face."""
+    path = download(app.tg.file_url(file_id), app.setup_dir / "faces" / "custom.jpg")
+    url = app.media.upload(path, keep=True)  # a public copy the image models can read
+    face = {"url": url, "path": str(path)}
+    app.db.kv_set("reference_face", face)
+    return face
+
+
 def pick_face(app, idx):
     candidates = app.db.kv_get("face_candidates") or []
     if not 0 <= idx < len(candidates):

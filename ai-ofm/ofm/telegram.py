@@ -81,6 +81,10 @@ class Telegram:
     def updates(self, offset=None, timeout=20):
         return self.call("getUpdates", http_timeout=timeout + 15, offset=offset, timeout=timeout)
 
+    def file_url(self, file_id):
+        """Where to download a file the owner sent. The URL carries the bot token: download it, never store it."""
+        return f"{self.base.replace('/bot', '/file/bot')}{self.call('getFile', file_id=file_id)['file_path']}"
+
     def is_owner(self, update):
         sender = (update.get("callback_query") or update.get("message") or {}).get("from") or {}
         return self.owner_id is not None and sender.get("id") == self.owner_id

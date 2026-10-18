@@ -259,3 +259,16 @@ def test_onboarding_flow(app):
     lora = onboarding.train(app)
     assert lora == app.lora_url() == "https://fal.media/lora.safetensors"
     assert ("train", "https://fal.media/dataset.zip", "m1alaur") in app.media.calls
+
+
+def test_a_photo_sent_to_the_bot_becomes_her_face(app):
+    from ofm import onboarding
+
+    update = {"update_id": 9, "message": {"from": {"id": OWNER}, "photo": [{"file_id": "small"}, {"file_id": "big"}]}}
+    bot.handle_update(app, update, at(app.cfg, *SUNDAY_EVENING))
+    face = app.db.kv_get("reference_face")
+    assert face["path"].endswith("faces/custom.jpg") and face["url"] == "https://fal.media/custom.jpg"
+    assert ("upload", face["path"], True) in app.media.calls  # kept on fal, so the dataset can use it
+    assert any("/dataset" in m for m in app.tg.messages)
+    assert onboarding.dataset(app) == len(onboarding.DATASET_SHOTS)
+    assert all(c[2] == ["https://fal.media/custom.jpg"] for c in app.media.calls if c[0] == "ref_image")
