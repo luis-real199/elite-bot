@@ -186,8 +186,8 @@ def test_dry_run_changes_nothing(app):
     for post in app.db.posts("in_review"):
         jobs.review_action(app, "a", post["id"])
     previews = jobs.publish_due(app, at(app.cfg, 2026, 10, 19, 10, 0), dry_run=True)
-    assert previews and all(p.startswith("mutation { createPost(input: {") for p in previews)
-    assert "schedulingType: automatic" in previews[0]
+    assert previews and all(p.startswith("mutation CreatePost($input: CreatePostInput!)") for p in previews)
+    assert '"schedulingType": "automatic"' in previews[0]
     assert not app.buffer.created and not app.storage.uploads
 
 

@@ -358,7 +358,7 @@ def status_text(app):
     checks = [
         ("LoRA", bool(app.lora_url())),
         ("Buffer", bool(app.buffer)),
-        ("Supabase", type(app.storage).__name__ == "SupabaseStorage"),
+        ("Hosting", type(app.storage).__name__ in ("SupabaseStorage", "FalStorage")),
         ("Fanvue", bool(app.fanvue and app.fanvue.connected)),
     ]
     return (

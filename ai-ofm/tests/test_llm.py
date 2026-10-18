@@ -61,11 +61,11 @@ def test_plan_is_sent_in_chunks_to_the_free_api(free):
     summary = planner.plan_ahead(free, datetime(2026, 10, 18, 18, 5, tzinfo=free.cfg.tz))
     assert summary["created"] == 37 and summary["missing"] == 0
     reqs = free.llm_http.requests
-    assert len(reqs) == 4  # 37 slots in chunks of 10
+    assert len(reqs) == 7  # 37 slots in chunks of 6, to stay under the free 8K tokens/minute
     first = reqs[0]
     assert first["url"] == "https://api.groq.com/openai/v1/chat/completions"
     assert first["headers"] == {"Authorization": "Bearer gsk_test"}
-    assert first["body"]["model"] == "llama-3.3-70b-versatile"
+    assert first["body"]["model"] == "openai/gpt-oss-120b" and first["body"]["reasoning_effort"] == "low"
     assert first["body"]["response_format"] == {"type": "json_object"}
     assert "JSON schema" in first["body"]["messages"][0]["content"]
     assert free.db.spent_last_week() == 0
@@ -76,7 +76,7 @@ def test_quality_check_sends_both_images_to_the_vision_model(free):
     passed, reason = qc.check_image(free, "https://fal.media/new.jpg", "https://fal.media/ref.jpg")
     assert passed is True
     body = free.llm_http.requests[0]["body"]
-    assert body["model"] == "meta-llama/llama-4-scout-17b-16e-instruct"
+    assert body["model"] == "qwen/qwen3.8-27b" and "reasoning_effort" not in body
     images = [p["image_url"]["url"] for p in body["messages"][1]["content"] if p["type"] == "image_url"]
     assert images == ["https://fal.media/ref.jpg", "https://fal.media/new.jpg"]
 
@@ -113,3 +113,23 @@ def test_chat_uses_the_free_api(free):
     assert draft["reply"] == "hi there"
     system = free.llm_http.requests[0]["body"]["messages"][0]["content"]
     assert "openly AI-generated character" in system and "Catalogue" in system
+
+
+def test_reasoning_text_is_ignored(free):
+    free.llm_http.replies = [{"choices": [{"message": {"content": '<think>{"maybe": 1}</think>\n{"same_person": true, '
+                              '"clearly_adult": true, "defects": [], "verdict": "fail", "reason": "warped hand"}'},
+                              "finish_reason": "stop"}]}]
+    assert qc.check_image(free, "https://fal.media/new.jpg", "https://fal.media/ref.jpg") == (False, "warped hand")
+
+
+def test_health_check_warns_when_a_free_model_is_retired(free):
+    from ofm import health
+
+    class Models:
+        def get(self, url, headers=None, timeout=None):
+            assert url == "https://api.groq.com/openai/v1/models"
+            return SimpleNamespace(status_code=200, json=lambda: {"data": [{"id": "openai/gpt-oss-120b"}]})
+
+    free.llm_http = Models()
+    problems = health.health_check(free)
+    assert problems == ["groq: το μοντέλο qwen/qwen3.8-27b δεν υπάρχει πια. Άλλαξέ το στο persona.yaml (models.llm)."]

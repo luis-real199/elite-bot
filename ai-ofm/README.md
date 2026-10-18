@@ -40,11 +40,9 @@
 2. **fal.ai:** https://fal.ai/dashboard/keys, φτιάξε key και βάλε ~$20 credits.
 3. **Telegram bot:** στο Telegram γράψε στον **@BotFather** την εντολή `/newbot` και κράτα το token. Κάθε περσόνα έχει δικό της bot.
 4. **Buffer:** https://buffer.com (πλάνο Essentials). Σύνδεσε Instagram (Business ή Creator, κύριο και backup), TikTok (Business), YouTube, X. Μετά **Settings**, **API**, φτιάξε key.
-5. **Supabase:** φτιάξε **νέο** project, ξεχωριστό από το Blacklist Records.
-   - **Storage**, **New bucket**, όνομα `ofm-media`, ενεργό το **Public bucket**.
-   - **Project Settings**, **API Keys**: αντέγραψε το URL και ένα **secret key**.
+5. **Φιλοξενία αρχείων:** δεν χρειάζεται κάτι. Τα τελικά αρχεία για το Buffer ανεβαίνουν στο fal (κρατιούνται 30 μέρες). Το Supabase είναι προαιρετικό: η δωρεάν έκδοση «κοιμάται» μετά από 7 μέρες και τα links σταματούν.
 6. **Instagram:** Settings, άνοιξε την ετικέτα **AI-generated profile**. Χωρίς αυτήν, από 31/8/2026 κόβεται το reach.
-7. **Fanvue:** επαλήθευση με τη δική σου ταυτότητα και ενεργή η ένδειξη AI content στο προφίλ.
+7. **Fanvue:** επαλήθευση με τη δική σου ταυτότητα και ενεργή η ένδειξη AI content στο προφίλ. **Το API δίνεται με λίστα αναμονής:** ζήτα πρόσβαση νωρίς και μην πληρώσεις τίποτα για το Fanvue κομμάτι μέχρι να εγκριθεί το app σου. Μέχρι τότε τα αρχεία σού έρχονται στο Telegram για χειροκίνητο ανέβασμα.
 
 ### 2. Server (ένα μικρό VPS, ~€5 τον μήνα)
 Χρειάζεται να τρέχει 24/7. Ένα Hetzner CX22 ή κάτι αντίστοιχο φτάνει.
@@ -90,7 +88,7 @@ docker compose up -d --build                                 # ξεκινά κα
 ```bash
 docker compose run --rm sienna python -m ofm publish --dry-run
 ```
-Σου δείχνει τι θα σταλεί, χωρίς να στείλει τίποτα. Μετά τα πρώτα κανονικά posts, κοίτα στο Buffer ότι μπήκαν σωστά (Reel, Story, Feed). Αν έρθει μήνυμα σφάλματος στο Telegram, στείλε μου το κείμενο και το διορθώνω.
+Σου δείχνει τι θα σταλεί, χωρίς να στείλει τίποτα. Για αυτόματη δημοσίευση στο Buffer: Instagram **Business ή Creator** συνδεδεμένο με Facebook Page, και στα κανάλια κλειστό το «notifications by default». Stories με μουσική/stickers και TikTok με ήχους της εφαρμογής γίνονται ειδοποίηση στο κινητό. Μετά τα πρώτα κανονικά posts, κοίτα στο Buffer ότι μπήκαν σωστά (Reel, Story, Feed). Αν έρθει μήνυμα σφάλματος στο Telegram, στείλε μου το κείμενο και το διορθώνω.
 
 ## Περισσότερες περσόνες
 Ξεκίνα με μία. Όταν η πρώτη φτάσει ~50 συνδρομητές:

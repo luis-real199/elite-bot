@@ -96,7 +96,7 @@ def test_multipart_upload(tmp_path):
     video = tmp_path / "7.mp4"
     video.write_bytes(b"v" * (PART_SIZE + 10))
     http.queue = [
-        Response(body={"uploadId": "up1", "mediaUuid": "m1"}),
+        Response(body={"uploadId": "up1", "mediaUuid": "m1"}),  # no partSize: falls back to 10 MB
         Response(body={"url": "https://s3.example/p1"}), Response(headers={"ETag": '"e1"'}),
         Response(text="https://s3.example/p2"), Response(headers={"ETag": '"e2"'}),
         Response(body={"status": "processing"}),
@@ -109,7 +109,7 @@ def test_multipart_upload(tmp_path):
     assert http.calls[2][0] == "PUT" and len(http.calls[2][2]["data"]) == PART_SIZE
     assert len(http.calls[4][2]["data"]) == 10
     assert http.calls[5][0] == "PATCH" and http.calls[5][2]["json"] == {
-        "parts": [{"partNumber": 1, "etag": '"e1"'}, {"partNumber": 2, "etag": '"e2"'}]}
+        "parts": [{"PartNumber": 1, "ETag": '"e1"'}, {"PartNumber": 2, "ETag": '"e2"'}]}
 
 
 def test_post_and_message_bodies(cfg):

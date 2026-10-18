@@ -14,8 +14,9 @@ PRESETS = {
     "groq": {
         "base_url": "https://api.groq.com/openai/v1",
         "key_env": "GROQ_API_KEY",
-        "model": "llama-3.3-70b-versatile",
-        "vision_model": "meta-llama/llama-4-scout-17b-16e-instruct",
+        # Llama 3.3 70B and Llama 4 Scout left the free tier in Jul/Aug 2026; these are Groq's replacements.
+        "model": "openai/gpt-oss-120b",
+        "vision_model": "qwen/qwen3.8-27b",  # preview model: max 3 images per request
     },
     "gemini": {
         "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
@@ -48,7 +49,7 @@ def settings(cfg):
         "key_env": preset.get("key_env"),
         "model": raw.get("model") or preset.get("model") or cfg.models["claude"],
         "vision_model": raw.get("vision_model") or preset.get("vision_model") or raw.get("model") or preset.get("model"),
-        "plan_chunk": int(raw.get("plan_chunk") or 10),
+        "plan_chunk": int(raw.get("plan_chunk") or 6),
         "usd_per_mtok": raw.get("usd_per_mtok") or {"input": 0.0, "output": 0.0},
     }
 
@@ -119,7 +120,7 @@ def _to_openai_content(content):
 
 
 def _parse_json(text):
-    text = (text or "").strip()
+    text = re.sub(r"<think>.*?</think>", "", text or "", flags=re.S).strip()
     fenced = re.search(r"```(?:json)?\s*(.*?)```", text, re.S)
     if fenced:
         text = fenced.group(1).strip()
@@ -164,7 +165,11 @@ def _ask_openai_compatible(app, s, system, content, schema, kind, cached_system)
         "messages": messages,
         "response_format": {"type": "json_object"},
         "temperature": 0.8 if kind in ("claude", "plan") else 0.4,
+        # gpt-oss and qwen3 reason before answering; those tokens count against the limit and the free quota
+        "max_completion_tokens": 8192,
     }
+    if body["model"].startswith("openai/gpt-oss"):
+        body["reasoning_effort"] = "low"
     url = s["base_url"].rstrip("/") + "/chat/completions"
     for attempt in range(2):
         result = _post(app, url, key, body)

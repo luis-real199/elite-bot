@@ -7,7 +7,7 @@ from .buffer import Buffer
 from .db import DB
 from .fanvue import Fanvue
 from .media import Media
-from .storage import SourceUrlStorage, SupabaseStorage
+from .storage import FalStorage, SupabaseStorage
 from .telegram import Telegram
 
 log = logging.getLogger("ofm")
@@ -25,7 +25,7 @@ class App:
         if storage is None:
             url, key = cfg.secret("SUPABASE_URL"), cfg.secret("SUPABASE_SECRET_KEY")
             bucket = cfg.secret("SUPABASE_BUCKET") or "ofm-media"
-            storage = SupabaseStorage(url, key, bucket, prefix=f"{cfg.slug}/") if url and key else SourceUrlStorage()
+            storage = SupabaseStorage(url, key, bucket, prefix=f"{cfg.slug}/") if url and key else FalStorage(self.media)
         self.storage = storage
         if buffer is None and cfg.secret("BUFFER_API_KEY"):
             buffer = Buffer(cfg.secret("BUFFER_API_KEY"))

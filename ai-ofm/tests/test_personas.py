@@ -118,3 +118,19 @@ def test_each_persona_uploads_into_its_own_folder(tmp_path):
     url = storage.upload(media, 1)
     assert "/storage/v1/object/ofm-media/ava/1-" in storage.http.url
     assert url.startswith("https://x.supabase.co/storage/v1/object/public/ofm-media/ava/1-")
+
+
+def test_without_supabase_files_are_hosted_on_fal(cfg, tmp_path):
+    from ofm.app import App
+    from ofm.db import DB
+    from ofm.storage import FalStorage
+
+    from conftest import FakeMedia
+
+    db = DB(":memory:")
+    media = FakeMedia(cfg, db)
+    app = App(cfg, db=db, tg=None, media=media)
+    assert isinstance(app.storage, FalStorage)
+    clip = tmp_path / "7-hook.mp4"
+    clip.write_bytes(b"x")
+    assert app.storage.upload(clip, 7) == "https://fal.media/7-hook.mp4"

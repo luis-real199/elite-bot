@@ -167,11 +167,12 @@ class Fanvue:
             "sizeBytes": path.stat().st_size,
         })
         upload_id, media_uuid = session["uploadId"], session["mediaUuid"]
+        part_size = int(session.get("partSize") or PART_SIZE)
         parts = []
         with open(path, "rb") as f:
             number = 1
             while True:
-                chunk = f.read(PART_SIZE)
+                chunk = f.read(part_size)
                 if not chunk and parts:
                     break
                 signed = self.request("GET", f"/media/uploads/{upload_id}/parts/{number}/url")
@@ -184,8 +185,8 @@ class Fanvue:
                     raise FanvueError(f"upload part {number}: {type(e).__name__}") from None
                 if r.status_code >= 300:
                     raise FanvueError(f"upload part {number}: HTTP {r.status_code}")
-                parts.append({"partNumber": number, "etag": r.headers.get("ETag", "")})
-                if len(chunk) < PART_SIZE:
+                parts.append({"PartNumber": number, "ETag": r.headers.get("ETag", "")})
+                if len(chunk) < part_size:
                     break
                 number += 1
         self.request("PATCH", f"/media/uploads/{upload_id}", json={"parts": parts})

@@ -2,7 +2,7 @@ import pytest
 import yaml
 
 from ofm import guardrails
-from ofm.buffer import Enum, literal, post_input
+from ofm.buffer import post_input
 from ofm.config import ConfigError, load_config
 
 from conftest import ROOT
@@ -67,10 +67,18 @@ def test_disclosure_tag_is_added_and_tags_normalised():
     assert guardrails.with_disclosure(["#aigenerated", "fit"]) == ["#aigenerated", "#fit"]
 
 
-def test_graphql_literal_encoding():
-    assert literal({"a": Enum("reel"), "b": True, "c": 'say "hi" ✨', "d": [1, None]}) == (
-        '{a: reel, b: true, c: "say \\"hi\\" ✨", d: [1, null]}'
-    )
+def test_instagram_and_youtube_metadata(cfg):
+    from datetime import datetime
+
+    when = datetime(2026, 10, 20, tzinfo=cfg.tz)
+    image = {"kind": "image", "caption": "hi", "hashtags": []}
+    assert post_input(image, "instagram_story", "c", "u", when)["metadata"] == {
+        "instagram": {"type": "story", "shouldShareToFeed": False}}
+    assert post_input(image, "instagram_feed", "c", "u", when)["metadata"] == {
+        "instagram": {"type": "post", "shouldShareToFeed": True}}
+    video = {"kind": "video", "caption": "Gym day #fit", "hashtags": []}
+    assert post_input(video, "youtube_short", "c", "u", when)["metadata"] == {
+        "youtube": {"title": "Gym day", "categoryId": "22", "madeForKids": False, "isAiGenerated": True}}
 
 
 def test_reel_input_shape(cfg):
@@ -130,13 +138,18 @@ def test_buffer_responses():
     from ofm.buffer import Buffer, BufferError
 
     ok = FakeResponse({"data": {"createPost": {"__typename": "PostActionSuccess", "post": {"id": "p1"}}}})
+    quotes = 'she said "hi"\nnew line'
+
     refused = FakeResponse({"data": {"createPost": {"__typename": "MutationError", "message": "Invalid media URL"}}})
     invalid = FakeResponse({"errors": [{"message": "Unknown argument"}]})
     session = FakeSession(ok, refused, invalid, FakeResponse({}, status=401))
     buffer = Buffer("key", session=session)
 
-    assert buffer.create_post({"text": "hi"}) == "p1"
-    assert session.sent[0][1]["headers"]["Authorization"] == "Bearer key"
+    assert buffer.create_post({"text": quotes}) == "p1"
+    sent = session.sent[0][1]
+    assert sent["headers"]["Authorization"] == "Bearer key"
+    assert sent["json"]["query"].startswith("mutation CreatePost($input: CreatePostInput!)")
+    assert sent["json"]["variables"] == {"input": {"text": quotes}}  # text travels as data, never inside the query
     for message in ("Invalid media URL", "Unknown argument", "401"):
         with pytest.raises(BufferError, match=message):
             buffer.create_post({"text": "hi"})

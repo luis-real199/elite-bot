@@ -114,11 +114,12 @@ class Media:
             raise GenerationError(f"Κανένα βίντεο στην απάντηση: {result}")
         return url
 
-    def upload(self, path, keep=False):
-        """keep=True asks fal to never expire the file (references, LoRA backup)."""
+    def upload(self, path, keep=False, expires_in=None):
+        """keep=True asks fal to never expire the file (references, LoRA backup); or pass expires_in ("30d")."""
+        expires_in = "never" if keep else expires_in
         try:
-            if keep:
-                return self.fal.upload_file(Path(path), lifecycle=self.fal.StorageSettings(expires_in="never"))
+            if expires_in:
+                return self.fal.upload_file(Path(path), lifecycle=self.fal.StorageSettings(expires_in=expires_in))
             return self.fal.upload_file(Path(path))
         except Exception as e:
             raise GenerationError(f"upload {path}: {e}") from e

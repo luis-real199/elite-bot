@@ -5,6 +5,7 @@ from pathlib import Path
 
 import requests
 
+from . import llm
 from .buffer import BufferError
 from .fanvue import FanvueError
 
@@ -19,6 +20,23 @@ def _alive(url, http):
         return r.status_code < 400
     except requests.RequestException:
         return False
+
+
+def _llm_models_missing(app):
+    """Free providers retire models with little notice (Groq did twice in 2026): check they still exist."""
+    s = llm.settings(app.cfg)
+    key = app.cfg.secret(s["key_env"]) if s["key_env"] else None
+    if s["provider"] == "claude" or not key:
+        return []
+    try:
+        r = app.llm_http.get(s["base_url"].rstrip("/") + "/models", headers={"Authorization": f"Bearer {key}"}, timeout=30)
+        available = {m.get("id") for m in (r.json().get("data") or [])} if r.status_code < 300 else None
+    except (requests.RequestException, ValueError):
+        available = None
+    if available is None:
+        return [f"{s['provider']}: δεν μπόρεσα να δω τη λίστα μοντέλων"]
+    gone = sorted({s["model"], s["vision_model"]} - available)
+    return [f"{s['provider']}: το μοντέλο {m} δεν υπάρχει πια. Άλλαξέ το στο persona.yaml (models.llm)." for m in gone]
 
 
 def health_check(app, http=None):
@@ -37,6 +55,8 @@ def health_check(app, http=None):
             app.fanvue.me()
         except FanvueError as e:
             problems.append(f"Fanvue: {e}")
+
+    problems += _llm_models_missing(app)
 
     lora = app.lora_url()
     if lora and not _alive(lora, http):

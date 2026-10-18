@@ -53,13 +53,18 @@ class SupabaseStorage:
             raise StorageError(f"Supabase delete HTTP {r.status_code}: {r.text[:200]}")
 
 
-class SourceUrlStorage:
-    """No hosting configured: reuse the generator's URL (may expire, so Supabase is recommended)."""
+class FalStorage:
+    """Default: host the final file (with the hook burned in) on fal's CDN for 30 days.
+    Free Supabase projects pause after a week without activity and their public links stop working."""
+
+    def __init__(self, media):
+        self.media = media
 
     def upload(self, path, post_id, source_url=None):
-        if not source_url:
-            raise StorageError("Δεν υπάρχει URL για το αρχείο και δεν έχει ρυθμιστεί Supabase")
-        return source_url
+        try:
+            return self.media.upload(path, expires_in="30d")
+        except Exception as e:
+            raise StorageError(f"fal upload: {e}") from e
 
     def delete(self, public_url):
-        pass
+        pass  # expires on its own

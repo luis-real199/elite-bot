@@ -25,26 +25,6 @@ class BufferError(Exception):
     pass
 
 
-class Enum(str):
-    """A bare GraphQL enum value, written without quotes."""
-
-
-def literal(value):
-    if isinstance(value, Enum):
-        return str(value)
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    if value is None:
-        return "null"
-    if isinstance(value, (int, float, str)):
-        return json.dumps(value, ensure_ascii=False)
-    if isinstance(value, list):
-        return "[" + ", ".join(literal(v) for v in value) + "]"
-    if isinstance(value, dict):
-        return "{" + ", ".join(f"{k}: {literal(v)}" for k, v in value.items()) + "}"
-    raise TypeError(f"cannot encode {type(value).__name__}")
-
-
 def post_text(post, target):
     tags = " ".join(post["hashtags"])
     caption = post.get("alt_caption") if target == "instagram_backup" and post.get("alt_caption") else post["caption"]
@@ -59,28 +39,31 @@ def post_input(post, target, channel_id, media_url, due_at):
     data = {
         "text": post_text(post, target),
         "channelId": channel_id,
-        "schedulingType": Enum("automatic"),
-        "mode": Enum("customScheduled"),
+        "schedulingType": "automatic",
+        "mode": "customScheduled",
         "dueAt": due_at.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z"),
         "assets": [{"video": {"url": media_url}} if is_video else {"image": {"url": media_url}}],
     }
     if target in INSTAGRAM_TYPE or target == "instagram_backup":
         kind = INSTAGRAM_TYPE.get(target) or ("reel" if is_video else "post")
-        instagram = {"type": Enum(kind)}
-        if kind == "reel":
-            instagram["shouldShareToFeed"] = True
-        data["metadata"] = {"instagram": instagram}
+        # shouldShareToFeed is required for every Instagram type (false only makes sense for stories)
+        data["metadata"] = {"instagram": {"type": kind, "shouldShareToFeed": kind != "story"}}
     elif target == "youtube_short":
         title = re.sub(r"#\w+", "", post["caption"]).strip()[:90] or "New short"
-        data["metadata"] = {"youtube": {"title": title}}
+        # categoryId is required on create; 22 = People & Blogs. Realistic AI people must be flagged.
+        data["metadata"] = {"youtube": {"title": title, "categoryId": "22", "madeForKids": False, "isAiGenerated": True}}
     return data
 
 
+CREATE_POST = (
+    "mutation CreatePost($input: CreatePostInput!) { createPost(input: $input) { "
+    "__typename ... on PostActionSuccess { post { id } } ... on MutationError { message } } }"
+)
+
+
 def create_post_mutation(data):
-    return (
-        "mutation { createPost(input: " + literal(data) + ") { "
-        "__typename ... on PostActionSuccess { post { id } } ... on MutationError { message } } }"
-    )
+    """Readable preview for --dry-run."""
+    return CREATE_POST + "\nvariables: " + json.dumps({"input": data}, ensure_ascii=False)
 
 
 class Buffer:
@@ -88,10 +71,13 @@ class Buffer:
         self.api_key = api_key
         self.http = session or requests.Session()
 
-    def query(self, query):
+    def query(self, query, variables=None):
+        body = {"query": query}
+        if variables:
+            body["variables"] = variables
         r = self.http.post(
             API_URL,
-            json={"query": query},
+            json=body,
             headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
             timeout=60,
         )
@@ -106,16 +92,16 @@ class Buffer:
         return body.get("data") or {}
 
     def create_post(self, data):
-        result = self.query(create_post_mutation(data)).get("createPost") or {}
+        result = self.query(CREATE_POST, {"input": data}).get("createPost") or {}
         if result.get("post"):
             return result["post"]["id"]
-        raise BufferError(result.get("message") or f"Άγνωστη απάντηση: {result}")
+        raise BufferError(result.get("message") or result.get("__typename") or f"Άγνωστη απάντηση: {result}")
 
     def channels(self):
         orgs = self.query("query { account { organizations { id name } } }")["account"]["organizations"]
         found = []
         for org in orgs:
-            q = "query { channels(input: {organizationId: " + literal(org["id"]) + "}) { id name service } }"
+            q = "query { channels(input: {organizationId: " + json.dumps(org["id"]) + "}) { id name service } }"
             for ch in self.query(q).get("channels") or []:
                 found.append({**ch, "organization": org["name"]})
         return found

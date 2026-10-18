@@ -92,7 +92,7 @@ class FakeMedia:
         self.db.add_cost("video", self.cfg.estimates["video"])
         return f"https://fal.media/vid{len(self.calls)}.mp4"
 
-    def upload(self, path, keep=False):
+    def upload(self, path, keep=False, expires_in=None):
         self.calls.append(("upload", str(path), keep))
         return f"https://fal.media/{Path(path).name}"
 
