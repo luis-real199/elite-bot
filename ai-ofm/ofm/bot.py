@@ -15,6 +15,7 @@ HELP = """🤖 Εντολές
 /status — τι γίνεται τώρα
 /plan — φτιάξε πλάνο για τις επόμενες 7 μέρες (σου έρχονται οι ιδέες, φτιάχνονται μόνο όσες πατήσεις ✅)
 /approve_all — ✅ σε όλες τις ιδέες που περιμένουν
+/replan — πέτα ό,τι δεν έχει φτιαχτεί ακόμα και ξανακάνε το πλάνο από αύριο (μετά από αλλαγές στο persona.yaml)
 /fanvue — στείλε τώρα τα εγκεκριμένα για Fanvue
 /report — αναφορά 7 ημερών
 /pause, /resume — σταμάτα/ξεκίνα generation και αποστολές
@@ -83,6 +84,9 @@ def handle_command(app, text, now):
         app.notify(jobs.status_text(app))
     elif command == "/plan":
         jobs.plan_now(app, now)
+    elif command == "/replan":
+        dropped, _ = jobs.replan(app, now)
+        app.notify(f"♻️ Πέταξα {dropped} posts που δεν είχαν φτιαχτεί και ξαναέκανα το πλάνο από αύριο με τις νέες ρυθμίσεις.", silent=True)
     elif command == "/report":
         app.notify(jobs.report_text(app, now))
     elif command == "/fanvue":

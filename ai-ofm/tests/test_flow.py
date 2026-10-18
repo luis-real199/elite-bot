@@ -506,3 +506,26 @@ def test_a_voice_slot_becomes_a_spoken_skit(app, tmp_path):
     assert app.db.spent_last_week() - before == pytest.approx(0.15 + 0.68 * 15 / 8 * 1.5 + 0.02, abs=0.01)
     jobs.send_reviews(app)
     assert any("🗣 «babe I said" in m["caption"] for m in app.tg.media)
+
+
+def test_replan_keeps_what_is_made_and_redoes_the_rest_from_tomorrow(app):
+    plan(app)
+    now = at(app.cfg, 2026, 10, 20, 15, 0)  # Tuesday afternoon of the planned week
+    jobs.generate_pending(app, at(app.cfg, 2026, 10, 18, 19, 0), limit=3)
+    made = {p["id"] for p in app.db.posts("ready")}
+    assert len(made) == 3
+    failed = next(p for p in app.db.posts("planned") if p["slot_at"] > at(app.cfg, 2026, 10, 22))
+    app.db.update_post(failed["id"], status="failed", attempts=4)
+    today_left = [p for p in app.db.posts("planned") if at(app.cfg, 2026, 10, 20) <= p["slot_at"] < at(app.cfg, 2026, 10, 21)]
+
+    app.cfg.generation["idea_approval"] = True
+    bot.handle_update(app, {"update_id": 40, "message": {"from": {"id": OWNER}, "text": "/replan"}}, now)
+
+    assert {p["id"] for p in app.db.posts("ready")} == made  # nothing already made is lost
+    assert app.db.get_post(failed["id"]) is None
+    assert all(app.db.get_post(p["id"]) for p in today_left)  # today's remaining posts stay
+    fresh = app.db.posts("proposed")
+    assert fresh and min(p["slot_at"] for p in fresh if p["targets"] != ["fanvue"]).date() == at(app.cfg, 2026, 10, 21).date()
+    assert len([p for p in fresh if p["targets"] == ["fanvue"]]) == app.cfg.fanvue_per_week
+    assert app.db.kv_get("planned_until") == "2026-10-27"
+    assert any(m.startswith("♻️ Πέταξα") for m in app.tg.messages)

@@ -601,6 +601,23 @@ def approve_all_ideas(app):
     return len(posts)
 
 
+REPLAN_DROPS = ("proposed", "planned", "failed", "missed", "blocked")
+
+
+def replan(app, now):
+    """Throw away what has not been made yet (from tomorrow on, plus the current Fanvue batch) and plan
+    again from tomorrow with the current persona.yaml: new slots, new style, new rules."""
+    db = app.db
+    tomorrow = datetime.combine((now + timedelta(days=1)).date(), datetime.min.time(), app.cfg.tz)
+    latest = max((p["batch"] for p in db.posts()), default=None)
+    drop = [p["id"] for p in db.posts(REPLAN_DROPS)
+            if p["slot_at"] >= tomorrow or (p["targets"] == ["fanvue"] and p["batch"] == latest)]
+    db.delete_posts(drop)
+    db.kv_set("planned_until", None)
+    summary = plan_now(app, now)
+    return len(drop), summary
+
+
 def plan_now(app, now):
     summary = planner.plan_ahead(app, now)
     approval = app.cfg.generation["idea_approval"]

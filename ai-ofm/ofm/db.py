@@ -160,6 +160,13 @@ class DB:
         with self.conn:
             self.conn.execute(f"UPDATE posts SET {sets} WHERE id = ?", [*fields.values(), post_id])
 
+    def delete_posts(self, ids):
+        ids = list(ids)
+        with self.conn:
+            self.conn.executemany("DELETE FROM publications WHERE post_id = ?", [(i,) for i in ids])
+            self.conn.executemany("DELETE FROM posts WHERE id = ?", [(i,) for i in ids])
+        return len(ids)
+
     def get_post(self, post_id):
         return self._post(self.conn.execute("SELECT * FROM posts WHERE id = ?", (post_id,)).fetchone())
 
