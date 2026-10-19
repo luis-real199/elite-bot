@@ -1,0 +1,38 @@
+{
+  "brand": "resellshop.xyz",
+  "logo": { "a": "resell", "b": "shop", "tld": ".xyz" },
+  "accent": "#ffd60a",
+  "accent2": "#ff7a59",
+  "hook": {
+    "line1": "Still paying",
+    "line2": "FULL PRICE?",
+    "line3": "for <b>Netflix</b>, <b>Spotify</b>, <b>ChatGPT</b> &amp; <b>Claude</b>?"
+  },
+  "products": {
+    "title1": "Premium subscriptions",
+    "title2": "for way less.",
+    "items": [
+      { "name": "Claude",  "plan": "Pro",     "icon": "spark", "color": "#d97757" },
+      { "name": "ChatGPT", "plan": "Plus",    "icon": "chat",  "color": "#10a37f" },
+      { "name": "Spotify", "plan": "Premium", "icon": "bars",  "color": "#1db954", "darkIcon": true },
+      { "name": "Netflix", "plan": "Premium", "icon": "play",  "color": "#e50914" }
+    ]
+  },
+  "benefits": {
+    "title": "Fast & safe",
+    "items": [
+      { "icon": "bolt",    "title": "Instant delivery", "sub": "Your subscription in minutes" },
+      { "icon": "lock",    "title": "Secure payment",   "sub": "Simple, fast, no hidden fees" },
+      { "icon": "headset", "title": "Support",          "sub": "Here whenever you need us" }
+    ]
+  },
+  "more": {
+    "title": "+ many more",
+    "sub": "Every subscription you need, in one place",
+    "items": ["YouTube Premium", "Canva Pro", "Disney+", "Duolingo Plus", "NordVPN", "Crunchyroll", "Discord Nitro", "Xbox Game Pass", "Adobe Creative Cloud", "HBO Max", "Apple Music", "Microsoft 365"]
+  },
+  "cta": {
+    "tagline": "Your subscription, in minutes.",
+    "button": "Buy now"
+  }
+}

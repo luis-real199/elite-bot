@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<title>resellshop.xyz — video ad scene</title>
+<style>
+  :root { --accent: #ffd60a; --accent2: #ff7a59; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #07070f; overflow: hidden; }
+  body {
+    width: 1080px; height: 1920px; position: relative; color: #fff;
+    font-family: "Inter Display", "Inter", system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased; text-rendering: geometricPrecision;
+  }
+  #bg { position: absolute; inset: 0; overflow: hidden;
+        background: radial-gradient(120% 70% at 50% 0%, #15152b 0%, #07070f 65%); }
+  .blob { position: absolute; width: 1500px; height: 1500px; left: -750px; top: -750px; border-radius: 50%; }
+  .b1 { background: radial-gradient(circle, rgba(124,58,237,.62) 0%, rgba(124,58,237,0) 62%); }
+  .b2 { background: radial-gradient(circle, rgba(37,99,235,.55) 0%, rgba(37,99,235,0) 62%); }
+  .b3 { background: radial-gradient(circle, rgba(236,72,153,.42) 0%, rgba(236,72,153,0) 62%); }
+  #grid { position: absolute; inset: 0;
+          background-image: radial-gradient(rgba(255,255,255,.09) 1.6px, transparent 1.8px);
+          background-size: 46px 46px;
+          -webkit-mask-image: radial-gradient(65% 45% at 50% 45%, #000 0%, transparent 100%); }
+  #vignette { position: absolute; inset: 0;
+              background: radial-gradient(85% 65% at 50% 50%, transparent 50%, rgba(0,0,0,.7) 100%); }
+  #grain { position: absolute; inset: 0; opacity: .09; mix-blend-mode: overlay; background-repeat: repeat; }
+  #flash { position: absolute; inset: 0; background: radial-gradient(60% 45% at 50% 50%, #fff 0%, rgba(255,255,255,0) 100%); opacity: 0; }
+
+  #stage { position: absolute; left: 50%; top: 50%; width: 1080px; height: 1500px; transform-origin: 50% 50%; }
+  .scene { position: absolute; inset: 0; }
+  .el { position: absolute; left: 0; right: 0; display: flex; justify-content: center; }
+  .anim { will-change: transform, opacity; }
+  .center { text-align: center; }
+
+  /* top brand pill */
+  .pill { display: inline-flex; align-items: center; gap: 14px; padding: 16px 30px 16px 20px; border-radius: 999px;
+          background: rgba(255,255,255,.08); border: 1.5px solid rgba(255,255,255,.16);
+          font-size: 34px; font-weight: 700; letter-spacing: .01em; backdrop-filter: blur(14px); }
+  .pill .dot { width: 14px; height: 14px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 18px #22c55e; }
+
+  /* hook */
+  .hook1 { font-size: 86px; font-weight: 800; letter-spacing: -.02em; text-shadow: 0 10px 40px rgba(0,0,0,.4); }
+  .sticker { display: inline-block; padding: 18px 44px 24px; border-radius: 28px; background: var(--accent); color: #0b0b12;
+             font-size: 150px; font-weight: 900; letter-spacing: -.035em; line-height: 1;
+             box-shadow: 0 30px 70px -20px rgba(255,214,10,.55), 0 0 0 10px rgba(255,214,10,.14); transform: rotate(-3deg); }
+  .hook3 { font-size: 42px; font-weight: 600; color: rgba(255,255,255,.78); }
+  .hook3 b { color: #fff; font-weight: 800; }
+
+  /* products */
+  .h2 { font-size: 78px; font-weight: 900; letter-spacing: -.03em; line-height: 1.05; text-shadow: 0 10px 40px rgba(0,0,0,.35); }
+  .grad { background: linear-gradient(92deg, var(--accent) 0%, var(--accent2) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .card { width: 930px; height: 176px; border-radius: 40px; display: flex; align-items: center; gap: 30px; padding: 0 40px 0 28px;
+          background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.05)); border: 1.5px solid rgba(255,255,255,.14);
+          box-shadow: 0 30px 60px -24px rgba(0,0,0,.6), 0 24px 70px -30px var(--c); position: relative; overflow: hidden; }
+  .card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 8px; background: var(--c); opacity: .9; }
+  .card::after { content: ""; position: absolute; inset: 0; background: radial-gradient(60% 120% at 0% 50%, color-mix(in srgb, var(--c) 22%, transparent) 0%, transparent 70%); }
+  .ibox { width: 118px; height: 118px; border-radius: 30px; background: var(--c); display: flex; align-items: center; justify-content: center; flex: none;
+          box-shadow: 0 16px 36px -10px color-mix(in srgb, var(--c) 80%, transparent), inset 0 -4px 0 rgba(0,0,0,.18); position: relative; }
+  .ibox svg { width: 66px; height: 66px; color: #fff; filter: drop-shadow(0 4px 8px rgba(0,0,0,.25)); }
+  .ibox.dark svg { color: #0b0b12; }
+  .ctext { flex: 1; min-width: 0; position: relative; }
+  .cname { font-size: 62px; font-weight: 800; letter-spacing: -.025em; line-height: 1; white-space: nowrap; }
+  .cplan { display: inline-flex; align-items: center; gap: 10px; margin-top: 12px; padding: 6px 18px; border-radius: 999px; font-size: 28px; font-weight: 700;
+           background: color-mix(in srgb, var(--c) 28%, rgba(255,255,255,.04)); color: #fff; border: 1.5px solid color-mix(in srgb, var(--c) 55%, transparent); }
+  .cright { position: relative; display: flex; align-items: center; gap: 16px; flex: none; }
+  .check { width: 76px; height: 76px; border-radius: 50%; background: var(--c); display: flex; align-items: center; justify-content: center;
+           box-shadow: 0 10px 30px -8px var(--c); }
+  .check svg { width: 42px; height: 42px; color: #fff; }
+  .check.dark svg { color: #0b0b12; }
+  .pricebox { text-align: right; line-height: 1; }
+  .was { font-size: 30px; font-weight: 600; color: rgba(255,255,255,.55); text-decoration: line-through; text-decoration-thickness: 3px; margin-bottom: 8px; }
+  .price { font-size: 60px; font-weight: 900; letter-spacing: -.03em; color: var(--accent); }
+  .price .per { font-size: 26px; font-weight: 700; color: rgba(255,255,255,.7); margin-left: 4px; letter-spacing: 0; }
+
+  /* benefits */
+  .brow { width: 930px; height: 184px; border-radius: 40px; display: flex; align-items: center; gap: 32px; padding: 0 36px;
+          background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.05)); border: 1.5px solid rgba(255,255,255,.14);
+          box-shadow: 0 30px 60px -24px rgba(0,0,0,.6); }
+  .bico { width: 112px; height: 112px; border-radius: 30px; flex: none; display: flex; align-items: center; justify-content: center;
+          background: linear-gradient(135deg, var(--accent), var(--accent2)); box-shadow: 0 14px 36px -10px rgba(255,160,60,.7); }
+  .bico svg { width: 60px; height: 60px; color: #0b0b12; }
+  .btitle { font-size: 54px; font-weight: 800; letter-spacing: -.02em; line-height: 1.05; }
+  .bsub { font-size: 32px; font-weight: 500; color: rgba(255,255,255,.72); margin-top: 10px; }
+
+  /* more */
+  .mhead { font-size: 92px; font-weight: 900; letter-spacing: -.035em; line-height: 1; }
+  .msub { font-size: 40px; font-weight: 600; color: rgba(255,255,255,.75); margin-top: 18px; }
+  .mrow { position: absolute; left: 0; width: 1080px; overflow: hidden; height: 96px;
+          -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%); }
+  .mtrack { position: absolute; left: 0; top: 0; display: flex; gap: 20px; white-space: nowrap; will-change: transform; }
+  .chip { display: inline-flex; align-items: center; gap: 16px; height: 96px; padding: 0 34px 0 24px; border-radius: 999px; font-size: 38px; font-weight: 700;
+          background: rgba(255,255,255,.09); border: 1.5px solid rgba(255,255,255,.16); }
+  .chip i { width: 18px; height: 18px; border-radius: 50%; background: var(--c); box-shadow: 0 0 16px var(--c); }
+
+  /* cta */
+  .logo { display: flex; align-items: center; gap: 26px; }
+  .logo .mark { width: 128px; height: 128px; border-radius: 36px; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: flex; align-items: center; justify-content: center;
+                box-shadow: 0 24px 60px -16px rgba(255,170,60,.75); }
+  .logo .mark svg { width: 72px; height: 72px; color: #0b0b12; }
+  .logo .word { font-size: 112px; font-weight: 900; letter-spacing: -.045em; line-height: 1; }
+  .logo .word .tld { font-size: 60px; font-weight: 700; color: rgba(255,255,255,.6); letter-spacing: -.02em; margin-left: 6px; }
+  .tagline { font-size: 50px; font-weight: 700; color: rgba(255,255,255,.88); letter-spacing: -.01em; }
+  .btn { position: relative; display: inline-flex; align-items: center; gap: 22px; padding: 34px 64px 36px 70px; border-radius: 999px;
+         background: linear-gradient(92deg, var(--accent), var(--accent2)); color: #0b0b12; font-size: 66px; font-weight: 900; letter-spacing: -.025em;
+         box-shadow: 0 30px 80px -20px rgba(255,170,60,.85), 0 0 0 12px rgba(255,214,10,.12); }
+  .btn svg { width: 64px; height: 64px; }
+  .ripple { position: absolute; left: 50%; top: 50%; width: 560px; height: 160px; margin: -80px 0 0 -280px; border-radius: 999px; border: 6px solid var(--accent); opacity: 0; pointer-events: none; }
+  .urlpill { display: inline-flex; align-items: center; gap: 16px; padding: 18px 36px 18px 26px; border-radius: 999px; font-size: 44px; font-weight: 700;
+             background: rgba(255,255,255,.08); border: 1.5px solid rgba(255,255,255,.16); backdrop-filter: blur(14px); }
+  .urlpill svg { width: 44px; height: 44px; color: var(--accent); }
+  .minis { display: flex; gap: 18px; }
+  .mini { width: 92px; height: 92px; border-radius: 26px; background: var(--c); display: flex; align-items: center; justify-content: center; box-shadow: 0 14px 30px -10px var(--c); }
+  .mini svg { width: 50px; height: 50px; color: #fff; }
+  .mini.dark svg { color: #0b0b12; }
+</style>
+</head>
+<body>
+  <div id="bg">
+    <div class="blob b1" id="b1"></div>
+    <div class="blob b2" id="b2"></div>
+    <div class="blob b3" id="b3"></div>
+    <div id="grid"></div>
+    <div id="grain"></div>
+    <div id="vignette"></div>
+  </div>
+  <div id="stage"></div>
+  <div id="flash"></div>
+
+<script>
+/* ---------- icons ---------- */
+const ICONS = {
+  spark: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 1.5l2.6 6.9 6.9 2.6-6.9 2.6L12 20.5l-2.6-6.9L2.5 11l6.9-2.6z"/><path d="M19.5 15l1 2.5 2.5 1-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1z" opacity=".85"/></svg>',
+  chat: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 3h16a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3H9.5L5 22v-4H4a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3z"/><circle cx="8" cy="10.5" r="1.6" fill="#0b0b12" opacity=".55"/><circle cx="12" cy="10.5" r="1.6" fill="#0b0b12" opacity=".55"/><circle cx="16" cy="10.5" r="1.6" fill="#0b0b12" opacity=".55"/></svg>',
+  bars: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="2.5" y="9" width="3.4" height="9" rx="1.7"/><rect x="7.8" y="4" width="3.4" height="14" rx="1.7"/><rect x="13.1" y="7" width="3.4" height="11" rx="1.7"/><rect x="18.4" y="11" width="3.4" height="7" rx="1.7"/><rect x="2.5" y="19.5" width="19.3" height="2" rx="1" opacity=".55"/></svg>',
+  play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7.5 4.6c0-1.2 1.3-1.9 2.3-1.3l11 6.9c.9.6.9 2 0 2.6l-11 6.9c-1 .6-2.3-.1-2.3-1.3z"/></svg>',
+  tv: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-6.5l2 2.5H7.5l2-2.5H3a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="M10 8.3v5.4l4.6-2.7z" fill="#0b0b12" opacity=".55"/></svg>',
+  star: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l2.9 6.2 6.8.8-5 4.7 1.3 6.7L12 17.6 6 20.9l1.3-6.7-5-4.7 6.8-.8z"/></svg>',
+  bolt: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M13.5 1.5L3.8 13.6h6.4L9.4 22.5l9.8-12.1h-6.4z"/></svg>',
+  lock: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.5 10V8a5.5 5.5 0 1 1 11 0v2H19a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2zm2.6 0h5.8V8a2.9 2.9 0 1 0-5.8 0zM12 14a1.6 1.6 0 0 0-.8 3v1.5h1.6V17a1.6 1.6 0 0 0-.8-3z"/></svg>',
+  headset: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5a8.5 8.5 0 0 0-8.5 8.5v6A3 3 0 0 0 6.5 20h1a1.5 1.5 0 0 0 1.5-1.5v-5A1.5 1.5 0 0 0 7.5 12h-2v-1a6.5 6.5 0 1 1 13 0v1h-2a1.5 1.5 0 0 0-1.5 1.5v5a1.5 1.5 0 0 0 1.5 1.5h1a3 3 0 0 0 3-3v-6A8.5 8.5 0 0 0 12 2.5z"/><path d="M12 22.5c2.4 0 4.3-.9 5.5-2.1l-1.4-1.4c-.9.9-2.3 1.5-4.1 1.5z"/></svg>',
+  arrow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 5l7 7-7 7"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l4.8 4.8L19.5 7"/></svg>',
+  globe: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.2 3 14.8 0 18M12 3c-3 3.2-3 14.8 0 18"/></svg>',
+  bag: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.2 7.5h11.6l1.2 12.3a2 2 0 0 1-2 2.2H7a2 2 0 0 1-2-2.2zM9 9V6a3 3 0 0 1 6 0v3h-1.8V6a1.2 1.2 0 0 0-2.4 0v3z"/></svg>',
+};
+const icon = (n) => ICONS[n] || ICONS.star;
+
+/* ---------- easing & tween helpers ---------- */
+const E = {
+  linear: t => t,
+  outCubic: t => 1 - Math.pow(1 - t, 3),
+  inCubic: t => t * t * t,
+  inOutCubic: t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2,
+  outQuint: t => 1 - Math.pow(1 - t, 5),
+  outExpo: t => t >= 1 ? 1 : 1 - Math.pow(2, -10 * t),
+  outBack: t => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); },
+  outBackSoft: t => { const c1 = 1.0, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); },
+  outBackHard: t => { const c1 = 2.6, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); },
+  outElastic: t => t <= 0 ? 0 : t >= 1 ? 1 : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * (2 * Math.PI / 3)) + 1,
+};
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const lerp = (a, b, p) => a + (b - a) * p;
+const P = (t, s, d, ease) => (ease || E.outCubic)(clamp((t - s) / d, 0, 1));
+
+/* Animates an element in/out. Returns its opacity. */
+function show(el, t, inS, inD, outS, outD, o = {}) {
+  const dy = o.dy ?? 70, dx = o.dx ?? 0, ds = o.ds ?? 0.92, rot = o.rot ?? 0;
+  const ody = o.ody ?? -50, odx = o.odx ?? 0, ods = o.ods ?? 0.96;
+  const inEase = o.inEase || E.outBack, outEase = o.outEase || E.inCubic;
+  let op = 0, x = 0, y = 0, s = 1, r = 0;
+  if (t < inS) { op = 0; x = dx; y = dy; s = ds; r = rot; }
+  else if (t < inS + inD) {
+    const p = inEase((t - inS) / inD);
+    op = E.outCubic(clamp((t - inS) / (inD * (o.fadeFrac ?? 0.55)), 0, 1));
+    x = lerp(dx, 0, p); y = lerp(dy, 0, p); s = lerp(ds, 1, p); r = lerp(rot, 0, p);
+  } else if (outS == null || t < outS) { op = 1; }
+  else if (t < outS + outD) {
+    const p = outEase((t - outS) / outD);
+    op = 1 - p; x = lerp(0, odx, p); y = lerp(0, ody, p); s = lerp(1, ods, p);
+  } else { op = 0; }
+  if (o.extraScale) s *= o.extraScale(t);
+  el.style.opacity = op.toFixed(4);
+  el.style.transform = `translate3d(${x.toFixed(2)}px,${y.toFixed(2)}px,0) scale(${s.toFixed(4)}) rotate(${r.toFixed(3)}deg)`;
+  el.style.visibility = op <= 0.002 ? 'hidden' : 'visible';
+  return op;
+}
+
+/* ---------- timeline (seconds) ---------- */
+const T = {
+  duration: 15.0,
+  hook:  { in: 0.00, out: 1.95, outD: 0.25 },
+  prods: { in: 2.05, out: 6.90, outD: 0.30 },
+  bene:  { in: 7.05, out: 9.50, outD: 0.28 },
+  more:  { in: 9.65, out: 11.75, outD: 0.25 },
+  cta:   { in: 11.90 },
+  taps:  [13.45, 14.25],
+};
+
+/* ---------- build DOM from config ---------- */
+let C = null, W = 1080, H = 1920;
+const $ = (sel, root = document) => root.querySelector(sel);
+function h(tag, cls, html) { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
+function el(top, cls, inner) {
+  const wrap = h('div', 'el'); wrap.style.top = top + 'px';
+  const anim = h('div', 'anim ' + (cls || '')); anim.append(inner); wrap.append(anim); return { wrap, anim };
+}
+const R = {}; // refs
+
+function makeGrain() {
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const ctx = c.getContext('2d'); const img = ctx.createImageData(256, 256);
+  let seed = 1337; const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  for (let i = 0; i < img.data.length; i += 4) { const v = 90 + rnd() * 110; img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 255; }
+  ctx.putImageData(img, 0, 0); $('#grain').style.backgroundImage = `url(${c.toDataURL()})`;
+}
+
+function build(config, w, h_) {
+  C = config; W = w || 1080; H = h_ || 1920;
+  document.body.style.width = W + 'px'; document.body.style.height = H + 'px';
+  if (C.accent) document.documentElement.style.setProperty('--accent', C.accent);
+  if (C.accent2) document.documentElement.style.setProperty('--accent2', C.accent2);
+  makeGrain();
+  const stage = $('#stage'); stage.innerHTML = '';
+  const scale = Math.min(W / 1080, H / 1500);
+  stage.dataset.scale = scale;
+
+  // persistent brand pill
+  const pill = el(70, '', h('div', 'pill', `<span class="dot"></span>${C.brand}`));
+  R.pill = pill.anim; stage.append(pill.wrap);
+
+  // --- hook ---
+  const hook = h('div', 'scene'); R.hook = hook;
+  const k1 = el(520, 'center', h('div', 'hook1', C.hook.line1));
+  const k2 = el(642, 'center', h('div', 'sticker', C.hook.line2));
+  const k3 = el(880, 'center', h('div', 'hook3', C.hook.line3));
+  R.k1 = k1.anim; R.k2 = k2.anim; R.k3 = k3.anim;
+  hook.append(k1.wrap, k2.wrap, k3.wrap); stage.append(hook);
+
+  // --- products ---
+  const prods = h('div', 'scene'); R.prods = prods;
+  const p1 = el(150, 'center', h('div', 'h2', C.products.title1));
+  const p2 = el(240, 'center', h('div', 'h2 grad', C.products.title2));
+  R.p1 = p1.anim; R.p2 = p2.anim; prods.append(p1.wrap, p2.wrap);
+  R.cards = []; R.checks = [];
+  C.products.items.slice(0, 4).forEach((p, i) => {
+    const card = h('div', 'card'); card.style.setProperty('--c', p.color);
+    const dark = p.darkIcon ? ' dark' : '';
+    let right;
+    if (p.price) {
+      right = `<div class="pricebox">${p.was ? `<div class="was">${p.was}</div>` : ''}<div class="price">${p.price}<span class="per">${p.period || ''}</span></div></div>`;
+    } else right = '';
+    card.innerHTML = `<div class="ibox${dark}">${icon(p.icon)}</div>
+      <div class="ctext"><div class="cname">${p.name}</div><div class="cplan">${p.plan}</div></div>
+      <div class="cright">${right}<div class="check${dark}">${ICONS.check}</div></div>`;
+    const c = el(400 + i * 200, '', card);
+    R.cards.push(c.anim); R.checks.push($('.check', card)); prods.append(c.wrap);
+  });
+  stage.append(prods);
+
+  // --- benefits ---
+  const bene = h('div', 'scene'); R.bene = bene;
+  const bh = el(300, 'center', h('div', 'h2', C.benefits.title));
+  R.bh = bh.anim; bene.append(bh.wrap); R.brows = [];
+  C.benefits.items.slice(0, 3).forEach((b, i) => {
+    const row = h('div', 'brow', `<div class="bico">${icon(b.icon)}</div><div><div class="btitle">${b.title}</div><div class="bsub">${b.sub}</div></div>`);
+    const r = el(470 + i * 220, '', row); R.brows.push(r.anim); bene.append(r.wrap);
+  });
+  stage.append(bene);
+
+  // --- more ---
+  const more = h('div', 'scene'); R.more = more;
+  const mh = el(380, 'center', h('div', '', `<div class="mhead">${C.more.title}</div><div class="msub">${C.more.sub}</div>`));
+  R.mh = mh.anim; more.append(mh.wrap);
+  const palette = ['#ff0000', '#00c4cc', '#113ccf', '#58cc02', '#4687ff', '#f47521', '#5865f2', '#107c10', '#ff3366', '#8e44ad', '#f1c40f', '#1abc9c'];
+  R.mtracks = [];
+  const rows = [C.more.items.filter((_, i) => i % 2 === 0), C.more.items.filter((_, i) => i % 2 === 1)];
+  rows.forEach((items, ri) => {
+    const row = h('div', 'mrow'); row.style.top = (640 + ri * 124) + 'px';
+    const track = h('div', 'mtrack');
+    const list = [...items, ...items, ...items, ...items];
+    list.forEach((name, j) => { const chip = h('div', 'chip', `<i></i>${name}`); chip.style.setProperty('--c', palette[(j + ri * 5) % palette.length]); track.append(chip); });
+    row.append(track); more.append(row); R.mtracks.push({ track, items: items.length, dir: ri === 0 ? -1 : 1 });
+  });
+  stage.append(more);
+
+  // --- cta ---
+  const cta = h('div', 'scene'); R.cta = cta;
+  const minis = h('div', 'minis');
+  C.products.items.slice(0, 4).forEach(p => { const m = h('div', 'mini' + (p.darkIcon ? ' dark' : ''), icon(p.icon)); m.style.setProperty('--c', p.color); minis.append(m); });
+  const cm = el(300, '', minis); R.cm = cm.anim;
+  const brandHtml = `<div class="mark">${ICONS.bag}</div><div class="word">${C.logo.a}<span class="grad">${C.logo.b}</span><span class="tld">${C.logo.tld}</span></div>`;
+  const cl = el(460, '', h('div', 'logo', brandHtml)); R.cl = cl.anim;
+  const ct = el(640, 'center', h('div', 'tagline', C.cta.tagline)); R.ct = ct.anim;
+  const btn = h('div', 'btn', `<span>${C.cta.button}</span>${ICONS.arrow}<div class="ripple" id="rip1"></div><div class="ripple" id="rip2"></div>`);
+  const cb = el(760, '', btn); R.cb = cb.anim; R.btn = btn;
+  const cu = el(960, '', h('div', 'urlpill', `${ICONS.globe}${C.brand}`)); R.cu = cu.anim;
+  cta.append(cm.wrap, cl.wrap, ct.wrap, cb.wrap, cu.wrap); stage.append(cta);
+
+  R.rips = [$('#rip1'), $('#rip2')];
+  seek(0);
+}
+
+/* ---------- seek: set every style for time t ---------- */
+function seek(t) {
+  const stage = $('#stage'); const base = parseFloat(stage.dataset.scale || '1');
+  // background drift
+  const bx = (cx, cy) => `translate3d(${cx.toFixed(1)}px,${cy.toFixed(1)}px,0)`;
+  const ky = H / 1920;
+  $('#b1').style.transform = bx(540 + 260 * Math.sin(t * 0.45), (420 + 180 * Math.cos(t * 0.35)) * ky);
+  $('#b2').style.transform = bx(140 + 220 * Math.cos(t * 0.3 + 1), (1300 + 200 * Math.sin(t * 0.4)) * ky);
+  $('#b3').style.transform = bx(900 + 200 * Math.sin(t * 0.5 + 2), (1000 + 240 * Math.cos(t * 0.3 + 1)) * ky);
+  const glow = t >= T.cta.in ? 1 + 0.25 * P(t, T.cta.in, 0.6) : 1;
+  $('#b1').style.opacity = glow; $('#b2').style.opacity = glow; $('#b3').style.opacity = glow;
+
+  // screen shake when the sticker lands + at the CTA impact
+  let shx = 0, shy = 0;
+  const shake = (t0, amp, dur) => { if (t >= t0 && t < t0 + dur) { const k = 1 - (t - t0) / dur; shx += Math.sin((t - t0) * 190) * amp * k; shy += Math.cos((t - t0) * 230) * amp * k; } };
+  shake(0.86, 13, 0.22); shake(T.cta.in, 10, 0.25);
+  stage.style.transform = `translate(-50%,-50%) translate(${shx.toFixed(1)}px,${shy.toFixed(1)}px) scale(${base})`;
+
+  // flash at CTA
+  $('#flash').style.opacity = (t >= T.cta.in ? 0.55 * (1 - P(t, T.cta.in, 0.4, E.outCubic)) : 0).toFixed(3);
+
+  // brand pill
+  show(R.pill, t, 0.30, 0.5, T.cta.in - 0.1, 0.25, { dy: -40, ds: 0.9, ody: -40 });
+
+  // --- hook ---
+  const hk = T.hook;
+  const vis = (scene, a, b) => { scene.style.display = (t >= a - 0.01 && t < b) ? '' : 'none'; };
+  vis(R.hook, hk.in, hk.out + hk.outD + 0.05);
+  show(R.k1, t, 0.10, 0.5, hk.out, hk.outD, { dy: 60, ds: 0.96, inEase: E.outQuint, ody: -40, ods: 0.94 });
+  show(R.k2, t, 0.42, 0.5, hk.out, hk.outD, { dy: 0, ds: 2.2, inEase: E.outExpo, fadeFrac: 0.25, ods: 0.9, ody: -30 });
+  show(R.k3, t, 1.10, 0.45, hk.out, hk.outD, { dy: 40, ds: 1, inEase: E.outCubic, ody: -40 });
+
+  // --- products ---
+  const pr = T.prods;
+  vis(R.prods, pr.in, pr.out + pr.outD + 0.3);
+  show(R.p1, t, pr.in + 0.05, 0.5, pr.out, pr.outD, { dy: 60, ds: 0.96, inEase: E.outQuint, ody: -60 });
+  show(R.p2, t, pr.in + 0.18, 0.5, pr.out, pr.outD, { dy: 60, ds: 0.96, inEase: E.outQuint, ody: -60 });
+  R.cards.forEach((c, i) => {
+    const s = pr.in + 0.32 + i * 0.3;
+    show(c, t, s, 0.62, pr.out + i * 0.04, pr.outD, { dy: 110, ds: 0.86, inEase: E.outBack, ody: -40, ods: 0.95 });
+    const cp = P(t, s + 0.38, 0.45, E.outBackHard);
+    R.checks[i].style.transform = `scale(${cp.toFixed(3)})`; R.checks[i].style.opacity = cp > 0 ? 1 : 0;
+  });
+
+  // --- benefits ---
+  const be = T.bene;
+  vis(R.bene, be.in, be.out + be.outD + 0.2);
+  show(R.bh, t, be.in + 0.05, 0.5, be.out, be.outD, { dy: 60, ds: 0.96, inEase: E.outQuint, ody: -60 });
+  R.brows.forEach((r, i) => show(r, t, be.in + 0.3 + i * 0.22, 0.6, be.out + i * 0.04, be.outD, { dx: -120, dy: 0, ds: 0.96, inEase: E.outBack, odx: 120, ody: 0 }));
+
+  // --- more ---
+  const mo = T.more;
+  vis(R.more, mo.in, mo.out + mo.outD + 0.2);
+  show(R.mh, t, mo.in + 0.05, 0.5, mo.out, mo.outD, { dy: 50, ds: 0.9, inEase: E.outBack, ody: -50 });
+  R.mtracks.forEach((m, ri) => {
+    const op = show(m.track.parentElement, t, mo.in + 0.2 + ri * 0.1, 0.5, mo.out, mo.outD, { dy: 40, ds: 1, inEase: E.outCubic, ody: 0 });
+    const w = m.track.scrollWidth / 4 || 1000; // one copy of the items
+    const speed = 150; // px / s
+    let off = ((t - mo.in) * speed) % w; if (m.dir < 0) off = -off; else off = off - w;
+    m.track.style.transform = `translate3d(${off.toFixed(1)}px,0,0)`;
+  });
+
+  // --- cta ---
+  const ct = T.cta;
+  vis(R.cta, ct.in, 1e9);
+  show(R.cm, t, ct.in + 0.05, 0.6, null, 0, { dy: 50, ds: 0.6, inEase: E.outBack });
+  show(R.cl, t, ct.in + 0.1, 0.65, null, 0, { dy: 30, ds: 0.55, inEase: E.outBack });
+  show(R.ct, t, ct.in + 0.4, 0.5, null, 0, { dy: 40, ds: 0.96, inEase: E.outQuint });
+  const pulse = (tt) => {
+    let s = 1 + 0.03 * Math.sin((tt - ct.in) * 2 * Math.PI * 1.15);
+    T.taps.forEach(tp => { if (tt >= tp && tt < tp + 0.35) { const q = (tt - tp) / 0.35; s *= 1 - 0.09 * Math.sin(q * Math.PI); } });
+    return s;
+  };
+  show(R.cb, t, ct.in + 0.55, 0.65, null, 0, { dy: 50, ds: 0.6, inEase: E.outBack, extraScale: pulse });
+  show(R.cu, t, ct.in + 0.85, 0.5, null, 0, { dy: 40, ds: 0.96, inEase: E.outQuint });
+  R.rips.forEach((r, i) => {
+    const tp = T.taps[i]; if (!tp) return;
+    if (t >= tp && t < tp + 0.7) { const q = P(t, tp, 0.7, E.outCubic); r.style.opacity = (0.9 * (1 - q)).toFixed(3); r.style.transform = `scale(${(1 + 0.55 * q).toFixed(3)})`; }
+    else r.style.opacity = 0;
+  });
+}
+
+/* events for the audio script (sfx sync) */
+function getEvents() {
+  const ev = [];
+  ev.push({ t: 0.10, type: 'whoosh' });
+  ev.push({ t: 0.86, type: 'slam' });
+  ev.push({ t: T.prods.in, type: 'whoosh' });
+  for (let i = 0; i < 4; i++) ev.push({ t: T.prods.in + 0.32 + i * 0.3 + 0.12, type: 'pop', idx: i });
+  for (let i = 0; i < 4; i++) ev.push({ t: T.prods.in + 0.32 + i * 0.3 + 0.5, type: 'tick', idx: i });
+  ev.push({ t: T.bene.in, type: 'whoosh' });
+  for (let i = 0; i < 3; i++) ev.push({ t: T.bene.in + 0.3 + i * 0.22 + 0.1, type: 'pop', idx: i });
+  ev.push({ t: T.more.in, type: 'whoosh' });
+  ev.push({ t: T.cta.in - 1.0, type: 'riser', dur: 1.0 });
+  ev.push({ t: T.cta.in, type: 'impact' });
+  ev.push({ t: T.cta.in + 0.55 + 0.1, type: 'pop', idx: 0 });
+  T.taps.forEach(tp => ev.push({ t: tp, type: 'tap' }));
+  return { duration: T.duration, sections: { drop: T.prods.in, cta: T.cta.in }, events: ev };
+}
+window.build = build; window.seek = seek; window.getEvents = getEvents; window.T = T;
+
+/* standalone preview in a browser: ?t=3.2 seeks, otherwise it plays */
+if (!window.__RENDER__) {
+  fetch('config.el.json').then(r => r.json()).then(cfg => {
+    build(cfg, 1080, 1920);
+    const q = new URLSearchParams(location.search);
+    if (q.has('t')) seek(parseFloat(q.get('t')));
+    else { const t0 = performance.now(); (function loop() { seek(((performance.now() - t0) / 1000) % T.duration); requestAnimationFrame(loop); })(); }
+  });
+}
+</script>
+</body>
+</html>

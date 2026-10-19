@@ -1,0 +1,38 @@
+{
+  "brand": "resellshop.xyz",
+  "logo": { "a": "resell", "b": "shop", "tld": ".xyz" },
+  "accent": "#ffd60a",
+  "accent2": "#ff7a59",
+  "hook": {
+    "line1": "Πληρώνεις ακόμα",
+    "line2": "FULL ΤΙΜΗ;",
+    "line3": "για <b>Netflix</b>, <b>Spotify</b>, <b>ChatGPT</b> &amp; <b>Claude</b>;"
+  },
+  "products": {
+    "title1": "Premium συνδρομές",
+    "title2": "πολύ πιο φθηνά.",
+    "items": [
+      { "name": "Claude",  "plan": "Pro",     "icon": "spark", "color": "#d97757" },
+      { "name": "ChatGPT", "plan": "Plus",    "icon": "chat",  "color": "#10a37f" },
+      { "name": "Spotify", "plan": "Premium", "icon": "bars",  "color": "#1db954", "darkIcon": true },
+      { "name": "Netflix", "plan": "Premium", "icon": "play",  "color": "#e50914" }
+    ]
+  },
+  "benefits": {
+    "title": "Γρήγορα & σίγουρα",
+    "items": [
+      { "icon": "bolt",    "title": "Άμεση παράδοση",  "sub": "Η συνδρομή σου σε λίγα λεπτά" },
+      { "icon": "lock",    "title": "Ασφαλής πληρωμή", "sub": "Απλά, γρήγορα, χωρίς κρυφές χρεώσεις" },
+      { "icon": "headset", "title": "Υποστήριξη",      "sub": "Είμαστε εδώ για ό,τι χρειαστείς" }
+    ]
+  },
+  "more": {
+    "title": "+ πολλά ακόμα",
+    "sub": "Ό,τι συνδρομή χρειάζεσαι, σε ένα μέρος",
+    "items": ["YouTube Premium", "Canva Pro", "Disney+", "Duolingo Plus", "NordVPN", "Crunchyroll", "Discord Nitro", "Xbox Game Pass", "Adobe Creative Cloud", "HBO Max", "Apple Music", "Microsoft 365"]
+  },
+  "cta": {
+    "tagline": "Η συνδρομή σου, σε λίγα λεπτά.",
+    "button": "Αγόρασε τώρα"
+  }
+}

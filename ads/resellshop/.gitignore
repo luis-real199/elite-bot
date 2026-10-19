@@ -1,0 +1,7 @@
+# regenerable render artefacts
+out/stills*/
+out/*.log
+out/*.wav
+out/events.json
+out/*.png
+out/audio-check.jpg
