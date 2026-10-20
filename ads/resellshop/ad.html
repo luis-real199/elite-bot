@@ -4,27 +4,26 @@
 <meta charset="utf-8">
 <title>resellshop.xyz — video ad scene</title>
 <style>
-  :root { --accent: #ffd60a; --accent2: #ff7a59; }
+  :root { --fg: #fff; --muted: rgba(255,255,255,.62); --line: rgba(255,255,255,.13); --glass: rgba(255,255,255,.045); --glass2: rgba(255,255,255,.085); }
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; background: #07070f; overflow: hidden; }
+  html, body { margin: 0; padding: 0; background: #000; overflow: hidden; }
   body {
-    width: 1080px; height: 1920px; position: relative; color: #fff;
+    width: 1080px; height: 1920px; position: relative; color: var(--fg);
     font-family: "Inter Display", "Inter", system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased; text-rendering: geometricPrecision;
   }
-  #bg { position: absolute; inset: 0; overflow: hidden;
-        background: radial-gradient(120% 70% at 50% 0%, #15152b 0%, #07070f 65%); }
+  #bg { position: absolute; inset: 0; overflow: hidden; background: #000; }
   .blob { position: absolute; width: 1500px; height: 1500px; left: -750px; top: -750px; border-radius: 50%; }
-  .b1 { background: radial-gradient(circle, rgba(124,58,237,.62) 0%, rgba(124,58,237,0) 62%); }
-  .b2 { background: radial-gradient(circle, rgba(37,99,235,.55) 0%, rgba(37,99,235,0) 62%); }
-  .b3 { background: radial-gradient(circle, rgba(236,72,153,.42) 0%, rgba(236,72,153,0) 62%); }
+  .b1 { background: radial-gradient(circle, rgba(255,255,255,.17) 0%, rgba(255,255,255,.05) 30%, rgba(255,255,255,0) 62%); }
+  .b2 { background: radial-gradient(circle, rgba(255,255,255,.08) 0%, rgba(255,255,255,0) 60%); }
+  .b3 { background: radial-gradient(circle, rgba(214,222,255,.07) 0%, rgba(214,222,255,0) 60%); }
   #grid { position: absolute; inset: 0;
-          background-image: radial-gradient(rgba(255,255,255,.09) 1.6px, transparent 1.8px);
+          background-image: radial-gradient(rgba(255,255,255,.085) 1.6px, transparent 1.8px);
           background-size: 46px 46px;
           -webkit-mask-image: radial-gradient(65% 45% at 50% 45%, #000 0%, transparent 100%); }
   #vignette { position: absolute; inset: 0;
-              background: radial-gradient(85% 65% at 50% 50%, transparent 50%, rgba(0,0,0,.7) 100%); }
-  #grain { position: absolute; inset: 0; opacity: .09; mix-blend-mode: overlay; background-repeat: repeat; }
+              background: radial-gradient(80% 60% at 50% 50%, transparent 45%, rgba(0,0,0,.75) 100%); }
+  #grain { position: absolute; inset: 0; opacity: .11; mix-blend-mode: soft-light; background-repeat: repeat; }
   #flash { position: absolute; inset: 0; background: radial-gradient(60% 45% at 50% 50%, #fff 0%, rgba(255,255,255,0) 100%); opacity: 0; }
 
   #stage { position: absolute; left: 50%; top: 50%; width: 1080px; height: 1500px; transform-origin: 50% 50%; }
@@ -33,86 +32,88 @@
   .anim { will-change: transform, opacity; }
   .center { text-align: center; }
 
+  /* white tile with black glyph, used for every icon */
+  .tile { background: #fff; display: flex; align-items: center; justify-content: center; flex: none; position: relative;
+          box-shadow: 0 0 46px rgba(255,255,255,.22), 0 18px 40px -16px rgba(0,0,0,.8), inset 0 -3px 0 rgba(0,0,0,.08); }
+  .tile svg { color: #000; }
+  .tile.c { box-shadow: 0 0 56px color-mix(in srgb, var(--c) 42%, transparent), 0 18px 40px -16px rgba(0,0,0,.8), inset 0 -3px 0 rgba(0,0,0,.08); }
+
   /* top brand pill */
-  .pill { display: inline-flex; align-items: center; gap: 14px; padding: 16px 30px 16px 20px; border-radius: 999px;
-          background: rgba(255,255,255,.08); border: 1.5px solid rgba(255,255,255,.16);
-          font-size: 34px; font-weight: 700; letter-spacing: .01em; backdrop-filter: blur(14px); }
-  .pill .dot { width: 14px; height: 14px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 18px #22c55e; }
+  .pill { display: inline-flex; align-items: center; gap: 14px; padding: 16px 30px 16px 22px; border-radius: 999px;
+          background: var(--glass); border: 1.5px solid var(--line); font-size: 34px; font-weight: 600; letter-spacing: .005em; color: rgba(255,255,255,.9); }
+  .pill .dot { width: 12px; height: 12px; border-radius: 50%; background: #fff; box-shadow: 0 0 16px #fff, 0 0 4px #fff; }
 
   /* hook */
-  .hook1 { font-size: 86px; font-weight: 800; letter-spacing: -.02em; text-shadow: 0 10px 40px rgba(0,0,0,.4); }
-  .sticker { display: inline-block; padding: 18px 44px 24px; border-radius: 28px; background: var(--accent); color: #0b0b12;
-             font-size: 150px; font-weight: 900; letter-spacing: -.035em; line-height: 1;
-             box-shadow: 0 30px 70px -20px rgba(255,214,10,.55), 0 0 0 10px rgba(255,214,10,.14); transform: rotate(-3deg); }
-  .hook3 { font-size: 42px; font-weight: 600; color: rgba(255,255,255,.78); }
-  .hook3 b { color: #fff; font-weight: 800; }
+  .hook1 { font-size: 86px; font-weight: 700; letter-spacing: -.025em; color: rgba(255,255,255,.92); }
+  .sticker { display: inline-block; padding: 18px 46px 26px; border-radius: 28px; background: #fff; color: #000;
+             font-size: 150px; font-weight: 900; letter-spacing: -.04em; line-height: 1;
+             box-shadow: 0 0 110px rgba(255,255,255,.38), 0 0 0 10px rgba(255,255,255,.07), 0 40px 80px -30px rgba(0,0,0,.9); transform: rotate(-3deg); }
+  .hook3 { font-size: 42px; font-weight: 500; color: var(--muted); }
+  .hook3 b { color: #fff; font-weight: 700; }
 
   /* products */
-  .h2 { font-size: 78px; font-weight: 900; letter-spacing: -.03em; line-height: 1.05; text-shadow: 0 10px 40px rgba(0,0,0,.35); }
-  .grad { background: linear-gradient(92deg, var(--accent) 0%, var(--accent2) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .h2 { font-size: 78px; font-weight: 800; letter-spacing: -.035em; line-height: 1.05; }
+  .h2.dim { color: rgba(255,255,255,.6); font-weight: 700; }
+  .grad { color: #fff; text-shadow: 0 0 50px rgba(255,255,255,.45); }
   .card { width: 930px; height: 176px; border-radius: 40px; display: flex; align-items: center; gap: 30px; padding: 0 40px 0 28px;
-          background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.05)); border: 1.5px solid rgba(255,255,255,.14);
-          box-shadow: 0 30px 60px -24px rgba(0,0,0,.6), 0 24px 70px -30px var(--c); position: relative; overflow: hidden; }
-  .card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 8px; background: var(--c); opacity: .9; }
-  .card::after { content: ""; position: absolute; inset: 0; background: radial-gradient(60% 120% at 0% 50%, color-mix(in srgb, var(--c) 22%, transparent) 0%, transparent 70%); }
-  .ibox { width: 118px; height: 118px; border-radius: 30px; background: var(--c); display: flex; align-items: center; justify-content: center; flex: none;
-          box-shadow: 0 16px 36px -10px color-mix(in srgb, var(--c) 80%, transparent), inset 0 -4px 0 rgba(0,0,0,.18); position: relative; }
-  .ibox svg { width: 66px; height: 66px; color: #fff; filter: drop-shadow(0 4px 8px rgba(0,0,0,.25)); }
-  .ibox.dark svg { color: #0b0b12; }
+          background: linear-gradient(180deg, var(--glass2), var(--glass)); border: 1.5px solid var(--line);
+          box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 30px 60px -30px rgba(0,0,0,.9); position: relative; overflow: hidden; }
+  .card::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+                 background: radial-gradient(42% 150% at 0% 50%, color-mix(in srgb, var(--c) 16%, transparent) 0%, transparent 70%); }
+  .ibox { width: 118px; height: 118px; border-radius: 30px; }
+  .ibox svg { width: 66px; height: 66px; }
   .ctext { flex: 1; min-width: 0; position: relative; }
-  .cname { font-size: 62px; font-weight: 800; letter-spacing: -.025em; line-height: 1; white-space: nowrap; }
-  .cplan { display: inline-flex; align-items: center; gap: 10px; margin-top: 12px; padding: 6px 18px; border-radius: 999px; font-size: 28px; font-weight: 700;
-           background: color-mix(in srgb, var(--c) 28%, rgba(255,255,255,.04)); color: #fff; border: 1.5px solid color-mix(in srgb, var(--c) 55%, transparent); }
+  .cname { font-size: 62px; font-weight: 800; letter-spacing: -.03em; line-height: 1; white-space: nowrap; }
+  .cplan { display: inline-flex; align-items: center; margin-top: 12px; padding: 6px 18px; border-radius: 999px; font-size: 28px; font-weight: 600;
+           background: rgba(255,255,255,.07); color: rgba(255,255,255,.85); border: 1.5px solid var(--line); }
   .cright { position: relative; display: flex; align-items: center; gap: 16px; flex: none; }
-  .check { width: 76px; height: 76px; border-radius: 50%; background: var(--c); display: flex; align-items: center; justify-content: center;
-           box-shadow: 0 10px 30px -8px var(--c); }
-  .check svg { width: 42px; height: 42px; color: #fff; }
-  .check.dark svg { color: #0b0b12; }
+  .check { width: 76px; height: 76px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center;
+           box-shadow: 0 0 36px rgba(255,255,255,.3); }
+  .check svg { width: 42px; height: 42px; color: #000; }
   .pricebox { text-align: right; line-height: 1; }
-  .was { font-size: 30px; font-weight: 600; color: rgba(255,255,255,.55); text-decoration: line-through; text-decoration-thickness: 3px; margin-bottom: 8px; }
-  .price { font-size: 60px; font-weight: 900; letter-spacing: -.03em; color: var(--accent); }
-  .price .per { font-size: 26px; font-weight: 700; color: rgba(255,255,255,.7); margin-left: 4px; letter-spacing: 0; }
+  .was { font-size: 30px; font-weight: 500; color: rgba(255,255,255,.45); text-decoration: line-through; text-decoration-thickness: 3px; margin-bottom: 8px; }
+  .price { font-size: 60px; font-weight: 800; letter-spacing: -.03em; color: #fff; }
+  .price .per { font-size: 26px; font-weight: 600; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
 
   /* benefits */
   .brow { width: 930px; height: 184px; border-radius: 40px; display: flex; align-items: center; gap: 32px; padding: 0 36px;
-          background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.05)); border: 1.5px solid rgba(255,255,255,.14);
-          box-shadow: 0 30px 60px -24px rgba(0,0,0,.6); }
-  .bico { width: 112px; height: 112px; border-radius: 30px; flex: none; display: flex; align-items: center; justify-content: center;
-          background: linear-gradient(135deg, var(--accent), var(--accent2)); box-shadow: 0 14px 36px -10px rgba(255,160,60,.7); }
-  .bico svg { width: 60px; height: 60px; color: #0b0b12; }
-  .btitle { font-size: 54px; font-weight: 800; letter-spacing: -.02em; line-height: 1.05; }
-  .bsub { font-size: 32px; font-weight: 500; color: rgba(255,255,255,.72); margin-top: 10px; }
+          background: linear-gradient(180deg, var(--glass2), var(--glass)); border: 1.5px solid var(--line);
+          box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 30px 60px -30px rgba(0,0,0,.9); }
+  .bico { width: 112px; height: 112px; border-radius: 30px; }
+  .bico svg { width: 60px; height: 60px; }
+  .btitle { font-size: 54px; font-weight: 800; letter-spacing: -.025em; line-height: 1.05; }
+  .bsub { font-size: 32px; font-weight: 500; color: var(--muted); margin-top: 10px; }
 
   /* more */
-  .mhead { font-size: 92px; font-weight: 900; letter-spacing: -.035em; line-height: 1; }
-  .msub { font-size: 40px; font-weight: 600; color: rgba(255,255,255,.75); margin-top: 18px; }
+  .mhead { font-size: 92px; font-weight: 800; letter-spacing: -.04em; line-height: 1; text-shadow: 0 0 60px rgba(255,255,255,.3); }
+  .msub { font-size: 40px; font-weight: 500; color: var(--muted); margin-top: 18px; }
   .mrow { position: absolute; left: 0; width: 1080px; overflow: hidden; height: 96px;
           -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%); }
   .mtrack { position: absolute; left: 0; top: 0; display: flex; gap: 20px; white-space: nowrap; will-change: transform; }
-  .chip { display: inline-flex; align-items: center; gap: 16px; height: 96px; padding: 0 34px 0 24px; border-radius: 999px; font-size: 38px; font-weight: 700;
-          background: rgba(255,255,255,.09); border: 1.5px solid rgba(255,255,255,.16); }
-  .chip i { width: 18px; height: 18px; border-radius: 50%; background: var(--c); box-shadow: 0 0 16px var(--c); }
+  .chip { display: inline-flex; align-items: center; gap: 16px; height: 96px; padding: 0 34px 0 26px; border-radius: 999px; font-size: 38px; font-weight: 600;
+          background: var(--glass); border: 1.5px solid var(--line); color: rgba(255,255,255,.9); }
+  .chip i { width: 12px; height: 12px; border-radius: 50%; background: #fff; box-shadow: 0 0 14px rgba(255,255,255,.9); }
 
   /* cta */
   .logo { display: flex; align-items: center; gap: 26px; }
-  .logo .mark { width: 128px; height: 128px; border-radius: 36px; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: flex; align-items: center; justify-content: center;
-                box-shadow: 0 24px 60px -16px rgba(255,170,60,.75); }
-  .logo .mark svg { width: 72px; height: 72px; color: #0b0b12; }
-  .logo .word { font-size: 112px; font-weight: 900; letter-spacing: -.045em; line-height: 1; }
-  .logo .word .tld { font-size: 60px; font-weight: 700; color: rgba(255,255,255,.6); letter-spacing: -.02em; margin-left: 6px; }
-  .tagline { font-size: 50px; font-weight: 700; color: rgba(255,255,255,.88); letter-spacing: -.01em; }
-  .btn { position: relative; display: inline-flex; align-items: center; gap: 22px; padding: 34px 64px 36px 70px; border-radius: 999px;
-         background: linear-gradient(92deg, var(--accent), var(--accent2)); color: #0b0b12; font-size: 66px; font-weight: 900; letter-spacing: -.025em;
-         box-shadow: 0 30px 80px -20px rgba(255,170,60,.85), 0 0 0 12px rgba(255,214,10,.12); }
+  .logo .mark { width: 128px; height: 128px; border-radius: 36px; }
+  .logo .mark svg { width: 72px; height: 72px; }
+  .logo .word { font-size: 112px; font-weight: 800; letter-spacing: -.05em; line-height: 1; text-shadow: 0 0 60px rgba(255,255,255,.25); }
+  .logo .word .tld { font-size: 60px; font-weight: 600; color: rgba(255,255,255,.5); letter-spacing: -.02em; margin-left: 6px; text-shadow: none; }
+  .tagline { font-size: 50px; font-weight: 600; color: rgba(255,255,255,.8); letter-spacing: -.015em; }
+  .btn { position: relative; display: inline-flex; align-items: center; gap: 22px; padding: 34px 64px 36px 70px; border-radius: 999px; overflow: hidden;
+         background: #fff; color: #000; font-size: 66px; font-weight: 800; letter-spacing: -.03em;
+         box-shadow: 0 0 120px rgba(255,255,255,.4), 0 0 0 12px rgba(255,255,255,.07), 0 40px 80px -30px rgba(0,0,0,.9); }
   .btn svg { width: 64px; height: 64px; }
-  .ripple { position: absolute; left: 50%; top: 50%; width: 560px; height: 160px; margin: -80px 0 0 -280px; border-radius: 999px; border: 6px solid var(--accent); opacity: 0; pointer-events: none; }
-  .urlpill { display: inline-flex; align-items: center; gap: 16px; padding: 18px 36px 18px 26px; border-radius: 999px; font-size: 44px; font-weight: 700;
-             background: rgba(255,255,255,.08); border: 1.5px solid rgba(255,255,255,.16); backdrop-filter: blur(14px); }
-  .urlpill svg { width: 44px; height: 44px; color: var(--accent); }
+  .btn .shine { position: absolute; top: -40px; bottom: -40px; left: 0; width: 160px; pointer-events: none;
+                background: linear-gradient(100deg, rgba(0,0,0,0) 0%, rgba(0,0,0,.09) 50%, rgba(0,0,0,0) 100%); transform: translateX(-300px) skewX(-12deg); }
+  .ripple { position: absolute; left: 50%; top: 50%; width: 560px; height: 160px; margin: -80px 0 0 -280px; border-radius: 999px; border: 6px solid #fff; opacity: 0; pointer-events: none; }
+  .urlpill { display: inline-flex; align-items: center; gap: 16px; padding: 18px 36px 18px 26px; border-radius: 999px; font-size: 44px; font-weight: 600;
+             background: var(--glass); border: 1.5px solid var(--line); color: rgba(255,255,255,.92); }
+  .urlpill svg { width: 44px; height: 44px; color: #fff; }
   .minis { display: flex; gap: 18px; }
-  .mini { width: 92px; height: 92px; border-radius: 26px; background: var(--c); display: flex; align-items: center; justify-content: center; box-shadow: 0 14px 30px -10px var(--c); }
-  .mini svg { width: 50px; height: 50px; color: #fff; }
-  .mini.dark svg { color: #0b0b12; }
+  .mini { width: 92px; height: 92px; border-radius: 26px; }
+  .mini svg { width: 50px; height: 50px; }
 </style>
 </head>
 <body>
@@ -218,8 +219,6 @@ function makeGrain() {
 function build(config, w, h_) {
   C = config; W = w || 1080; H = h_ || 1920;
   document.body.style.width = W + 'px'; document.body.style.height = H + 'px';
-  if (C.accent) document.documentElement.style.setProperty('--accent', C.accent);
-  if (C.accent2) document.documentElement.style.setProperty('--accent2', C.accent2);
   makeGrain();
   const stage = $('#stage'); stage.innerHTML = '';
   const scale = Math.min(W / 1080, H / 1500);
@@ -239,20 +238,20 @@ function build(config, w, h_) {
 
   // --- products ---
   const prods = h('div', 'scene'); R.prods = prods;
-  const p1 = el(150, 'center', h('div', 'h2', C.products.title1));
+  const p1 = el(150, 'center', h('div', 'h2 dim', C.products.title1));
   const p2 = el(240, 'center', h('div', 'h2 grad', C.products.title2));
   R.p1 = p1.anim; R.p2 = p2.anim; prods.append(p1.wrap, p2.wrap);
   R.cards = []; R.checks = [];
   C.products.items.slice(0, 4).forEach((p, i) => {
     const card = h('div', 'card'); card.style.setProperty('--c', p.color);
-    const dark = p.darkIcon ? ' dark' : '';
+    const dark = '';
     let right;
     if (p.price) {
       right = `<div class="pricebox">${p.was ? `<div class="was">${p.was}</div>` : ''}<div class="price">${p.price}<span class="per">${p.period || ''}</span></div></div>`;
     } else right = '';
-    card.innerHTML = `<div class="ibox${dark}">${icon(p.icon)}</div>
+    card.innerHTML = `<div class="ibox tile c">${icon(p.icon)}</div>
       <div class="ctext"><div class="cname">${p.name}</div><div class="cplan">${p.plan}</div></div>
-      <div class="cright">${right}<div class="check${dark}">${ICONS.check}</div></div>`;
+      <div class="cright">${right}<div class="check">${ICONS.check}</div></div>`;
     const c = el(400 + i * 200, '', card);
     R.cards.push(c.anim); R.checks.push($('.check', card)); prods.append(c.wrap);
   });
@@ -263,7 +262,7 @@ function build(config, w, h_) {
   const bh = el(300, 'center', h('div', 'h2', C.benefits.title));
   R.bh = bh.anim; bene.append(bh.wrap); R.brows = [];
   C.benefits.items.slice(0, 3).forEach((b, i) => {
-    const row = h('div', 'brow', `<div class="bico">${icon(b.icon)}</div><div><div class="btitle">${b.title}</div><div class="bsub">${b.sub}</div></div>`);
+    const row = h('div', 'brow', `<div class="bico tile">${icon(b.icon)}</div><div><div class="btitle">${b.title}</div><div class="bsub">${b.sub}</div></div>`);
     const r = el(470 + i * 220, '', row); R.brows.push(r.anim); bene.append(r.wrap);
   });
   stage.append(bene);
@@ -287,12 +286,12 @@ function build(config, w, h_) {
   // --- cta ---
   const cta = h('div', 'scene'); R.cta = cta;
   const minis = h('div', 'minis');
-  C.products.items.slice(0, 4).forEach(p => { const m = h('div', 'mini' + (p.darkIcon ? ' dark' : ''), icon(p.icon)); m.style.setProperty('--c', p.color); minis.append(m); });
+  C.products.items.slice(0, 4).forEach(p => { const m = h('div', 'mini tile c', icon(p.icon)); m.style.setProperty('--c', p.color); minis.append(m); });
   const cm = el(300, '', minis); R.cm = cm.anim;
-  const brandHtml = `<div class="mark">${ICONS.bag}</div><div class="word">${C.logo.a}<span class="grad">${C.logo.b}</span><span class="tld">${C.logo.tld}</span></div>`;
+  const brandHtml = `<div class="mark tile">${ICONS.bag}</div><div class="word">${C.logo.a}<span class="grad">${C.logo.b}</span><span class="tld">${C.logo.tld}</span></div>`;
   const cl = el(460, '', h('div', 'logo', brandHtml)); R.cl = cl.anim;
   const ct = el(640, 'center', h('div', 'tagline', C.cta.tagline)); R.ct = ct.anim;
-  const btn = h('div', 'btn', `<span>${C.cta.button}</span>${ICONS.arrow}<div class="ripple" id="rip1"></div><div class="ripple" id="rip2"></div>`);
+  const btn = h('div', 'btn', `<span>${C.cta.button}</span>${ICONS.arrow}<div class="shine" id="shine"></div><div class="ripple" id="rip1"></div><div class="ripple" id="rip2"></div>`);
   const cb = el(760, '', btn); R.cb = cb.anim; R.btn = btn;
   const cu = el(960, '', h('div', 'urlpill', `${ICONS.globe}${C.brand}`)); R.cu = cu.anim;
   cta.append(cm.wrap, cl.wrap, ct.wrap, cb.wrap, cu.wrap); stage.append(cta);
@@ -376,6 +375,9 @@ function seek(t) {
   };
   show(R.cb, t, ct.in + 0.55, 0.65, null, 0, { dy: 50, ds: 0.6, inEase: E.outBack, extraScale: pulse });
   show(R.cu, t, ct.in + 0.85, 0.5, null, 0, { dy: 40, ds: 0.96, inEase: E.outQuint });
+  { const sh = $('#shine'); let sx = -300;
+    [ct.in + 1.3, ct.in + 2.4].forEach(t0 => { if (t >= t0 && t < t0 + 0.8) sx = lerp(-300, 900, E.inOutCubic((t - t0) / 0.8)); });
+    sh.style.transform = `translateX(${sx.toFixed(1)}px) skewX(-12deg)`; }
   R.rips.forEach((r, i) => {
     const tp = T.taps[i]; if (!tp) return;
     if (t >= tp && t < tp + 0.7) { const q = P(t, tp, 0.7, E.outCubic); r.style.opacity = (0.9 * (1 - q)).toFixed(3); r.style.transform = `scale(${(1 + 0.55 * q).toFixed(3)})`; }

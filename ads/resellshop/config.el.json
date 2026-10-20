@@ -1,8 +1,6 @@
 {
   "brand": "resellshop.xyz",
   "logo": { "a": "resell", "b": "shop", "tld": ".xyz" },
-  "accent": "#ffd60a",
-  "accent2": "#ff7a59",
   "hook": {
     "line1": "Πληρώνεις ακόμα",
     "line2": "FULL ΤΙΜΗ;",
@@ -14,7 +12,7 @@
     "items": [
       { "name": "Claude",  "plan": "Pro",     "icon": "spark", "color": "#d97757" },
       { "name": "ChatGPT", "plan": "Plus",    "icon": "chat",  "color": "#10a37f" },
-      { "name": "Spotify", "plan": "Premium", "icon": "bars",  "color": "#1db954", "darkIcon": true },
+      { "name": "Spotify", "plan": "Premium", "icon": "bars",  "color": "#1db954" },
       { "name": "Netflix", "plan": "Premium", "icon": "play",  "color": "#e50914" }
     ]
   },
